@@ -27,6 +27,11 @@ const en = {
   outOfCredits: "You're out of credits. Get a pack to keep designing.",
   notEnough: (n: number) => (n === 0 ? "You're out of credits." : `You have ${n === 1 ? "1 credit" : `${n} credits`}. Pick fewer styles or get more.`),
   network: "Couldn't reach DecoHero. Check your connection and try again.",
+  config: "This build of DecoHero isn't set up to reach its server. Please update the app.",
+  rateLimited: "That was a lot of designs at once. Wait a minute and try again.",
+  busy: "DecoHero is very busy right now. Please try again later.",
+  freeDailyLimit: "Free designs are used up for today. Try again tomorrow, or get credits to keep designing.",
+  tooLarge: "That photo is too large. Try another photo or take a new one.",
   getCredits: "Get credits",
   shopTitle: "Get credits",
   shopSub: "One credit makes one design. Credits never expire, and any purchase removes the DecoHero mark from new designs.",
@@ -66,6 +71,11 @@ const es: Strings = {
   outOfCredits: "Te quedaste sin créditos. Compra un paquete para seguir diseñando.",
   notEnough: (n) => (n === 0 ? "Te quedaste sin créditos." : `Tienes ${n === 1 ? "1 crédito" : `${n} créditos`}. Elige menos estilos o compra más.`),
   network: "No pudimos conectar con DecoHero. Revisa tu conexión e inténtalo de nuevo.",
+  config: "Esta versión de DecoHero no está configurada para conectar con su servidor. Actualiza la app.",
+  rateLimited: "Fueron muchos diseños a la vez. Espera un minuto e inténtalo de nuevo.",
+  busy: "DecoHero está muy ocupado ahora. Inténtalo de nuevo más tarde.",
+  freeDailyLimit: "Ya se usaron los diseños gratis de hoy. Inténtalo mañana o consigue créditos para seguir diseñando.",
+  tooLarge: "Esa foto es demasiado grande. Prueba con otra foto o toma una nueva.",
   getCredits: "Comprar créditos",
   shopTitle: "Comprar créditos",
   shopSub: "Un crédito es un diseño. Los créditos no vencen, y cualquier compra quita la marca DecoHero de tus nuevos diseños.",
@@ -85,4 +95,20 @@ export const t: Strings = lang === "es" ? es : en;
 export function styleName(id: string): string {
   const s = STYLE_PRESETS.find((p) => p.id === id);
   return s ? s[lang] : id;
+}
+
+/** Friendly text for an API error code (see src/api.ts). */
+export function errorMessage(code?: string, fallback: string = t.failed): string {
+  switch (code) {
+    case "NO_CREDITS": return t.outOfCredits;
+    case "NETWORK": return t.network;
+    case "CONFIG": return t.config;
+    case "RATE_LIMITED":
+    case "HTTP_429": return t.rateLimited;
+    case "DAILY_LIMIT": return t.busy;
+    case "FREE_DAILY_LIMIT": return t.freeDailyLimit;
+    case "TOO_LARGE":
+    case "HTTP_413": return t.tooLarge;
+    default: return fallback;
+  }
 }

@@ -3,8 +3,15 @@ import { GoogleGenAI } from "@google/genai";
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
 
-const ai = new GoogleGenAI({ apiKey });
+// The key is read from the environment only. Never log it, return it or write it to disk.
+const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 120_000 } });
 export const IMAGE_MODEL = process.env.IMAGE_MODEL || "gemini-3.1-flash-image";
+
+/** One-line, key-free description of an error, safe for logs. */
+export function describeError(err: unknown): string {
+  const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return msg.split(apiKey!).join("[redacted]").replace(/AIza[0-9A-Za-z_-]{20,}/g, "[redacted]").slice(0, 300);
+}
 
 export async function generateRedesign(imageJpegBase64: string, prompt: string): Promise<Buffer> {
   const response = await ai.models.generateContent({

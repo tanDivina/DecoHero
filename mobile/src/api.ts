@@ -1,4 +1,6 @@
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? "";
+// Release builds only talk to an https server (app.config.js also blocks such builds at bundle time).
+const BAD_CONFIG = !__DEV__ && !BASE.startsWith("https://");
 
 export class ApiError extends Error {
   constructor(public code: string, public credits?: number) {
@@ -7,6 +9,7 @@ export class ApiError extends Error {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  if (BAD_CONFIG) throw new ApiError("CONFIG");
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {

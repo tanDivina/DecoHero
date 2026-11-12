@@ -7,7 +7,7 @@ import { api, ApiError } from "./src/api";
 import { getInstallId } from "./src/identity";
 import { initPurchases } from "./src/purchases";
 import { saveToGallery, shareImage, writeTempJpeg } from "./src/files";
-import { t } from "./src/i18n";
+import { errorMessage, t } from "./src/i18n";
 import type { Photo } from "./src/photo";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { Result, ResultsScreen } from "./src/screens/ResultsScreen";
@@ -43,8 +43,8 @@ export default function App() {
       try {
         const me = await api.me(id);
         setCredits(me.credits);
-      } catch {
-        showNotice(t.network);
+      } catch (e) {
+        showNotice(errorMessage(e instanceof ApiError ? e.code : undefined, t.network));
       }
     })();
   }, [showNotice]);

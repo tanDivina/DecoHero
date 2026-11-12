@@ -9,3 +9,10 @@ coverage/
 server/data/
 *.db
 *.db-*
+
+# signing + builds
+*.jks
+*.keystore
+*.aab
+*.apk
+mobile/android/

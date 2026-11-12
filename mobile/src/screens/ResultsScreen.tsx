@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
-import { styleName, t } from "../i18n";
+import { errorMessage, styleName, t } from "../i18n";
 import { color, font, space } from "../theme";
 
 export type Result = {
@@ -89,9 +89,9 @@ export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, on
             {item.status === "error" && (
               <View style={{ gap: space(3) }}>
                 <Text style={styles.error}>
-                  {item.errorCode === "NO_CREDITS" ? t.outOfCredits : item.errorCode === "NETWORK" ? t.network : t.failed}
+                  {errorMessage(item.errorCode)}
                 </Text>
-                {item.errorCode === "NO_CREDITS" && <Button label={t.getCredits} onPress={onOpenShop} />}
+                {(item.errorCode === "NO_CREDITS" || item.errorCode === "FREE_DAILY_LIMIT") && <Button label={t.getCredits} onPress={onOpenShop} />}
               </View>
             )}
           </View>

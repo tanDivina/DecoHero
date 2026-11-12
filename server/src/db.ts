@@ -36,11 +36,25 @@ db.exec(`
     reason TEXT,
     created_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS daily_usage (
+    day TEXT PRIMARY KEY,
+    total INTEGER NOT NULL DEFAULT 0,
+    free INTEGER NOT NULL DEFAULT 0
+  );
   CREATE INDEX IF NOT EXISTS users_ip_created ON users (ip, created_at);
 `);
 
 const FREE_CREDITS = Number(process.env.FREE_CREDITS ?? 3);
 const MAX_NEW_PER_IP = Number(process.env.MAX_NEW_INSTALLS_PER_IP_PER_DAY ?? 3);
+
+// Hard spend caps (UTC day). Every Gemini call costs money, so these are counted before the call
+// and never given back, even if the call fails. 0 disables generation entirely.
+const envInt = (name: string, fallback: number) => {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+};
+export const MAX_GENERATIONS_PER_DAY = envInt("MAX_GENERATIONS_PER_DAY", 300);
+export const MAX_FREE_GENERATIONS_PER_DAY = envInt("MAX_FREE_GENERATIONS_PER_DAY", 100);
 
 export type User = { id: string; credits: number; paid: number };
 
@@ -102,3 +116,16 @@ export function addReport(userId: string, styleId: string | null, reason: string
     userId, styleId, reason.slice(0, 500), Date.now()
   );
 }
+
+export type CapResult = "OK" | "DAILY_LIMIT" | "FREE_DAILY_LIMIT";
+
+/** Atomically books one generation against today's global (and, for free users, free) cap. */
+export const reserveGeneration = db.transaction((paid: boolean): CapResult => {
+  const day = new Date().toISOString().slice(0, 10);
+  db.prepare("INSERT OR IGNORE INTO daily_usage (day, total, free) VALUES (?, 0, 0)").run(day);
+  const row = db.prepare("SELECT total, free FROM daily_usage WHERE day = ?").get(day) as { total: number; free: number };
+  if (row.total >= MAX_GENERATIONS_PER_DAY) return "DAILY_LIMIT";
+  if (!paid && row.free >= MAX_FREE_GENERATIONS_PER_DAY) return "FREE_DAILY_LIMIT";
+  db.prepare("UPDATE daily_usage SET total = total + 1, free = free + ? WHERE day = ?").run(paid ? 0 : 1, day);
+  return "OK";
+});
