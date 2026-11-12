@@ -23,11 +23,16 @@ module.exports = ({ config }) => {
   const isRelease =
     process.env.NODE_ENV === "production" || process.env.EAS_BUILD_PROFILE === "production";
   if (isRelease) {
-    const problem = apiUrlProblem(process.env.EXPO_PUBLIC_API_URL);
+    const rcKey = process.env.EXPO_PUBLIC_RC_ANDROID_KEY;
+    const problem =
+      apiUrlProblem(process.env.EXPO_PUBLIC_API_URL) ||
+      (!rcKey || !rcKey.startsWith("goog_") || rcKey.includes("xxxx")
+        ? "EXPO_PUBLIC_RC_ANDROID_KEY must be the RevenueCat Google Play public key (goog_...), or the shop is empty"
+        : null);
     if (problem) {
       throw new Error(
         `[DecoHero] Refusing to build a release: ${problem}. ` +
-          "Set the deployed server URL (https://...) in mobile/.env.production or the shell env."
+          "Set it in mobile/.env.production or the shell env."
       );
     }
   }

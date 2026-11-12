@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, StatusBar, StyleSheet, Text, View } from "react-native";
+import { AppState, BackHandler, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { InstrumentSerif_400Regular, useFonts } from "@expo-google-fonts/instrument-serif";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,11 +12,12 @@ import type { Photo } from "./src/photo";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { Result, ResultsScreen } from "./src/screens/ResultsScreen";
 import { ShopScreen } from "./src/screens/ShopScreen";
+import { AboutScreen } from "./src/screens/AboutScreen";
 import { color, space } from "./src/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-type Screen = "home" | "results" | "shop";
+type Screen = "home" | "results" | "shop" | "about";
 
 export default function App() {
   const [fontsLoaded] = useFonts({ InstrumentSerif_400Regular });
@@ -48,6 +49,15 @@ export default function App() {
       }
     })();
   }, [showNotice]);
+
+  // Refresh the balance when the app comes back to the foreground (e.g. a pending payment cleared).
+  useEffect(() => {
+    if (!installId) return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") api.me(installId).then((me) => setCredits(me.credits)).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [installId]);
 
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
@@ -117,9 +127,11 @@ export default function App() {
             onPhoto={setPhoto}
             onRedesign={redesign}
             onOpenShop={openShop}
+            onOpenAbout={() => setScreen("about")}
             onNotice={showNotice}
           />
         )}
+        {screen === "about" && <AboutScreen installId={installId} onBack={() => setScreen("home")} />}
         {screen === "results" && photo && (
           <ResultsScreen
             originalUri={photo.uri}

@@ -44,6 +44,18 @@ const en = {
   back: "Back",
   aiNotice: "Designs are AI-generated ideas, not exact products or measurements.",
   bestValue: "Best value",
+  paymentPending: "Your payment is pending. Credits are added as soon as Google Play confirms it.",
+  purchaseNotAllowed: "Purchases aren't allowed on this device or account.",
+  storeProblem: "Google Play had a problem. You weren't charged. Try again in a moment.",
+  purchaseFailed: "The purchase didn't go through. You weren't charged.",
+  purchaseSlow: "Your credits are on the way. They'll show up in a minute or two.",
+  about: "About and privacy",
+  aboutTitle: "About",
+  aboutBody: "DecoHero turns a photo of your room into design ideas. Photos are sent to our server only to create your designs. We don't store them.",
+  privacyPolicy: "Privacy policy",
+  installIdLabel: "Your install ID",
+  installIdHelp: "This anonymous ID holds your credits. To have your data deleted, send us this ID (see the privacy policy for how).",
+  shareInstallId: "Share install ID",
 };
 
 type Strings = typeof en;
@@ -88,6 +100,18 @@ const es: Strings = {
   back: "Volver",
   aiNotice: "Los diseños son ideas generadas con IA, no productos ni medidas exactas.",
   bestValue: "Mejor precio",
+  paymentPending: "Tu pago está pendiente. Los créditos se agregan en cuanto Google Play lo confirme.",
+  purchaseNotAllowed: "Las compras no están permitidas en este dispositivo o cuenta.",
+  storeProblem: "Google Play tuvo un problema. No se te cobró. Inténtalo de nuevo en un momento.",
+  purchaseFailed: "La compra no se completó. No se te cobró.",
+  purchaseSlow: "Tus créditos van en camino. Aparecerán en uno o dos minutos.",
+  about: "Información y privacidad",
+  aboutTitle: "Información",
+  aboutBody: "DecoHero convierte una foto de tu espacio en ideas de diseño. Las fotos se envían a nuestro servidor solo para crear tus diseños. No las guardamos.",
+  privacyPolicy: "Política de privacidad",
+  installIdLabel: "Tu ID de instalación",
+  installIdHelp: "Este ID anónimo guarda tus créditos. Para que borremos tus datos, envíanos este ID (la política de privacidad explica cómo).",
+  shareInstallId: "Compartir ID de instalación",
 };
 
 export const t: Strings = lang === "es" ? es : en;

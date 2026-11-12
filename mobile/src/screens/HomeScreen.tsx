@@ -13,10 +13,11 @@ type Props = {
   onPhoto: (p: Photo) => void;
   onRedesign: (styleIds: string[]) => void;
   onOpenShop: () => void;
+  onOpenAbout: () => void;
   onNotice: (msg: string) => void;
 };
 
-export function HomeScreen({ credits, photo, onPhoto, onRedesign, onOpenShop, onNotice }: Props) {
+export function HomeScreen({ credits, photo, onPhoto, onRedesign, onOpenShop, onOpenAbout, onNotice }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [picking, setPicking] = useState<"camera" | "gallery" | null>(null);
 
@@ -84,6 +85,9 @@ export function HomeScreen({ credits, photo, onPhoto, onRedesign, onOpenShop, on
           })}
         </View>
         <Text style={styles.tip}>{t.tip}</Text>
+        <Pressable onPress={onOpenAbout} style={styles.about} hitSlop={8} accessibilityRole="button">
+          <Text style={styles.aboutText}>{t.about}</Text>
+        </Pressable>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -146,6 +150,8 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 15, color: color.ink },
   chipTextOn: { fontWeight: "700" },
   tip: { marginTop: space(5), fontSize: 14, lineHeight: 20, color: color.stone },
+  about: { marginTop: space(6), alignSelf: "flex-start" },
+  aboutText: { color: color.stone, fontSize: 14, textDecorationLine: "underline" },
   short: { color: color.stone, fontSize: 14, textAlign: "center", marginBottom: space(2) },
   footer: { paddingHorizontal: space(5), paddingTop: space(3), paddingBottom: space(2), backgroundColor: color.limewash },
 });

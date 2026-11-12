@@ -44,6 +44,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS users_ip_created ON users (ip, created_at);
 `);
 
+// Migrations for databases created before refunds were handled.
+const purchaseCols = (db.prepare("PRAGMA table_info(purchases)").all() as { name: string }[]).map((c) => c.name);
+if (!purchaseCols.includes("transaction_id")) db.exec("ALTER TABLE purchases ADD COLUMN transaction_id TEXT");
+if (!purchaseCols.includes("refunded_at")) db.exec("ALTER TABLE purchases ADD COLUMN refunded_at INTEGER");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS purchases_transaction ON purchases (transaction_id) WHERE transaction_id IS NOT NULL");
+
 const FREE_CREDITS = Number(process.env.FREE_CREDITS ?? 3);
 const MAX_NEW_PER_IP = Number(process.env.MAX_NEW_INSTALLS_PER_IP_PER_DAY ?? 3);
 
@@ -89,14 +95,19 @@ export function getCredits(id: string): number {
   return row?.credits ?? 0;
 }
 
-/** Idempotent: RevenueCat retries webhooks, so the event id guards against double-crediting. */
+/**
+ * Idempotent: RevenueCat retries webhooks, so both the event id and the store transaction id
+ * guard against double-crediting the same purchase.
+ */
 export const grantPurchase = db.transaction(
-  (eventId: string, userId: string, productId: string, credits: number): boolean => {
-    const seen = db.prepare("SELECT 1 FROM purchases WHERE event_id = ?").get(eventId);
+  (eventId: string, userId: string, productId: string, credits: number, transactionId: string | null): boolean => {
+    const seen = db
+      .prepare("SELECT 1 FROM purchases WHERE event_id = ? OR (? IS NOT NULL AND transaction_id = ?)")
+      .get(eventId, transactionId, transactionId);
     if (seen) return false;
     db.prepare(
-      "INSERT INTO purchases (event_id, user_id, product_id, credits, created_at) VALUES (?, ?, ?, ?, ?)"
-    ).run(eventId, userId, productId, credits, Date.now());
+      "INSERT INTO purchases (event_id, user_id, product_id, credits, transaction_id, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(eventId, userId, productId, credits, transactionId, Date.now());
     db.prepare(
       `INSERT INTO users (id, credits, paid, ip, created_at) VALUES (?, ?, 1, NULL, ?)
        ON CONFLICT(id) DO UPDATE SET credits = credits + excluded.credits, paid = 1`
@@ -104,6 +115,24 @@ export const grantPurchase = db.transaction(
     return true;
   }
 );
+
+/**
+ * Refund (RevenueCat CANCELLATION of a one-time purchase): takes the pack's credits back, never below 0.
+ * Idempotent through refunded_at. Returns the number of credits removed, or null if nothing matched.
+ */
+export const refundPurchase = db.transaction((transactionIds: string[]): number | null => {
+  for (const tx of transactionIds) {
+    const p = db
+      .prepare("SELECT user_id, credits FROM purchases WHERE transaction_id = ? AND refunded_at IS NULL")
+      .get(tx) as { user_id: string; credits: number } | undefined;
+    if (!p) continue;
+    db.prepare("UPDATE purchases SET refunded_at = ? WHERE transaction_id = ?").run(Date.now(), tx);
+    const before = getCredits(p.user_id);
+    db.prepare("UPDATE users SET credits = MAX(0, credits - ?) WHERE id = ?").run(p.credits, p.user_id);
+    return before - getCredits(p.user_id);
+  }
+  return null;
+});
 
 export function logGeneration(userId: string, styleId: string, ok: boolean) {
   db.prepare("INSERT INTO generations (user_id, style_id, ok, created_at) VALUES (?, ?, ?, ?)").run(
@@ -129,3 +158,12 @@ export const reserveGeneration = db.transaction((paid: boolean): CapResult => {
   db.prepare("UPDATE daily_usage SET total = total + 1, free = free + ? WHERE day = ?").run(paid ? 0 : 1, day);
   return "OK";
 });
+
+/**
+ * Privacy retention: the IP is only needed for the free-credit check, which looks back 24 hours.
+ * Blank it once the install is 48 hours old. Returns the number of rows cleared.
+ */
+export function purgeOldIps(): number {
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  return db.prepare("UPDATE users SET ip = NULL WHERE ip IS NOT NULL AND created_at < ?").run(cutoff).changes;
+}

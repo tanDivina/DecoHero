@@ -6,8 +6,8 @@ import sharp from "sharp";
 import { buildPrompt } from "./styles.js";
 import { describeError, generateRedesign, IMAGE_MODEL } from "./gemini.js";
 import {
-  addReport, getCredits, getOrCreateUser, grantPurchase, logGeneration,
-  MAX_FREE_GENERATIONS_PER_DAY, MAX_GENERATIONS_PER_DAY, refundCredits, reserveGeneration, spendCredits,
+  addReport, getCredits, getOrCreateUser, grantPurchase, logGeneration, purgeOldIps,
+  MAX_FREE_GENERATIONS_PER_DAY, MAX_GENERATIONS_PER_DAY, refundCredits, refundPurchase, reserveGeneration, spendCredits,
 } from "./db.js";
 
 // Map your Google Play product ids (Play Console + RevenueCat) to credit amounts.
@@ -160,11 +160,27 @@ app.post("/webhooks/revenuecat", (req, res) => {
     res.status(400).end();
     return;
   }
-  const credits = CREDIT_PACKS[event.product_id];
-  const purchaseTypes = ["NON_RENEWING_PURCHASE", "INITIAL_PURCHASE"];
-  if (credits && purchaseTypes.includes(event.type) && typeof event.app_user_id === "string") {
-    const granted = grantPurchase(event.id, event.app_user_id, event.product_id, credits);
-    console.log(`purchase ${event.id}: ${event.product_id} -> ${event.app_user_id} (granted=${granted})`);
+  const str = (v: unknown) => (typeof v === "string" && v ? v : null);
+  const transactionIds = [str(event.transaction_id), str(event.original_transaction_id)].filter((v): v is string => !!v);
+
+  if (event.type === "NON_RENEWING_PURCHASE" || event.type === "INITIAL_PURCHASE") {
+    const credits = CREDIT_PACKS[event.product_id];
+    // The app logs in to RevenueCat with its install id. If the event carries an anonymous RevenueCat id,
+    // fall back to an install id among its aliases so the credits land on an account the app can read.
+    const candidates = [event.app_user_id, event.original_app_user_id, ...(Array.isArray(event.aliases) ? event.aliases : [])];
+    const userId = candidates.find((c): c is string => typeof c === "string" && INSTALL_ID.test(c));
+    if (!credits) {
+      console.warn(`purchase ${event.id}: unknown product ${String(event.product_id)}, ignored`);
+    } else if (!userId) {
+      console.warn(`purchase ${event.id}: no install id in app_user_id/aliases (${String(event.app_user_id)}), not credited`);
+    } else {
+      const granted = grantPurchase(event.id, userId, event.product_id, credits, transactionIds[0] ?? null);
+      console.log(`purchase ${event.id}: ${event.product_id} -> ${userId} (granted=${granted}, ${event.environment ?? "?"})`);
+    }
+  } else if (event.type === "CANCELLATION" && transactionIds.length) {
+    // For one-time purchases RevenueCat sends CANCELLATION when Google refunds the order.
+    const removed = refundPurchase(transactionIds);
+    console.log(`refund ${event.id}: ${event.product_id} (${event.cancel_reason ?? "?"}) removed=${removed ?? "no matching purchase"}`);
   }
   res.status(200).json({ ok: true });
 });
@@ -179,6 +195,18 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   if (status === 500) console.error(`unhandled: ${describeError(err)}`);
   res.status(status).json({ error: status === 413 ? "TOO_LARGE" : status === 500 ? "SERVER_ERROR" : "BAD_REQUEST" });
 });
+
+// Retention: blank stored IPs older than 48 h, at startup and then hourly.
+const runIpPurge = () => {
+  try {
+    const n = purgeOldIps();
+    if (n) console.log(`retention: cleared ip on ${n} users older than 48h`);
+  } catch (err) {
+    console.error(`retention purge failed: ${describeError(err)}`);
+  }
+};
+runIpPurge();
+setInterval(runIpPurge, 60 * 60 * 1000).unref();
 
 if (!process.env.REVENUECAT_WEBHOOK_SECRET) console.warn("REVENUECAT_WEBHOOK_SECRET is not set: purchases will be rejected");
 const port = Number(process.env.PORT || 8080);

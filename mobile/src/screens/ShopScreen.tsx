@@ -31,15 +31,22 @@ export function ShopScreen({ credits, onBack, waitForCredits, onNotice }: Props)
     setBusy(pkg.identifier);
     try {
       const before = credits ?? 0;
-      const ok = await buyPack(pkg);
-      if (!ok) return;
+      const result = await buyPack(pkg);
+      if (result === "cancelled") return;
+      if (result === "pending") return onNotice(t.paymentPending);
+      if (result === "notAllowed") return onNotice(t.purchaseNotAllowed);
+      if (result === "store") return onNotice(t.storeProblem);
+      if (result === "network") return onNotice(t.network);
+      if (result === "error") return onNotice(t.purchaseFailed);
       onNotice(t.purchasePending);
       if (await waitForCredits(before)) {
         onNotice(t.purchaseDone);
         onBack();
+      } else {
+        onNotice(t.purchaseSlow);
       }
     } catch {
-      onNotice(t.network);
+      onNotice(t.purchaseFailed);
     } finally {
       setBusy(null);
     }
