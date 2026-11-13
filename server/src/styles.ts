@@ -22,7 +22,11 @@ export const STYLE_PROMPTS: Record<string, string> = {
   "art-deco": "Style: art deco. Geometric patterns, emerald and gold, curved velvet furniture, lacquer, glamorous lighting."
 };
 
+/** Own keys only, so ids like "constructor" or "__proto__" are not styles. */
+export function isStyle(styleId: unknown): styleId is string {
+  return typeof styleId === "string" && Object.hasOwn(STYLE_PROMPTS, styleId);
+}
+
 export function buildPrompt(styleId: string): string | null {
-  const style = STYLE_PROMPTS[styleId];
-  return style ? `${BASE}\n\n${style}` : null;
+  return isStyle(styleId) ? `${BASE}\n\n${STYLE_PROMPTS[styleId]}` : null;
 }

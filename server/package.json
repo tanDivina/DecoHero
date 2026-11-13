@@ -7,7 +7,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx test/smoke.ts",
+    "watermark-sample": "tsx scripts/watermark-sample.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

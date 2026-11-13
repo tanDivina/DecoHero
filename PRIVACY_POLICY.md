@@ -21,7 +21,7 @@ The first time you open DecoHero, it creates a random install ID on your phone. 
 
 | Record | What it contains | Why |
 |---|---|---|
-| Install record | Install ID, credit balance, whether you have ever bought credits, the date it was created, and the IP address your install first connected from (for IPv6, only the network part, the first four blocks). The IP address is erased automatically once the install is 48 hours old. | Keep your credit balance. The IP address lets us give free credits to at most three new installs per IP address per day, so free credits cannot be farmed. |
+| Install record | Install ID, credit balance, whether you have ever bought credits, whether the install was refused free credits because of the limit described here, the date it was created, and the IP address your install first connected from (for IPv6, only the network part, the first four blocks). The IP address is erased automatically once the install is 48 hours old. | Keep your credit balance. The IP address lets us give free credits to a limited number of new installs per IP address per day, so free credits cannot be farmed. |
 | Purchases | Install ID, the credit pack bought, the number of credits, the RevenueCat event ID, the Google Play transaction ID, the time, and the time of any refund | Add the credits you paid for exactly once, and remove them again if the purchase is refunded |
 | Design log | Install ID, the style generated, whether it worked, and the time | Spot abuse, control costs and answer support questions |
 | Reports | Install ID, the style of the design you reported, and the time. The report does not include your photo or the design. | Review AI output that users flag |
@@ -29,7 +29,7 @@ The first time you open DecoHero, it creates a random install ID on your phone. 
 
 **IP address.** Besides the copy in the install record, the server also keeps your IP address in memory for up to 10 minutes to limit how many requests one connection can make. That copy is not written to disk.
 
-**Server logs.** Our hosting provider keeps the server's log output for a limited period set by the provider. These logs contain error messages, for each purchase the install ID and the credit pack, and for each refund the credit pack. They do not contain photos or designs.
+**Server logs.** Our hosting provider keeps the server's log output for a limited period set by the provider. These logs contain error messages, for each purchase the install ID and the credit pack, and for each refund the credit pack. They do not contain photos or designs. The provider's request logs also record the IP address, time and web address of each request to our server; for older versions of the app that address includes the install ID.
 
 ## 3. Buying credits
 Payments are handled by Google Play. We never see your card details, and our server does not receive your name or the email address of your Google account. We use RevenueCat to confirm purchases: the app gives RevenueCat your install ID as its user ID, and RevenueCat receives your Google Play purchase details and basic technical information from its SDK (such as app version and device platform). RevenueCat then tells our server which credit pack to add. If Google Play refunds a purchase, RevenueCat tells our server and the credits from that pack are removed from your balance.

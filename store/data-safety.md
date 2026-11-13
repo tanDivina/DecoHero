@@ -13,10 +13,10 @@ If the server changes what it stores, update both.
 | Anonymous install ID (random UUID kept in SecureStore) | DecoHero server; RevenueCat as the app user ID | `mobile/src/identity.ts`, `mobile/src/purchases.ts` |
 | Chosen style IDs, report flags (style ID + fixed reason `user_flag`, no image) | DecoHero server | `api.redesign`, `api.report` |
 | Purchases (product, transaction) | Google Play Billing, RevenueCat, then RevenueCat webhook to the server | `react-native-purchases`, `server/src/index.ts` |
-| IP address | DecoHero server (rate limiting, free-credit abuse limit) | `server/src/index.ts` `clientIp`, `server/src/db.ts` `users.ip` |
+| IP address | DecoHero server (rate limiting, free-credit abuse limit) | `server/src/app.ts` `clientIp`, `server/src/db.ts` `users.ip` |
 
 Server tables (`server/src/db.ts`), kept indefinitely except `users.ip` (blanked at 48 h, see below):
-- `users`: install id, credits, paid flag, **ip** (first IP seen, IPv6 cut to /64; NULL if the row was created
+- `users`: install id, credits, paid flag, free_denied flag, **ip** (first IP seen, IPv6 cut to /64; NULL if the row was created
   by the RevenueCat webhook), created_at. `users.ip` is set to NULL once the row is 48 h old
   (`purgeOldIps`, run at startup and hourly, commit 33235db)
 - `purchases`: RevenueCat event id, store transaction id, install id, product id, credits, created_at,
