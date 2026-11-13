@@ -12,7 +12,7 @@ DecoHero is made by Divina Endeavors LLC (Hero Apps), United States, the data co
 This policy covers the DecoHero Android app, the DecoHero web app at https://deco.hero-apps.com/app and the website at https://deco.hero-apps.com.
 
 ## In short
-DecoHero has no ads and no analytics. To make a redesign, the app sends the room photo you choose to our server, which passes it to Google's Gemini API and sends the design back to your device. We do not store your photos or the designs. Our server does keep a small record so your credits work: your credit balance, your purchases, which styles you generated, any designs you reported, and, for the first 48 hours only, the IP address you first connected from.
+DecoHero has no ads, and we run no analytics or tracking of our own. To make a redesign, the app sends the room photo you choose to our server, which passes it to Google's Gemini API and sends the design back to your device. We do not store your photos or the designs. Our server does keep a small record so your credits work: your credit balance, your purchases, which styles you generated, any designs you reported, and, for the first 48 hours only, the IP address you first connected from.
 
 - **Android app:** there are no accounts. The record is linked to a random install ID.
 - **Web app:** there are accounts. You sign in with Google through Firebase Authentication, and the record is linked to the user ID of that sign-in. Our server does not store your email address, name or profile picture; Firebase Authentication, a Google service, holds your Google email address and name.
@@ -57,13 +57,13 @@ The Android app has no sign-in. The web app uses Google sign-in through Firebase
 ## 4. Buying credits
 **Android app.** Payments are handled by Google Play. We never see your card details, and our server does not receive your name or the email address of your Google account. We use RevenueCat to confirm purchases: the app gives RevenueCat your install ID as its user ID, and RevenueCat receives your Google Play purchase details and basic technical information from its SDK (such as app version and device platform). RevenueCat then tells our server which credit pack to add. If Google Play refunds a purchase, RevenueCat tells our server and the credits from that pack are removed from your balance.
 
-**Web app.** Payments are handled by Stripe through RevenueCat Web Billing. You type your card details into a checkout form run by RevenueCat and Stripe. DecoHero never sees or stores your card number. The web app passes your random user ID and the email address of your Google sign-in to the checkout, so RevenueCat receives your user ID, that email address (used for the receipt) and the purchase details. Stripe receives your payment details and email address, plus technical information it uses to prevent fraud, such as your IP address and browser. RevenueCat then tells our server which credit pack to add. If a purchase is refunded, RevenueCat tells our server and the credits from that pack are removed from your balance.
+**Web app.** Payments are handled by Stripe through RevenueCat Web Billing. You type your card details into a checkout form run by RevenueCat and Stripe. DecoHero never sees or stores your card number. The web app passes your random user ID and the email address of your Google sign-in to the checkout, so RevenueCat receives your user ID, that email address (used for the receipt) and the purchase details. Stripe receives your payment details and email address, plus technical information it uses to prevent fraud, such as your IP address and browser. The RevenueCat checkout software in the web app also sends RevenueCat technical events about the checkout (for example that the checkout opened, or that a payment step failed), which RevenueCat uses to process and support purchases. RevenueCat then tells our server which credit pack to add. If a purchase is refunded, RevenueCat tells our server and the credits from that pack are removed from your balance.
 
 ## 5. Who else receives data
 | Provider | What it receives | Why |
 |---|---|---|
 | Google Gemini API (Google LLC) | Your room photo and the style instruction | Creates the redesign |
-| RevenueCat, Inc. | Install ID or user ID, purchase details, basic device, browser and app information; on the web also the email address of your Google sign-in | Confirms purchases and tells our server to add credits |
+| RevenueCat, Inc. | Install ID or user ID, purchase details, basic device, browser and app information; on the web also the email address of your Google sign-in and technical events from the checkout | Confirms purchases and tells our server to add credits |
 | Google Play (Google LLC) | Your purchase, under your Google account (Android app) | Processes the payment |
 | Stripe, Inc. | Your card and payment details, email address, IP address and browser information (web app) | Processes card payments on the web and prevents fraud |
 | Firebase Authentication (Google LLC) | Your Google account's user ID, email address, name and profile picture address, plus IP address and browser details of sign-ins (web app), as our processor | Google sign-in on the web |
@@ -92,12 +92,12 @@ The web app keeps a small amount of data in your browser's storage (local storag
 - your sign-in session, managed by Firebase Authentication, so you stay signed in;
 - app settings such as your language choice.
 
-During checkout, Stripe and RevenueCat may set their own cookies or browser storage to process the payment and prevent fraud. The website and the web app set no advertising or analytics cookies. Signing out, or clearing the site data for deco.hero-apps.com in your browser, removes what the web app stored.
+During checkout, Stripe and RevenueCat may set their own cookies or browser storage to process the payment and prevent fraud. We set no advertising or analytics cookies on the website or in the web app. Signing out, or clearing the site data for deco.hero-apps.com in your browser, removes what the web app stored.
 
 <!-- TODO(Dorien): once the web app is final, list the exact local storage keys here (check the built app in the browser's dev tools: Application > Storage) and confirm that nothing else is stored. -->
 
 ## 9. What we do not do
-- No advertising, no advertising ID, no analytics SDKs and no crash reporting SDKs.
+- No advertising and no advertising ID. We run no analytics and no crash reporting of our own, and the apps contain no advertising, analytics or crash reporting SDKs. The only third-party events are the technical checkout events the RevenueCat software sends to RevenueCat when you buy credits on the web (section 4).
 - No selling of personal data, and no use of your photos to train AI models.
 - Android app: no accounts, passwords or sign-in.
 - Web app: no passwords of our own. Sign-in is handled by Google, and our server stores no email address, name or profile picture.
@@ -105,7 +105,11 @@ During checkout, Stripe and RevenueCat may set their own cookies or browser stor
 ## 10. How long we keep data, and deleting it
 Photos and designs are not kept on our server at all. The IP address in your install or account record is erased automatically once the record is 48 hours old. The other records in section 2 have no automatic expiry at the moment: we keep them until you delete them or ask us to delete them. Purchase records may need to be kept longer where tax or accounting law requires it.
 
-**Web app.** Open About and privacy in the web app and choose Delete account. This immediately removes the link to your sign-in, your credit balance, your design log and your reports from our server, and deletes your account in Firebase Authentication. Purchase records are kept for tax and accounting, no longer linked to the account. Unused credits are lost and cannot be restored. If you cannot sign in, email support@hero-apps.com from the address of your Google account and we will delete the account for you.
+**Web app.** Open About and privacy in the web app and choose Delete account. This immediately removes the link to your sign-in, your credit balance, your design log and your reports from our server, and deletes your account in Firebase Authentication. Purchase records are kept for tax and accounting, no longer linked to the account. Unused credits are lost and cannot be restored.
+
+After the deletion we keep two things for a short time, only to prevent abuse: a one-way salted hash of your sign-in ID for 2 hours, so that a session that was still open cannot re-create the account, and the record that free starter credits were given to your IP address, which is deleted after 48 hours like the other IP data.
+
+If you cannot sign in, email support@hero-apps.com from the address of your Google account and we will delete the account for you.
 
 <!-- TODO(Dorien): account deletion does not remove the customer record that RevenueCat and Stripe hold for past web purchases. Decide whether to say so here, or to delete those on request. -->
 

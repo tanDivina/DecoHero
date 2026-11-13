@@ -8,7 +8,11 @@
       "destination": "https://decohero-web.firebaseapp.com/__/auth/:path*"
     },
     {
-      "source": "/app/:path*",
+      "source": "/__/firebase/:path*",
+      "destination": "https://decohero-web.firebaseapp.com/__/firebase/:path*"
+    },
+    {
+      "source": "/app/((?!_expo/|assets/).*)",
       "destination": "/app/index.html"
     }
   ],
@@ -76,8 +80,12 @@
           "value": "no-cache"
         },
         {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' https://apis.google.com https://*.googleapis.com https://js.stripe.com https://*.revenuecat.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://splendid-inspiration-production-08761935.up.railway.app https://*.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://accounts.google.com https://*.firebaseapp.com https://api.revenuecat.com https://*.revenuecat.com https://api.stripe.com; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://js.stripe.com https://hooks.stripe.com https://*.revenuecat.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' https://apis.google.com https://*.googleapis.com https://js.stripe.com https://*.revenuecat.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://splendid-inspiration-production-08761935.up.railway.app https://*.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://accounts.google.com https://*.firebaseapp.com https://api.revenuecat.com https://*.revenuecat.com https://api.stripe.com https://e.revenue.cat; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://js.stripe.com https://hooks.stripe.com https://*.revenuecat.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
         }
       ]
     },
@@ -89,8 +97,12 @@
           "value": "no-cache"
         },
         {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' https://apis.google.com https://*.googleapis.com https://js.stripe.com https://*.revenuecat.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://splendid-inspiration-production-08761935.up.railway.app https://*.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://accounts.google.com https://*.firebaseapp.com https://api.revenuecat.com https://*.revenuecat.com https://api.stripe.com; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://js.stripe.com https://hooks.stripe.com https://*.revenuecat.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' https://apis.google.com https://*.googleapis.com https://js.stripe.com https://*.revenuecat.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://splendid-inspiration-production-08761935.up.railway.app https://*.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://accounts.google.com https://*.firebaseapp.com https://api.revenuecat.com https://*.revenuecat.com https://api.stripe.com https://e.revenue.cat; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://js.stripe.com https://hooks.stripe.com https://*.revenuecat.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
         }
       ]
     },

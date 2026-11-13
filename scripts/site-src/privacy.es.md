@@ -9,7 +9,7 @@ DecoHero es una app de Divina Endeavors LLC (Hero Apps), Estados Unidos, respons
 Esta política cubre la app DecoHero para Android, la app web de DecoHero en https://deco.hero-apps.com/app y el sitio web https://deco.hero-apps.com.
 
 ## En resumen
-DecoHero no tiene anuncios ni analítica. Para crear un rediseño, la app envía la foto de la habitación que eliges a nuestro servidor, que la pasa a la API Gemini de Google y devuelve el diseño a tu dispositivo. No guardamos tus fotos ni los diseños. Nuestro servidor sí guarda un pequeño registro para que tus créditos funcionen: tu saldo de créditos, tus compras, qué estilos generaste, los diseños que reportaste y, solo durante las primeras 48 horas, la dirección IP desde la que te conectaste por primera vez.
+DecoHero no tiene anuncios, y no hacemos analítica ni seguimiento propios. Para crear un rediseño, la app envía la foto de la habitación que eliges a nuestro servidor, que la pasa a la API Gemini de Google y devuelve el diseño a tu dispositivo. No guardamos tus fotos ni los diseños. Nuestro servidor sí guarda un pequeño registro para que tus créditos funcionen: tu saldo de créditos, tus compras, qué estilos generaste, los diseños que reportaste y, solo durante las primeras 48 horas, la dirección IP desde la que te conectaste por primera vez.
 
 - **App para Android:** no hay cuentas. El registro está vinculado a un ID de instalación aleatorio.
 - **App web:** sí hay cuentas. Inicias sesión con Google mediante Firebase Authentication, y el registro está vinculado al ID de usuario de ese inicio de sesión. Nuestro servidor no guarda tu correo, tu nombre ni tu foto de perfil; Firebase Authentication, un servicio de Google, conserva el correo y el nombre de tu cuenta de Google.
@@ -54,13 +54,13 @@ La app para Android no tiene inicio de sesión. La app web usa el inicio de sesi
 ## 4. Compra de créditos
 **App para Android.** Los pagos los gestiona Google Play. Nunca vemos los datos de tu tarjeta, y nuestro servidor no recibe tu nombre ni el correo de tu cuenta de Google. Usamos RevenueCat para confirmar las compras: la app le da a RevenueCat tu ID de instalación como ID de usuario, y RevenueCat recibe los datos de tu compra en Google Play e información técnica básica de su SDK (como la versión de la app y la plataforma del dispositivo). Después RevenueCat le indica a nuestro servidor qué paquete de créditos sumar. Si Google Play reembolsa una compra, RevenueCat avisa a nuestro servidor y los créditos de ese paquete se restan de tu saldo.
 
-**App web.** Los pagos los gestiona Stripe mediante RevenueCat Web Billing. Escribes los datos de tu tarjeta en un formulario de pago operado por RevenueCat y Stripe. DecoHero nunca ve ni guarda el número de tu tarjeta. La app web pasa al pago tu ID de usuario aleatorio y el correo de tu inicio de sesión con Google, así que RevenueCat recibe tu ID de usuario, ese correo (usado para el recibo) y los datos de la compra. Stripe recibe tus datos de pago y tu correo, además de información técnica que usa para prevenir fraudes, como tu dirección IP y tu navegador. Después RevenueCat le indica a nuestro servidor qué paquete de créditos sumar. Si una compra se reembolsa, RevenueCat avisa a nuestro servidor y los créditos de ese paquete se restan de tu saldo.
+**App web.** Los pagos los gestiona Stripe mediante RevenueCat Web Billing. Escribes los datos de tu tarjeta en un formulario de pago operado por RevenueCat y Stripe. DecoHero nunca ve ni guarda el número de tu tarjeta. La app web pasa al pago tu ID de usuario aleatorio y el correo de tu inicio de sesión con Google, así que RevenueCat recibe tu ID de usuario, ese correo (usado para el recibo) y los datos de la compra. Stripe recibe tus datos de pago y tu correo, además de información técnica que usa para prevenir fraudes, como tu dirección IP y tu navegador. El software de pago de RevenueCat en la app web también envía a RevenueCat eventos técnicos sobre el pago (por ejemplo, que se abrió el formulario de pago o que falló un paso), que RevenueCat usa para procesar las compras y dar soporte. Después RevenueCat le indica a nuestro servidor qué paquete de créditos sumar. Si una compra se reembolsa, RevenueCat avisa a nuestro servidor y los créditos de ese paquete se restan de tu saldo.
 
 ## 5. Quién más recibe datos
 | Proveedor | Qué recibe | Para qué |
 |---|---|---|
 | API Gemini de Google (Google LLC) | Tu foto de la habitación y la instrucción de estilo | Crea el rediseño |
-| RevenueCat, Inc. | ID de instalación o ID de usuario, datos de la compra, información básica del dispositivo, del navegador y de la app; en la web, también el correo de tu inicio de sesión con Google | Confirma las compras e indica a nuestro servidor que sume créditos |
+| RevenueCat, Inc. | ID de instalación o ID de usuario, datos de la compra, información básica del dispositivo, del navegador y de la app; en la web, también el correo de tu inicio de sesión con Google y eventos técnicos del pago | Confirma las compras e indica a nuestro servidor que sume créditos |
 | Google Play (Google LLC) | Tu compra, en tu cuenta de Google (app para Android) | Procesa el pago |
 | Stripe, Inc. | Los datos de tu tarjeta y del pago, tu correo, tu dirección IP e información del navegador (app web) | Procesa los pagos con tarjeta en la web y previene fraudes |
 | Firebase Authentication (Google LLC) | El ID de usuario, el correo, el nombre y la dirección de la foto de perfil de tu cuenta de Google, además de la dirección IP y los datos del navegador de los inicios de sesión (app web), como nuestro encargado del tratamiento | Inicio de sesión con Google en la web |
@@ -89,12 +89,12 @@ La app web guarda una pequeña cantidad de datos en el almacenamiento de tu nave
 - tu sesión iniciada, gestionada por Firebase Authentication, para que sigas con la sesión abierta;
 - ajustes de la app, como el idioma que elegiste.
 
-Durante el pago, Stripe y RevenueCat pueden usar sus propias cookies o almacenamiento del navegador para procesar el pago y prevenir fraudes. El sitio web y la app web no usan cookies de publicidad ni de analítica. Cerrar sesión, o borrar los datos del sitio deco.hero-apps.com en tu navegador, elimina lo que la app web guardó.
+Durante el pago, Stripe y RevenueCat pueden usar sus propias cookies o almacenamiento del navegador para procesar el pago y prevenir fraudes. No usamos cookies de publicidad ni de analítica en el sitio web ni en la app web. Cerrar sesión, o borrar los datos del sitio deco.hero-apps.com en tu navegador, elimina lo que la app web guardó.
 
 <!-- TODO(Dorien): listar las claves exactas de almacenamiento local cuando la app web esté terminada (ver PRIVACY_POLICY.md). -->
 
 ## 9. Lo que no hacemos
-- Sin publicidad, sin ID de publicidad, sin SDK de analítica y sin SDK de informes de fallos.
+- Sin publicidad y sin ID de publicidad. No hacemos analítica ni informes de fallos propios, y las apps no incluyen SDK de publicidad, de analítica ni de informes de fallos. Los únicos eventos de terceros son los eventos técnicos del pago que el software de RevenueCat envía a RevenueCat cuando compras créditos en la web (sección 4).
 - No vendemos datos personales y no usamos tus fotos para entrenar modelos de IA.
 - App para Android: sin cuentas, contraseñas ni inicio de sesión.
 - App web: sin contraseñas propias. Google gestiona el inicio de sesión, y nuestro servidor no guarda correo, nombre ni foto de perfil.
@@ -102,7 +102,11 @@ Durante el pago, Stripe y RevenueCat pueden usar sus propias cookies o almacenam
 ## 10. Cuánto tiempo guardamos los datos y cómo borrarlos
 Las fotos y los diseños no se guardan en nuestro servidor. La dirección IP de tu registro de instalación o de cuenta se borra automáticamente cuando el registro cumple 48 horas. Los demás registros de la sección 2 no caducan automáticamente por ahora: los guardamos hasta que los borres o nos pidas borrarlos. Los registros de compras pueden tener que conservarse más tiempo cuando lo exija la ley fiscal o contable.
 
-**App web.** Abre Acerca de y privacidad en la app web y elige Eliminar cuenta. Esto quita de inmediato de nuestro servidor el vínculo con tu inicio de sesión, tu saldo de créditos, tu registro de diseños y tus reportes, y borra tu cuenta en Firebase Authentication. Los registros de compras se conservan por motivos fiscales y contables, ya sin vínculo con la cuenta. Los créditos sin usar se pierden y no se pueden recuperar. Si no puedes iniciar sesión, escribe a support@hero-apps.com desde el correo de tu cuenta de Google y borramos la cuenta por ti.
+**App web.** Abre Acerca de y privacidad en la app web y elige Eliminar cuenta. Esto quita de inmediato de nuestro servidor el vínculo con tu inicio de sesión, tu saldo de créditos, tu registro de diseños y tus reportes, y borra tu cuenta en Firebase Authentication. Los registros de compras se conservan por motivos fiscales y contables, ya sin vínculo con la cuenta. Los créditos sin usar se pierden y no se pueden recuperar.
+
+Después de borrar la cuenta conservamos dos cosas por poco tiempo, solo para prevenir abusos: un hash unidireccional con sal de tu ID de inicio de sesión durante 2 horas, para que una sesión que seguía abierta no pueda volver a crear la cuenta, y el registro de que se dieron créditos gratis de inicio a tu dirección IP, que se borra a las 48 horas como los demás datos de IP.
+
+Si no puedes iniciar sesión, escribe a support@hero-apps.com desde el correo de tu cuenta de Google y borramos la cuenta por ti.
 
 <!-- TODO(Dorien): borrar la cuenta no elimina el registro de cliente que RevenueCat y Stripe guardan de compras web anteriores (ver PRIVACY_POLICY.md). -->
 

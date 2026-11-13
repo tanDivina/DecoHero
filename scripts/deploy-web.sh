@@ -11,9 +11,9 @@
 #        mkdir -p .vercel-web && cp web-dist/.vercel/project.json .vercel-web/project.json
 #      `vercel link` can overwrite a .env.local in the folder it runs in. web-dist/ has none; never run
 #      it from the repo root or from mobile/.
-#   3. Google sign-in on phones: site/vercel.json proxies /__/auth/* to the Firebase project
+#   3. Google sign-in on phones: site/vercel.json proxies /__/auth/* and /__/firebase/* to the Firebase project
 #      `decohero-web` (decohero-web.firebaseapp.com), so the app can use authDomain = deco.hero-apps.com.
-#      If the Firebase project gets another id, change that rewrite. In Google Cloud > Credentials > the
+#      If the Firebase project gets another id, change both rewrites. In Google Cloud > Credentials > the
 #      OAuth web client, add https://deco.hero-apps.com/__/auth/handler as an authorized redirect URI.
 #
 #   ./scripts/deploy-web.sh
@@ -65,8 +65,13 @@ else
   FAIL=1
 fi
 
-# The Firebase sign-in helper behind the /__/auth rewrite.
+# The Firebase sign-in helper behind the /__/auth and /__/firebase rewrites.
 expect 200 "/__/auth/handler"
+expect 200 "/__/firebase/init.json"
+
+# A hashed asset that does not exist must be a 404, not the app shell (which would be cached for a year).
+expect 404 "/app/_expo/static/js/web/nope-123.js"
+expect 404 "/app/assets/nope-123.ttf"
 
 # Files that must never be public. /app/* falls back to the app shell (200, HTML), so under /app the
 # check is that the answer is the app shell and not the file itself.
