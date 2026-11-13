@@ -51,3 +51,20 @@ The captures come from the browser build, so two details differ from Android: Ho
 "Change photo" link instead of Camera / Gallery, and Results is a scrolling list instead of swipe
 pages with dots. At 412 dp the browser build also cuts off "Tropical moderno" and "Rústico moderno"
 (the Android app shrinks them to fit), which is why captures use a 448 dp wide screen.
+
+## Seasonal sets (Christmas)
+
+Put a set next to v2 and swap it in and out with `push-play.py`:
+
+```
+store/screenshots-xmas/en/01.png ... (2 to 8, 1080x1920)
+store/screenshots-xmas/es/01.png ...
+store/screenshots-xmas/feature-graphic-en.png   (optional, 1024x500; else the regular one is used)
+store/screenshots-xmas/feature-graphic-es.png
+
+python3 tools/screenshots/push-play.py --set xmas            # dry run
+python3 tools/screenshots/push-play.py --set xmas --commit   # live after Play's review, about a day
+python3 tools/screenshots/push-play.py --set v2 --commit     # revert in January, regular feature graphic too
+```
+
+Only show what the app really does: make the set after the Christmas mode has shipped.

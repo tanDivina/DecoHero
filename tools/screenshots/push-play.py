@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Replaces the DecoHero Play phone screenshots with store/screenshots-v2 (EN + ES).
+"""Replaces the DecoHero Play phone screenshots with a screenshot set (EN + ES).
 
-Touches only phoneScreenshots: no listing text, icon or feature graphic. Commits the edit, so the
+By default touches only phoneScreenshots: no listing text, icon or feature graphic. Commits the edit, so the
 change shows under Publishing overview and goes live after Play's review (or when you publish, if
 managed publishing is on). Reads the service-account key from ~/.secrets/gsc_key.json at run time.
 
   python3 tools/screenshots/push-play.py            # dry run: lists listings and current counts
   python3 tools/screenshots/push-play.py --commit   # upload and commit
+  --set NAME use store/screenshots-NAME/{en,es}/01.png... (default v2; Play takes 2 to 8 per language).
+             With --set the feature graphic is swapped too: store/screenshots-NAME/feature-graphic-{en,es}.png
+             if the set has one, else the regular store/feature-graphic-{en,es}.png. So a seasonal swap is
+               push-play.py --set xmas --commit     (around Nov 25)
+             and the revert, which also puts the regular feature graphic back, is
+               push-play.py --set v2 --commit       (around Jan 2)
   --brand    only the icon (store/play-icon-512.png) and feature graphics (store/feature-graphic-<lang>.png,
              made by tools/screenshots/brand.mjs) for every listing; screenshots untouched
   --add-es   also create/update the es-419 listing (text from store/listing.md "## Español",
@@ -20,8 +26,35 @@ from googleapiclient.http import MediaFileUpload
 PKG = "com.heroapps.decohero"
 KEY = os.path.expanduser("~/.secrets/gsc_key.json")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SHOTS = os.path.join(ROOT, "store/screenshots-v2")
 FOLDER = lambda lang: "es" if lang.startswith("es") else "en"
+
+
+def arg(name):
+    if name not in sys.argv:
+        return None
+    i = sys.argv.index(name)
+    if i + 1 >= len(sys.argv) or sys.argv[i + 1].startswith("--"):
+        sys.exit(f"{name} needs a value")
+    return sys.argv[i + 1]
+
+
+SET = arg("--set")
+SHOTS = os.path.join(ROOT, f"store/screenshots-{SET or 'v2'}")
+if not os.path.isdir(SHOTS):
+    sys.exit(f"no screenshot set at {os.path.relpath(SHOTS, ROOT)}")
+
+
+def set_files(lang):
+    folder = os.path.join(SHOTS, FOLDER(lang))
+    files = sorted(os.path.join(folder, f) for f in os.listdir(folder) if re.fullmatch(r"\d\d\.png", f)) if os.path.isdir(folder) else []
+    if not 2 <= len(files) <= 8:
+        sys.exit(f"{os.path.relpath(folder, ROOT)}: {len(files)} screenshots (01.png, 02.png ...), Play needs 2 to 8")
+    return files
+
+
+def set_feature(lang):
+    own = os.path.join(SHOTS, f"feature-graphic-{FOLDER(lang)}.png")
+    return own if os.path.exists(own) else os.path.join(ROOT, f"store/feature-graphic-{FOLDER(lang)}.png")
 
 commit = "--commit" in sys.argv
 add_es = "--add-es" in sys.argv
@@ -65,20 +98,26 @@ try:
                                       media_body=MediaFileUpload(f, mimetype="image/png")).execute()
             print("  uploaded")
     for lang in [] if brand else langs:
-        files = [os.path.join(SHOTS, FOLDER(lang), f"{i:02d}.png") for i in range(1, 8)]
-        assert all(os.path.exists(f) for f in files), f"missing files for {lang}"
+        files = set_files(lang)
         try:
             now = edits.images().list(packageName=PKG, editId=eid, language=lang, imageType="phoneScreenshots").execute().get("images", [])
         except Exception:
             now = []  # listing not created yet (dry run)
-        print(f"{lang}: {len(now)} now -> 7 from {FOLDER(lang)}/")
+        print(f"{lang}: {len(now)} now -> {len(files)} from {os.path.relpath(SHOTS, ROOT)}/{FOLDER(lang)}/")
+        if SET:
+            print(f"  feature graphic -> {os.path.relpath(set_feature(lang), ROOT)}")
         if not commit:
             continue
         edits.images().deleteall(packageName=PKG, editId=eid, language=lang, imageType="phoneScreenshots").execute()
         for f in files:
             edits.images().upload(packageName=PKG, editId=eid, language=lang, imageType="phoneScreenshots",
                                   media_body=MediaFileUpload(f, mimetype="image/png")).execute()
-        print(f"  uploaded 7")
+        print(f"  uploaded {len(files)}")
+        if SET:
+            edits.images().deleteall(packageName=PKG, editId=eid, language=lang, imageType="featureGraphic").execute()
+            edits.images().upload(packageName=PKG, editId=eid, language=lang, imageType="featureGraphic",
+                                  media_body=MediaFileUpload(set_feature(lang), mimetype="image/png")).execute()
+            print("  feature graphic uploaded")
     if commit:
         edits.commit(packageName=PKG, editId=eid).execute()
         print("committed")
