@@ -1,24 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, BackHandler, StatusBar, StyleSheet, Text, View } from "react-native";
+import { AppState, BackHandler, Linking, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { InstrumentSerif_400Regular, useFonts } from "@expo-google-fonts/instrument-serif";
 import * as SplashScreen from "expo-splash-screen";
 import { randomUUID } from "expo-crypto";
-import { api, ApiError } from "./src/api";
+import { api, ApiError, parseShopLinks, type ShopLinks } from "./src/api";
 import { getInstallId } from "./src/identity";
 import { initPurchases } from "./src/purchases";
 import { saveToGallery, shareImage, writeTempJpeg } from "./src/files";
 import { errorMessage, followPhoneLang, lang, langPref, loadLangPref, setLang, syncDeviceLang, t, type Lang } from "./src/i18n";
 import type { Photo } from "./src/photo";
 import { HomeScreen } from "./src/screens/HomeScreen";
+import { LooksScreen } from "./src/screens/LooksScreen";
 import { Result, ResultsScreen } from "./src/screens/ResultsScreen";
 import { ShopScreen } from "./src/screens/ShopScreen";
 import { AboutScreen, type LangChoice } from "./src/screens/AboutScreen";
+import { isTreeStyle } from "./src/stylePresets";
+import { ceilingCm, DEFAULT_CEILING, defaultUnit, recommendTreeCm, type Ceiling, type TreeFit } from "./src/treeSize";
 import { color, space } from "./src/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-type Screen = "home" | "results" | "shop" | "about";
+// "shop" sells credit packs; "looks" lists the Christmas shop links (free to open, nothing to generate).
+type Screen = "home" | "results" | "shop" | "about" | "looks";
+export type Mode = "rooms" | "christmas";
+
+// Used until the server's /api/config answers, and when it can't be reached.
+const DEFAULT_TREE_SHOP_URL = "https://christmastreesinthemail.com";
 
 export default function App() {
   const [fontsLoaded] = useFonts({ InstrumentSerif_400Regular });
@@ -33,6 +41,19 @@ export default function App() {
   const [photo, setPhoto] = useState<Photo | null>(null);
   // Styles picked on Home; kept here so they survive trips to the shop, About and results.
   const [selected, setSelected] = useState<string[]>([]);
+  // Christmas mode keeps its own picks, so switching back and forth loses nothing.
+  const [mode, setMode] = useState<Mode>("rooms");
+  const [treeSelected, setTreeSelected] = useState<string[]>([]);
+  const [ceiling, setCeiling] = useState<Ceiling>(() => {
+    const unit = defaultUnit(lang);
+    return { unit, text: DEFAULT_CEILING[unit] };
+  });
+  // Sizes the current results were made with (Christmas runs only).
+  const [resultTree, setResultTree] = useState<TreeFit | null>(null);
+  const [christmasOn, setChristmasOn] = useState(true);
+  const [treeShopUrl, setTreeShopUrl] = useState(DEFAULT_TREE_SHOP_URL);
+  // Decor links per Christmas theme; none until the server sends some.
+  const [shopLinks, setShopLinks] = useState<ShopLinks>({});
   // The photo the current results were made from (the user may pick a new photo after Back).
   const [resultPhoto, setResultPhoto] = useState<Photo | null>(null);
   const [results, setResults] = useState<Result[]>([]);
@@ -88,6 +109,19 @@ export default function App() {
     })();
   }, [refreshMe, showNotice]);
 
+  // Server-side switches: the "Shop this look" links and whether Christmas mode is offered.
+  useEffect(() => {
+    api.config().then((cfg) => {
+      if (cfg.christmas === false) {
+        setChristmasOn(false);
+        setMode("rooms");
+      }
+      // Empty = no button. Anything else must be an https link, or the built-in default stays.
+      if (cfg.treeShopUrl === "" || cfg.treeShopUrl?.startsWith("https://")) setTreeShopUrl(cfg.treeShopUrl);
+      setShopLinks(parseShopLinks(cfg.shopLinks));
+    }).catch(() => {});
+  }, []);
+
   // Refresh the balance when the app comes back to the foreground (e.g. a pending payment cleared).
   useEffect(() => {
     if (!installId) return;
@@ -120,9 +154,10 @@ export default function App() {
   const updateResult = (requestId: string, patch: Partial<Result>) =>
     setResults((cur) => cur.map((r) => (r.requestId === requestId ? { ...r, ...patch } : r)));
 
-  async function runStyle(id: string, source: Photo, styleId: string, requestId: string) {
+  async function runStyle(id: string, source: Photo, styleId: string, requestId: string, tree: TreeFit | null) {
     try {
-      const res = await api.redesign(id, source.base64, styleId, requestId);
+      const size = tree && isTreeStyle(styleId) ? { ceilingCm: tree.ceilingCm, treeCm: tree.treeCm } : undefined;
+      const res = await api.redesign(id, source.base64, styleId, requestId, size);
       const uri = await writeTempJpeg(res.image, `decohero-${styleId}-${Date.now()}`);
       setCredits(res.credits);
       updateResult(requestId, { status: "done", uri });
@@ -138,11 +173,15 @@ export default function App() {
   function redesign(styleIds: string[]) {
     if (!installId || !photo) return;
     const run = styleIds.map((styleId) => ({ styleId, requestId: randomUUID(), status: "loading" as const }));
+    // Home only enables the button in Christmas mode once the ceiling height is valid.
+    const height = mode === "christmas" ? ceilingCm(ceiling) : null;
+    const tree = height === null ? null : { ceilingCm: height, treeCm: recommendTreeCm(height), unit: ceiling.unit };
+    setResultTree(tree);
     setResultPhoto(photo);
     setResults(run);
     setScreen("results");
     // One request per style, in parallel: each design appears as soon as it's ready.
-    run.forEach((r) => runStyle(installId, photo, r.styleId, r.requestId));
+    run.forEach((r) => runStyle(installId, photo, r.styleId, r.requestId, tree));
   }
 
   function retry(r: Result) {
@@ -151,7 +190,7 @@ export default function App() {
     setResults((cur) =>
       cur.map((x) => (x.styleId === r.styleId ? { styleId: x.styleId, requestId, status: "loading" } : x))
     );
-    runStyle(installId, resultPhoto, r.styleId, requestId);
+    runStyle(installId, resultPhoto, r.styleId, requestId, resultTree);
   }
 
   async function waitForCredits(before: number): Promise<boolean> {
@@ -166,6 +205,12 @@ export default function App() {
     return false;
   }
 
+  // Always the phone's browser or the store's own app, never a browser inside DecoHero (partner rules).
+  const openLink = (url: string) => {
+    Linking.openURL(url).catch(() => showNotice(t.linkFailed));
+  };
+  const hasShopLinks = !!treeShopUrl || Object.keys(shopLinks).length > 0;
+
   if (!fontsLoaded || !langReady) return null;
 
   return (
@@ -178,14 +223,22 @@ export default function App() {
             freeDenied={freeDenied}
             photo={photo}
             onPhoto={setPhoto}
-            selected={selected}
-            onSelect={setSelected}
+            mode={mode}
+            onMode={christmasOn ? setMode : undefined}
+            selected={mode === "christmas" ? treeSelected : selected}
+            onSelect={mode === "christmas" ? setTreeSelected : setSelected}
+            ceiling={ceiling}
+            onCeiling={setCeiling}
             onRedesign={redesign}
             onViewResults={results.length && resultPhoto ? () => setScreen("results") : undefined}
             onOpenShop={openShop}
             onOpenAbout={() => setScreen("about")}
+            onOpenLooks={hasShopLinks ? () => setScreen("looks") : undefined}
             onNotice={showNotice}
           />
+        )}
+        {screen === "looks" && (
+          <LooksScreen treeShopUrl={treeShopUrl} shopLinks={shopLinks} onOpenLink={openLink} onBack={() => setScreen("home")} />
         )}
         {screen === "about" && (
           <AboutScreen installId={installId} langChoice={langChoice} onChangeLang={changeLang} onBack={() => setScreen("home")} />
@@ -195,6 +248,10 @@ export default function App() {
             originalUri={resultPhoto.uri}
             aspect={resultPhoto.aspect}
             results={results}
+            tree={resultTree}
+            treeShopUrl={treeShopUrl}
+            shopLinks={shopLinks}
+            onOpenLink={openLink}
             onBack={() => setScreen("home")}
             onOpenShop={openShop}
             onRetry={retry}

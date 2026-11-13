@@ -5,8 +5,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
-import { redesignErrorMessage, styleName, t } from "../i18n";
+import type { ShopLinks } from "../api";
+import { lang, redesignErrorMessage, styleName, t } from "../i18n";
+import { isTreeStyle } from "../stylePresets";
 import { color, font, space } from "../theme";
+import { TreeFit, formatLength, formatTree } from "../treeSize";
 
 export type Result = {
   styleId: string;
@@ -21,9 +24,17 @@ export type Result = {
 
 type Props = {
   originalUri: string;
-  /** Width ÷ height of the original photo; designs are shown at the same shape. */
+  /** Width ÷ height of the original photo; used until a design has loaded and reports its own shape. */
   aspect: number;
   results: Result[];
+  /** Ceiling and tree height of a Christmas run; null for room designs. */
+  tree: TreeFit | null;
+  /** Partner store link for real trees; empty hides the button. */
+  treeShopUrl: string;
+  /** Decor links per Christmas theme, from the server. */
+  shopLinks: ShopLinks;
+  /** Opens a shop link outside the app. */
+  onOpenLink: (url: string) => void;
   onBack: () => void;
   onSave: (r: Result) => void;
   onShare: (r: Result) => void;
@@ -36,11 +47,18 @@ type Props = {
 const NEEDS_CREDITS = ["NO_CREDITS", "FREE_DAILY_LIMIT"];
 const NO_RETRY = [...NEEDS_CREDITS, "CONFIG", "TOO_LARGE", "HTTP_413"];
 const MAX_SCALE = 1.3;
+// Designs are shown whole at their own shape; only extreme panoramas or strips get letterboxed inside these limits.
+const MIN_ASPECT = 9 / 16;
+const MAX_ASPECT = 2;
 
-export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, onShare, onReport, onRetry, onOpenShop }: Props) {
+export function ResultsScreen({
+  originalUri, aspect, results, tree, treeShopUrl, shopLinks, onOpenLink, onBack, onSave, onShare, onReport, onRetry, onOpenShop,
+}: Props) {
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const [comparing, setComparing] = useState<string | null>(null);
+  // Real width ÷ height of each loaded design, by file uri. The model doesn't always keep the photo's shape.
+  const [shapes, setShapes] = useState<Record<string, number>>({});
 
   function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
@@ -78,6 +96,15 @@ export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, on
         renderItem={({ item }) => {
           const done = item.status === "done";
           const showOriginal = done && comparing === item.styleId;
+          const designUri = done ? item.uri : undefined;
+          const shape = designUri ? shapes[designUri] : undefined;
+          const christmas = isTreeStyle(item.styleId);
+          const showTree = !!tree && christmas;
+          // "Shop this look": the real tree first, then this theme's decor. No links at all = no section.
+          const decor = christmas ? shopLinks[item.styleId] ?? [] : [];
+          const showShop = christmas && (!!treeShopUrl || decor.length > 0);
+          const partnerShown = !!treeShopUrl || decor.some((l) => l.kind === "partner");
+          const amazonShown = decor.some((l) => l.kind === "amazon");
           return (
             // Each page scrolls on its own so tall portrait photos never push the actions off small screens.
             <ScrollView style={{ width }} contentContainerStyle={styles.page}>
@@ -91,8 +118,15 @@ export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, on
               >
                 <Image
                   source={{ uri: done && !showOriginal ? item.uri : originalUri }}
-                  style={[styles.image, { aspectRatio: aspect }]}
-                  resizeMode="cover"
+                  style={[styles.image, { aspectRatio: shape ?? aspect }]}
+                  // A finished design is never cropped, so the DecoHero mark and the room's edges stay visible.
+                  resizeMode={done ? "contain" : "cover"}
+                  onLoad={(e) => {
+                    const { width: w, height: h } = e.nativeEvent.source ?? {};
+                    if (!designUri || showOriginal || !w || !h || shapes[designUri]) return;
+                    const real = Math.min(MAX_ASPECT, Math.max(MIN_ASPECT, w / h));
+                    setShapes((cur) => ({ ...cur, [designUri]: real }));
+                  }}
                 />
                 {showOriginal && (
                   <View style={styles.badge} pointerEvents="none">
@@ -122,6 +156,41 @@ export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, on
                       maxFontSizeMultiplier={MAX_SCALE}
                     />
                   </View>
+                  {(showTree || showShop) && (
+                    <View style={styles.treeCard}>
+                      {showTree && tree && (
+                        <>
+                          <Text style={styles.treeTitle}>
+                            {t.treeRecommended(formatTree(tree.treeCm, tree.unit), formatLength(tree.ceilingCm, tree.unit))}
+                          </Text>
+                          <Text style={styles.treeText}>{t.treeEstimate}</Text>
+                        </>
+                      )}
+                      {showShop && (
+                        <>
+                          <Text style={styles.shopTitle} accessibilityRole="header">{t.shopLook}</Text>
+                          {!!treeShopUrl && (
+                            <>
+                              <Button label={t.buyTree} onPress={() => onOpenLink(treeShopUrl)} maxFontSizeMultiplier={MAX_SCALE} />
+                              <Text style={styles.treeNote}>{t.buyTreeNote}</Text>
+                            </>
+                          )}
+                          {decor.map((link, i) => (
+                            <Button
+                              key={`${i}-${link.url}`}
+                              label={link[lang]}
+                              variant="quiet"
+                              onPress={() => onOpenLink(link.url)}
+                              maxFontSizeMultiplier={MAX_SCALE}
+                            />
+                          ))}
+                          {/* One disclosure per kind of link that is actually on screen. */}
+                          {partnerShown && <Text style={styles.treeNote}>{t.partnerDisclosure}</Text>}
+                          {amazonShown && <Text style={styles.treeNote}>{t.amazonDisclosure}</Text>}
+                        </>
+                      )}
+                    </View>
+                  )}
                   <View style={styles.footRow}>
                     <Text style={styles.notice}>{t.aiNotice}</Text>
                     <Pressable
@@ -197,6 +266,18 @@ const styles = StyleSheet.create({
   hint: { color: color.stone, fontSize: 13 },
   row: { flexDirection: "row", gap: space(3) },
   flex: { flex: 1 },
+  treeCard: {
+    padding: space(4),
+    borderRadius: 6,
+    backgroundColor: color.plaster,
+    borderWidth: 1.5,
+    borderColor: color.brass,
+    gap: space(2),
+  },
+  treeTitle: { fontSize: 16, lineHeight: 22, fontWeight: "600", color: color.ink },
+  treeText: { fontSize: 14, lineHeight: 20, color: color.stone, marginBottom: space(1) },
+  shopTitle: { fontFamily: font.display, fontSize: 22, color: color.ink },
+  treeNote: { fontSize: 12, lineHeight: 16, color: color.stone },
   footRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space(4) },
   notice: { flex: 1, color: color.stone, fontSize: 12, lineHeight: 16 },
   reportTarget: { minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "flex-end", paddingLeft: space(2) },

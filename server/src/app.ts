@@ -3,9 +3,10 @@ import net from "node:net";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import sharp from "sharp";
-import { buildPrompt, isStyle } from "./styles.js";
+import { buildPrompt, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
 import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
+import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import {
   addReport, failuresToday, getCredits, getOrCreateUser, getUser, grantPurchase, logGeneration,
   MAX_FAILURES_PER_INSTALL_PER_DAY, refundCredits, refundPurchase, releaseGeneration, reserveGeneration,
@@ -97,6 +98,28 @@ const REDESIGN_PER_IP = envInt("REDESIGN_LIMIT_PER_IP_PER_10MIN", 60);
 const REDESIGN_PER_INSTALL_FREE = envInt("REDESIGN_LIMIT_PER_INSTALL_PER_10MIN", 12);
 const REDESIGN_PER_INSTALL_PAID = envInt("REDESIGN_LIMIT_PER_PAID_INSTALL_PER_10MIN", 40);
 
+/** The partner store for real trees; TREE_SHOP_URL replaces it with the affiliate link once there is one. */
+export const DEFAULT_TREE_SHOP_URL = "https://christmastreesinthemail.com";
+const OFF = new Set(["", "0", "off", "false", "none"]);
+const isOff = (v: string | undefined) => v !== undefined && OFF.has(v.trim().toLowerCase());
+
+/**
+ * Link behind the app's "Buy a real tree" button. Unset: the store's homepage. Empty or "off": no button.
+ * Anything that is not an https URL (or that points to Amazon) is refused (the app would open it as is), and the homepage is used.
+ */
+function treeShopUrl(): string {
+  const raw = process.env.TREE_SHOP_URL;
+  if (raw === undefined) return DEFAULT_TREE_SHOP_URL;
+  if (isOff(raw)) return "";
+  try {
+    const url = new URL(raw.trim());
+    // The tree button is always shown as a partner link, so it may never point to Amazon (see shopLinks.ts).
+    if (url.protocol === "https:" && !looksLikeAmazon(url.hostname.toLowerCase().replace(/\.$/, ""))) return url.toString();
+  } catch {}
+  console.warn("TREE_SHOP_URL is not a valid https partner URL; using the store homepage instead");
+  return DEFAULT_TREE_SHOP_URL;
+}
+
 const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 export type Generate = (imageJpegBase64: string, prompt: string) => Promise<Buffer>;
@@ -139,14 +162,30 @@ export function createApp(generate: Generate, model: string) {
     res.json({ credits: user.credits, paid: !!user.paid, freeDenied: !!user.free_denied && !user.paid });
   });
 
+  // Things the app reads at start so they can change without a new release. Read per request: no secrets here.
+  app.get("/api/config", (_req, res) => {
+    // shopLinks (app 1.0.4+): decor links per Christmas theme, both languages. Older apps ignore the field.
+    res.json({ christmas: !isOff(process.env.CHRISTMAS_MODE), treeShopUrl: treeShopUrl(), shopLinks: shopLinks() });
+  });
+
   app.post("/api/redesign", async (req, res) => {
     const installId = installIdOf(req);
-    const { image, styleId } = req.body ?? {};
+    const { image, styleId, ceilingCm, treeCm } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
     }
-    const prompt = isStyle(styleId) ? buildPrompt(styleId) : null;
+    if (!isStyle(styleId)) {
+      res.status(400).json({ error: "BAD_STYLE" });
+      return;
+    }
+    // Sizes only exist for Christmas styles; interior styles (and older app versions) never look at them.
+    const size = isTreeStyle(styleId) ? parseTreeSize(ceilingCm, treeCm) : {};
+    if (!size) {
+      res.status(400).json({ error: "BAD_SIZE" });
+      return;
+    }
+    const prompt = buildPrompt(styleId, size);
     if (!prompt) {
       res.status(400).json({ error: "BAD_STYLE" });
       return;

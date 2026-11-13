@@ -1,6 +1,6 @@
 import { getLocales } from "expo-localization";
 import * as SecureStore from "expo-secure-store";
-import { STYLE_PRESETS } from "./stylePresets";
+import { STYLE_PRESETS, TREE_PRESETS } from "./stylePresets";
 
 export type Lang = "en" | "es";
 const LANG_KEY = "decohero_lang";
@@ -98,6 +98,32 @@ const en = {
   phoneLanguage: "Use phone language",
   packTitle: (n: number) => `${n} credits`,
   perDesign: (price: string) => `${price} per design`,
+  modeRooms: "Rooms",
+  modeChristmas: "Christmas",
+  treeTagline: "See how a Christmas tree fits your room before you order one.",
+  treeIntro: "We add one tree to your photo and leave the rest of the room as it is.",
+  pickTrees: "Pick up to 4 tree styles",
+  needTree: "Pick at least one tree style",
+  pickFirstTree: "Add a photo and pick a tree style",
+  addTree: (n: number) => (n === 1 ? "Add a tree · 1 credit" : `Add trees · ${n} credits`),
+  addTreeLabel: "Add a tree",
+  ceilingTitle: "Ceiling height",
+  ceilingUnit: (unit: "ft" | "m"): string => (unit === "ft" ? "Feet" : "Meters"),
+  ceilingRange: (unit: "ft" | "m"): string =>
+    unit === "ft" ? "Enter a ceiling height between 6 and 20 ft" : "Enter a ceiling height between 1.8 and 6 m",
+  treeFit: (tree: string, unit: "ft" | "m") =>
+    `Recommended tree: ${tree}. That leaves about ${unit === "ft" ? "6 in" : "15 cm"} under the ceiling for the topper.`,
+  treeRecommended: (tree: string, ceiling: string) => `Recommended: ${tree} tree for your ${ceiling} ceiling`,
+  treeEstimate: "This is an estimate. Measure your ceiling before you order.",
+  buyTree: "Buy a real tree",
+  shopLook: "Shop this look",
+  shopStyles: "Shop the styles",
+  shopStylesIntro: "Real trees and decor for each Christmas style. No photo or credits needed. Links open outside the app.",
+  realTree: "Real tree",
+  buyTreeNote: "Opens our partner's store for real farm-cut trees. Delivery in the US only.",
+  partnerDisclosure: "We may earn a commission.",
+  amazonDisclosure: "As an Amazon Associate we earn from qualifying purchases.",
+  linkFailed: "Couldn't open the store. Try again in a moment.",
 };
 
 type Strings = typeof en;
@@ -187,6 +213,32 @@ const es: Strings = {
   phoneLanguage: "Usar idioma del teléfono",
   packTitle: (n) => `${n} créditos`,
   perDesign: (price) => `${price} por diseño`,
+  modeRooms: "Espacios",
+  modeChristmas: "Navidad",
+  treeTagline: "Mira cómo queda un árbol de Navidad en tu espacio antes de pedirlo.",
+  treeIntro: "Agregamos un árbol a tu foto y dejamos el resto del espacio tal como está.",
+  pickTrees: "Elige hasta 4 estilos de árbol",
+  needTree: "Elige al menos un estilo de árbol",
+  pickFirstTree: "Agrega una foto y elige un estilo de árbol",
+  addTree: (n) => (n === 1 ? "Agregar árbol · 1 crédito" : `Agregar árboles · ${n} créditos`),
+  addTreeLabel: "Agregar árbol",
+  ceilingTitle: "Altura del techo",
+  ceilingUnit: (unit) => (unit === "ft" ? "Pies" : "Metros"),
+  ceilingRange: (unit) =>
+    unit === "ft" ? "Escribe una altura de techo entre 6 y 20 ft" : "Escribe una altura de techo entre 1.8 y 6 m",
+  treeFit: (tree, unit) =>
+    `Árbol recomendado: ${tree}. Así quedan unos ${unit === "ft" ? "6 in" : "15 cm"} bajo el techo para la estrella.`,
+  treeRecommended: (tree, ceiling) => `Recomendado: árbol de ${tree} para tu techo de ${ceiling}`,
+  treeEstimate: "Es un cálculo aproximado. Mide tu techo antes de hacer el pedido.",
+  buyTree: "Comprar un árbol real",
+  shopLook: "Compra este look",
+  shopStyles: "Ver los estilos",
+  shopStylesIntro: "Árboles naturales y decoración para cada estilo navideño. No necesitas foto ni créditos. Los enlaces se abren fuera de la app.",
+  realTree: "Árbol natural",
+  buyTreeNote: "Abre la tienda de nuestro aliado, con árboles naturales recién cortados. Envíos solo dentro de Estados Unidos.",
+  partnerDisclosure: "Podemos recibir una comisión.",
+  amazonDisclosure: "Como Asociado de Amazon, ganamos con las compras que cumplen los requisitos.",
+  linkFailed: "No se pudo abrir la tienda. Inténtalo de nuevo en un momento.",
 };
 
 export let t: Strings = lang === "es" ? es : en;
@@ -241,7 +293,7 @@ export function syncDeviceLang(): boolean {
 }
 
 export function styleName(id: string): string {
-  const s = STYLE_PRESETS.find((p) => p.id === id);
+  const s = [...STYLE_PRESETS, ...TREE_PRESETS].find((p) => p.id === id);
   return s ? s[lang] : id;
 }
 

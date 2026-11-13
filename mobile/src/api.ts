@@ -16,13 +16,17 @@ function retryAfter(body: any, res: Response): number | undefined {
   return Number.isFinite(fromHeader) && fromHeader > 0 ? fromHeader : undefined;
 }
 
-async function call<T>(path: string, installId: string, init?: RequestInit): Promise<T> {
+async function call<T>(path: string, installId: string | null, init?: RequestInit): Promise<T> {
   if (BAD_CONFIG) throw new ApiError("CONFIG");
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", "X-Install-Id": installId, ...(init?.headers ?? {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(installId ? { "X-Install-Id": installId } : {}),
+        ...(init?.headers ?? {}),
+      },
     });
   } catch {
     throw new ApiError("NETWORK");
@@ -41,14 +45,47 @@ async function call<T>(path: string, installId: string, init?: RequestInit): Pro
 
 export type Me = { credits: number; paid: boolean; freeDenied?: boolean };
 
+/** Settings the server can change without an app release. Older servers don't have the endpoint (404). */
+export type AppConfig = { christmas: boolean; treeShopUrl: string; shopLinks: unknown };
+
+/** A "Shop this look" link for one Christmas theme. Amazon links only arrive once the server's gate is open. */
+export type ShopLink = { en: string; es: string; url: string; kind: "amazon" | "partner" };
+export type ShopLinks = Record<string, ShopLink[]>;
+
+const MAX_LINKS_PER_THEME = 4;
+
+/** Keeps only well-formed https links from /api/config; anything else (or an older server) gives no links. */
+export function parseShopLinks(raw: unknown): ShopLinks {
+  const out: ShopLinks = {};
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return out;
+  for (const [theme, list] of Object.entries(raw)) {
+    if (!Array.isArray(list)) continue;
+    const links = list.filter(
+      (l): l is ShopLink =>
+        !!l && typeof l.en === "string" && !!l.en && typeof l.es === "string" && !!l.es &&
+        typeof l.url === "string" && l.url.startsWith("https://") && (l.kind === "amazon" || l.kind === "partner")
+    );
+    if (links.length) out[theme] = links.slice(0, MAX_LINKS_PER_THEME);
+  }
+  return out;
+}
+
 export const api = {
+  config: () => call<Partial<AppConfig>>("/api/config", null),
+
   me: (installId: string) => call<Me>("/api/me", installId),
 
-  /** requestId lets the server refund the credit if this design never reaches the phone. */
-  redesign: (installId: string, image: string, styleId: string, requestId: string) =>
+  /**
+   * requestId lets the server refund the credit if this design never reaches the phone.
+   * size is for Christmas styles only: ceiling and tree height in cm, so the tree is drawn to scale.
+   */
+  redesign: (
+    installId: string, image: string, styleId: string, requestId: string,
+    size?: { ceilingCm: number; treeCm: number }
+  ) =>
     call<{ image: string; credits: number }>("/api/redesign", installId, {
       method: "POST",
-      body: JSON.stringify({ installId, image, styleId, requestId }),
+      body: JSON.stringify({ installId, image, styleId, requestId, ...size }),
     }),
 
   report: (installId: string, styleId: string) =>

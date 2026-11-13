@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { t, styleName } from "../i18n";
-import { MAX_STYLES_PER_RUN, STYLE_PRESETS } from "../stylePresets";
+import { MAX_STYLES_PER_RUN, STYLE_PRESETS, TREE_PRESETS } from "../stylePresets";
+import { Ceiling, Unit, ceilingCm, formatTree, recommendTreeCm, switchUnit } from "../treeSize";
 import { color, font, radius, space } from "../theme";
 import { Photo, choosePhoto, takePhoto } from "../photo";
 
@@ -16,19 +17,32 @@ type Props = {
   freeDenied: boolean;
   photo: Photo | null;
   onPhoto: (p: Photo) => void;
+  mode: "rooms" | "christmas";
+  /** Missing when the server has switched Christmas mode off: the switch is hidden. */
+  onMode?: (mode: "rooms" | "christmas") => void;
+  /** Picks of the current mode. */
   selected: string[];
   onSelect: (styleIds: string[]) => void;
+  ceiling: Ceiling;
+  onCeiling: (c: Ceiling) => void;
   onRedesign: (styleIds: string[]) => void;
   /** Shown when finished designs from the last run can be reopened. */
   onViewResults?: () => void;
   onOpenShop: () => void;
   onOpenAbout: () => void;
+  /** Opens the list of shop links per Christmas style; missing when there are no links at all. */
+  onOpenLooks?: () => void;
   onNotice: (msg: string) => void;
 };
 
 export function HomeScreen({
-  credits, freeDenied, photo, onPhoto, selected, onSelect, onRedesign, onViewResults, onOpenShop, onOpenAbout, onNotice,
+  credits, freeDenied, photo, onPhoto, mode, onMode, selected, onSelect, ceiling, onCeiling, onRedesign, onViewResults,
+  onOpenShop, onOpenAbout, onOpenLooks, onNotice,
 }: Props) {
+  const christmas = mode === "christmas";
+  const presets = christmas ? TREE_PRESETS : STYLE_PRESETS;
+  const height = christmas ? ceilingCm(ceiling) : null;
+  const badCeiling = christmas && height === null;
   const [picking, setPicking] = useState<"camera" | "gallery" | null>(null);
 
   async function pick(source: "camera" | "gallery") {
@@ -48,10 +62,16 @@ export function HomeScreen({
     onSelect([...selected, id]);
   }
 
-  const ready = !!photo && selected.length > 0;
+  const ready = !!photo && selected.length > 0 && !badCeiling;
   // Known balance too low for this run: send them to the shop instead of firing requests that will all fail.
   const short = ready && credits !== null && credits < selected.length;
-  const instruction = !photo && !selected.length ? t.pickFirst : !photo ? t.needPhoto : !selected.length ? t.needStyle : null;
+  const instruction =
+    !photo && !selected.length ? (christmas ? t.pickFirstTree : t.pickFirst)
+    : !photo ? t.needPhoto
+    : !selected.length ? (christmas ? t.needTree : t.needStyle)
+    : badCeiling ? t.ceilingRange(ceiling.unit)
+    : null;
+  const units: Unit[] = ["ft", "m"];
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -70,7 +90,7 @@ export function HomeScreen({
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {freeDenied && credits === 0 && (
           <View style={styles.freeDenied}>
             <Text style={styles.freeDeniedText}>{t.freeDenied}</Text>
@@ -107,7 +127,7 @@ export function HomeScreen({
           </View>
         ) : (
           <View style={styles.emptyFrame}>
-            <Text style={styles.tagline}>{t.tagline}</Text>
+            <Text style={styles.tagline}>{christmas ? t.treeTagline : t.tagline}</Text>
             <Button label={t.takePhoto} onPress={() => pick("camera")} loading={picking === "camera"} disabled={picking === "gallery"} />
             <Button label={t.choosePhoto} variant="quiet" onPress={() => pick("gallery")} loading={picking === "gallery"} disabled={picking === "camera"} />
             <Text style={styles.tip}>{t.tip}</Text>
@@ -120,9 +140,38 @@ export function HomeScreen({
           </Pressable>
         )}
 
-        <Text style={styles.sectionTitle}>{t.pickStyles}</Text>
+        {onMode && (
+          <View style={styles.modes} accessibilityRole="radiogroup">
+            {(["rooms", "christmas"] as const).map((m) => {
+              const on = m === mode;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => onMode(m)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  style={[styles.mode, on && styles.modeOn]}
+                >
+                  {m === "christmas" && <TreeMark />}
+                  <Text style={styles.modeText} maxFontSizeMultiplier={MAX_SCALE}>
+                    {m === "christmas" ? t.modeChristmas : t.modeRooms}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        <Text style={[styles.sectionTitle, onMode && styles.sectionAfterModes]}>{christmas ? t.pickTrees : t.pickStyles}</Text>
+        {christmas && <Text style={styles.intro}>{t.treeIntro}</Text>}
+        {/* Shop links never sit behind a design or a credit: this entry needs neither. */}
+        {christmas && onOpenLooks && (
+          <Pressable onPress={onOpenLooks} style={[styles.linkTarget, styles.looks]} accessibilityRole="button">
+            <Text style={styles.link}>{t.shopStyles}</Text>
+          </Pressable>
+        )}
         <View style={styles.chips}>
-          {STYLE_PRESETS.map((s) => {
+          {presets.map((s) => {
             const on = selected.includes(s.id);
             return (
               <Pressable
@@ -147,6 +196,48 @@ export function HomeScreen({
             );
           })}
         </View>
+
+        {christmas && (
+          <View>
+            <Text style={styles.sectionTitle}>{t.ceilingTitle}</Text>
+            <View style={styles.ceilingRow}>
+              <TextInput
+                value={ceiling.text}
+                onChangeText={(text) => onCeiling({ ...ceiling, text })}
+                keyboardType="decimal-pad"
+                maxLength={5}
+                selectTextOnFocus
+                returnKeyType="done"
+                accessibilityLabel={`${t.ceilingTitle}, ${t.ceilingUnit(ceiling.unit)}`}
+                style={[styles.ceilingInput, badCeiling && styles.ceilingInputBad]}
+                maxFontSizeMultiplier={MAX_SCALE}
+              />
+              <View style={styles.units} accessibilityRole="radiogroup">
+                {units.map((u) => {
+                  const on = u === ceiling.unit;
+                  return (
+                    <Pressable
+                      key={u}
+                      onPress={() => onCeiling(switchUnit(ceiling, u))}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={t.ceilingUnit(u)}
+                      style={[styles.unit, on && styles.modeOn]}
+                    >
+                      <Text style={styles.modeText} maxFontSizeMultiplier={MAX_SCALE}>{u}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            <Text style={[styles.fit, badCeiling && styles.fitBad]}>
+              {height === null
+                ? t.ceilingRange(ceiling.unit)
+                : `${t.treeFit(formatTree(recommendTreeCm(height), ceiling.unit), ceiling.unit)} ${t.treeEstimate}`}
+            </Text>
+          </View>
+        )}
+
         <Pressable onPress={onOpenAbout} style={[styles.linkTarget, styles.about]} accessibilityRole="button">
           <Text style={styles.aboutText}>{t.about}</Text>
         </Pressable>
@@ -156,12 +247,27 @@ export function HomeScreen({
         {short && <Text style={styles.instruction}>{t.notEnough(credits ?? 0)}</Text>}
         {!!instruction && <Text style={styles.instruction}>{instruction}</Text>}
         <Button
-          label={short ? t.getCredits : selected.length ? t.redesign(selected.length) : t.redesignLabel}
+          label={
+            short ? t.getCredits
+            : christmas ? (selected.length ? t.addTree(selected.length) : t.addTreeLabel)
+            : selected.length ? t.redesign(selected.length) : t.redesignLabel
+          }
           disabled={!ready}
           onPress={() => (short ? onOpenShop() : onRedesign(selected))}
         />
       </View>
     </SafeAreaView>
+  );
+}
+
+/** A small fir drawn from plain views: two tiers and a trunk. */
+function TreeMark() {
+  return (
+    <View style={styles.tree} importantForAccessibility="no-hide-descendants">
+      <View style={[styles.treeTier, { borderLeftWidth: 4, borderRightWidth: 4, borderBottomWidth: 6 }]} />
+      <View style={[styles.treeTier, { borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 7, marginTop: -2 }]} />
+      <View style={styles.treeTrunk} />
+    </View>
   );
 }
 
@@ -217,6 +323,57 @@ const styles = StyleSheet.create({
   tagline: { fontFamily: font.display, fontSize: 26, lineHeight: 30, color: color.ink, marginBottom: space(2) },
   tip: { fontSize: 13, lineHeight: 18, color: color.stone, textAlign: "center" },
   sectionTitle: { marginTop: space(6), marginBottom: space(3), fontSize: 17, fontWeight: "600", color: color.ink },
+  sectionAfterModes: { marginTop: space(4) },
+  // Rooms / Christmas switch. Selection is border + fill only, like the style grid.
+  modes: { flexDirection: "row", gap: space(2), marginTop: space(6) },
+  mode: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space(2),
+    paddingHorizontal: space(2),
+    borderRadius: radius.chip,
+    backgroundColor: color.plaster,
+    borderWidth: 1.5,
+    borderColor: color.line,
+  },
+  modeOn: { borderColor: color.brass, backgroundColor: color.brassWash },
+  modeText: { fontSize: 15, fontWeight: "600", color: color.ink },
+  tree: { alignItems: "center" },
+  treeTier: { width: 0, height: 0, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: color.olive },
+  treeTrunk: { width: 3, height: 3, backgroundColor: color.brass },
+  looks: { marginTop: -space(3), marginBottom: space(1) },
+  intro: { marginTop: -space(1), marginBottom: space(3), fontSize: 14, lineHeight: 20, color: color.stone },
+  ceilingRow: { flexDirection: "row", alignItems: "center", gap: space(3) },
+  ceilingInput: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: space(4),
+    paddingVertical: space(2),
+    borderRadius: radius.chip,
+    backgroundColor: color.plaster,
+    borderWidth: 1.5,
+    borderColor: color.line,
+    fontSize: 17,
+    color: color.ink,
+    fontVariant: ["tabular-nums"],
+  },
+  ceilingInputBad: { borderColor: color.danger },
+  units: { flexDirection: "row", gap: space(2) },
+  unit: {
+    minWidth: 56,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.chip,
+    backgroundColor: color.plaster,
+    borderWidth: 1.5,
+    borderColor: color.line,
+  },
+  fit: { marginTop: space(2), fontSize: 14, lineHeight: 20, color: color.stone },
+  fitBad: { color: color.danger },
   // 3 equal columns: 12 styles = 4 rows. Labels stay on one line and shrink a little to fit, never wrap or clip.
   // Selection is border + fill + mark only: no weight change, so labels don't reflow when tapped.
   chips: { flexDirection: "row", flexWrap: "wrap", gap: space(2) },

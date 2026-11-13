@@ -14,5 +14,17 @@ export const STYLE_PRESETS = [
   { id: "art-deco", en: "Art deco", es: "Art déco" },
 ] as const;
 
+// Christmas mode: one tree is added and the room stays as it is. Ids must match TREE_PROMPTS in server/src/styles.ts.
+export const TREE_PRESETS = [
+  { id: "xmas-classic", en: "Classic warmth", es: "Clásico cálido" },
+  { id: "xmas-winter", en: "Winter wonderland", es: "Invierno mágico" },
+  { id: "xmas-nordic", en: "Nordic minimal", es: "Nórdico" },
+  { id: "xmas-coquette", en: "Pink coquette", es: "Rosa coquette" },
+  { id: "xmas-tartan", en: "Heritage tartan", es: "Tartán clásico" },
+  { id: "xmas-tropical", en: "Tropical Christmas", es: "Navidad tropical" },
+] as const;
+
+export const isTreeStyle = (id: string) => TREE_PRESETS.some((p) => p.id === id);
+
 export type StyleId = (typeof STYLE_PRESETS)[number]["id"];
 export const MAX_STYLES_PER_RUN = 4;
