@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="archClip6">
+      <path d="M262,790 V460 A250,250 0 0,1 762,460 V790 Z"/>
+    </clipPath>
+    <clipPath id="rightHalf6">
+      <rect x="492" y="0" width="532" height="1024"/>
+    </clipPath>
+    <clipPath id="leftHalf6">
+      <rect x="0" y="0" width="492" height="1024"/>
+    </clipPath>
+  </defs>
+  <!-- Rich dark olive background -->
+  <rect width="1024" height="1024" fill="#233226"/>
+
+  <g clip-path="url(#archClip6)">
+    <!-- Left side: Blueprint / Before (Dark Slate Olive + Wireframe Chair) -->
+    <g clip-path="url(#leftHalf6)">
+      <rect width="1024" height="1024" fill="#18221A"/>
+      <!-- Subtle blueprint grid lines -->
+      <line x1="262" y1="360" x2="492" y2="360" stroke="#3E5641" stroke-width="4" stroke-dasharray="10,10"/>
+      <line x1="262" y1="520" x2="492" y2="520" stroke="#3E5641" stroke-width="4" stroke-dasharray="10,10"/>
+      <line x1="262" y1="680" x2="492" y2="680" stroke="#3E5641" stroke-width="4" stroke-dasharray="10,10"/>
+      <line x1="360" y1="210" x2="360" y2="790" stroke="#3E5641" stroke-width="4" stroke-dasharray="10,10"/>
+      <!-- Wireframe outline of chair & lamp -->
+      <path d="M390,540 C390,485 440,455 512,455 C584,455 634,485 634,540 V670 H390 Z" fill="none" stroke="#6E8B74" stroke-width="10" stroke-dasharray="16,12"/>
+      <rect x="355" y="575" width="314" height="105" rx="45" fill="none" stroke="#6E8B74" stroke-width="10"/>
+    </g>
+
+    <!-- Right side: Redesigned / After (Warm Limewash + Sculptural Terracotta/Olive Chair + Brass Dome Lamp) -->
+    <g clip-path="url(#rightHalf6)">
+      <rect width="1024" height="1024" fill="#F2EFE9"/>
+      <!-- Warm floor band -->
+      <rect x="492" y="700" width="300" height="90" fill="#E3DACB"/>
+      <!-- Oversized Brass Dome Pendant -->
+      <line x1="610" y1="210" x2="610" y2="330" stroke="#1C2321" stroke-width="10"/>
+      <path d="M540,395 A70,70 0 0,1 680,395 Z" fill="#C2923F"/>
+      <!-- Rich Olive & Terracotta Designer Chair -->
+      <path d="M390,540 C390,485 440,455 512,455 C584,455 634,485 634,540 V670 H390 Z" fill="#3E5641"/>
+      <rect x="355" y="575" width="314" height="105" rx="45" fill="#C86D51"/>
+      <rect x="605" y="675" width="22" height="55" rx="10" fill="#1C2321"/>
+    </g>
+  </g>
+
+  <!-- Outer Arch Border -->
+  <path d="M262,790 V460 A250,250 0 0,1 762,460 V790 Z" fill="none" stroke="#F2EFE9" stroke-width="24"/>
+
+  <!-- Bold Golden Brass Divider Bar & Sparkle Badge -->
+  <rect x="482" y="200" width="20" height="602" rx="10" fill="#D49B35"/>
+  <circle cx="492" cy="495" r="56" fill="#D49B35" stroke="#233226" stroke-width="12"/>
+  <!-- 4-point star inside slider badge instead of geeky code brackets -->
+  <path d="M492,457 Q492,495 530,495 Q492,495 492,533 Q492,495 454,495 Q492,495 492,457 Z" fill="#FFFDF9"/>
+</svg>
