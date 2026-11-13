@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -42,6 +43,12 @@ db.exec(`
     free INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS users_ip_created ON users (ip, created_at);
+  -- Web app sign-ins: Firebase uid -> the random user id that owns the credits. No email or name is stored.
+  CREATE TABLE IF NOT EXISTS web_accounts (
+    firebase_uid TEXT PRIMARY KEY,
+    user_id TEXT UNIQUE NOT NULL,
+    created_at INTEGER NOT NULL
+  );
 `);
 
 // Migrations for existing databases on the /data volume. Only additive: never drop or rewrite data.
@@ -109,6 +116,42 @@ export const getOrCreateUser = db.transaction((id: string, ip: string): User => 
     id, starting, ip, Date.now(), denied ? 1 : 0
   );
   return { id, credits: starting, paid: 0, free_denied: denied ? 1 : 0 };
+});
+
+/**
+ * Web app: the user id behind a Firebase uid. The first time a uid is seen it gets a fresh random user id,
+ * created through getOrCreateUser so the free credits and the per-IP new-user limit apply as for an install.
+ */
+export const getOrCreateWebUser = db.transaction((firebaseUid: string, ip: string): string => {
+  const row = db.prepare("SELECT user_id FROM web_accounts WHERE firebase_uid = ?").get(firebaseUid) as
+    | { user_id: string }
+    | undefined;
+  if (row) return row.user_id;
+  const id = crypto.randomUUID();
+  getOrCreateUser(id, ip);
+  db.prepare("INSERT INTO web_accounts (firebase_uid, user_id, created_at) VALUES (?, ?, ?)").run(firebaseUid, id, Date.now());
+  return id;
+});
+
+/** purchases.user_id of a deleted web account. Not a UUID, so it can never match a user again. */
+export const DELETED_USER = "deleted";
+
+/**
+ * Deletes a web account: the sign-in link, the user row (credits, paid flag, IP), its generation log and its
+ * reports. Purchase rows stay for accounting and so a retried webhook or a refund cannot credit twice, but
+ * they are cut loose from the user id. Returns false if the uid has no account.
+ */
+export const deleteWebAccount = db.transaction((firebaseUid: string): boolean => {
+  const row = db.prepare("SELECT user_id FROM web_accounts WHERE firebase_uid = ?").get(firebaseUid) as
+    | { user_id: string }
+    | undefined;
+  if (!row) return false;
+  db.prepare("DELETE FROM generations WHERE user_id = ?").run(row.user_id);
+  db.prepare("DELETE FROM reports WHERE user_id = ?").run(row.user_id);
+  db.prepare("UPDATE purchases SET user_id = ? WHERE user_id = ?").run(DELETED_USER, row.user_id);
+  db.prepare("DELETE FROM users WHERE id = ?").run(row.user_id);
+  db.prepare("DELETE FROM web_accounts WHERE firebase_uid = ?").run(firebaseUid);
+  return true;
 });
 
 /** Atomically takes credits. Returns false if the balance is too low. */

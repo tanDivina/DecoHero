@@ -18,6 +18,7 @@ runIpPurge();
 setInterval(runIpPurge, 60 * 60 * 1000).unref();
 
 if (!process.env.REVENUECAT_WEBHOOK_SECRET) console.warn("REVENUECAT_WEBHOOK_SECRET is not set: purchases will be rejected");
+if (!process.env.FIREBASE_PROJECT_ID) console.warn("FIREBASE_PROJECT_ID is not set: web app sign-in is off (Bearer requests get 503 WEB_DISABLED)");
 const port = Number(process.env.PORT || 8080);
 app.listen(port, () =>
   console.log(

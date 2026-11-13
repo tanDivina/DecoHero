@@ -6,9 +6,10 @@ import sharp from "sharp";
 import { buildPrompt, isStyle } from "./styles.js";
 import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
+import { firebaseVerifier, type VerifyIdToken } from "./auth.js";
 import {
-  addReport, failuresToday, getCredits, getOrCreateUser, getUser, grantPurchase, logGeneration,
-  MAX_FAILURES_PER_INSTALL_PER_DAY, refundCredits, refundPurchase, releaseGeneration, reserveGeneration,
+  addReport, deleteWebAccount, failuresToday, getCredits, getOrCreateUser, getOrCreateWebUser, getUser, grantPurchase,
+  logGeneration, MAX_FAILURES_PER_INSTALL_PER_DAY, refundCredits, refundPurchase, releaseGeneration, reserveGeneration,
   spendCredits, utcDay,
 } from "./db.js";
 
@@ -44,6 +45,24 @@ const installIdOf = (req: express.Request): string | null => {
   const body = req.body?.installId;
   if (body !== undefined) return normaliseInstallId(body);
   return normaliseInstallId(req.query.installId);
+};
+
+/**
+ * Who is calling, resolved once per /api request before the per-user limiters. Android: the install id.
+ * Web: the user id mapped to the signed-in Firebase uid. Both are UUIDs that key the same users table.
+ */
+type Identity = { userId: string | null; firebaseUid?: string };
+const identities = new WeakMap<express.Request, Identity>();
+const userIdOf = (req: express.Request): string | null => identities.get(req)?.userId ?? null;
+
+/** Origins allowed to call /api from a browser: WEB_ORIGINS, plus the Expo dev servers outside production. */
+const webOrigins = () => {
+  const list = (process.env.WEB_ORIGINS || "https://deco.hero-apps.com")
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+  if (process.env.NODE_ENV !== "production") list.push("http://localhost:8081", "http://localhost:19006");
+  return new Set(list);
 };
 
 /** Expands an IPv6 address (including "::" and an embedded IPv4 tail) to 8 hextets. */
@@ -88,7 +107,7 @@ const limiter = (
     },
   });
 const byInstall = (req: express.Request) => {
-  const id = installIdOf(req);
+  const id = userIdOf(req);
   return id ? `i:${id}` : `ip:${clientIp(req)}`;
 };
 
@@ -101,26 +120,108 @@ const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 export type Generate = (imageJpegBase64: string, prompt: string) => Promise<Buffer>;
 
-export function createApp(generate: Generate, model: string) {
+export type AppOptions = {
+  /** Firebase ID token check for the web app. Defaults to firebase-admin when FIREBASE_PROJECT_ID is set. */
+  verifyIdToken?: VerifyIdToken;
+};
+
+export function createApp(generate: Generate, model: string, options: AppOptions = {}) {
+  const verifyIdToken = options.verifyIdToken ?? firebaseVerifier();
+  const allowedOrigins = webOrigins();
+  const allowedOrigin = (req: express.Request) => {
+    const origin = req.get("origin");
+    return origin !== undefined && allowedOrigins.has(origin) ? origin : null;
+  };
+
   const app = express();
   app.disable("x-powered-by");
   // Number of reverse proxies in front of the app (Railway/Render: 1). Wrong values either let clients
   // spoof their IP (too high) or make every user share the proxy's IP (too low). See DEPLOY.md.
   app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
-  // The phone sends a JPEG capped at 1280px (~1-2 MB as base64). Anything bigger is refused with 413.
+
+  // CORS for the web app only: /api, and only for the origins in WEB_ORIGINS. Every other origin (and the
+  // Android app, which sends no Origin) gets no CORS headers at all, so random websites cannot call the API
+  // from a visitor's browser. /webhooks never gets them. Runs first so error replies carry the headers too,
+  // and so preflights are answered before the rate limiters.
+  app.use("/api", (req, res, next) => {
+    const origin = allowedOrigin(req);
+    if (!origin) {
+      next();
+      return;
+    }
+    res.set("Access-Control-Allow-Origin", origin);
+    res.vary("Origin");
+    res.set("Access-Control-Expose-Headers", "Retry-After");
+    if (req.method !== "OPTIONS") {
+      next();
+      return;
+    }
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    res.set("Access-Control-Max-Age", "600");
+    res.status(204).end();
+  });
+
+  // The client sends a JPEG capped at 1280px (~1-2 MB as base64). Anything bigger is refused with 413.
   app.use(express.json({ limit: "4mb" }));
-  // No CORS headers on purpose: the only client is the Android app, which doesn't need them,
-  // and leaving them out stops random websites from calling the API from a visitor's browser.
 
   // Per-IP limits are generous because carrier-grade NAT puts many phones behind one IP.
+  // This one needs no identity and runs before token checks, so it also bounds bad-token floods.
   app.use("/api", limiter(60_000, API_PER_IP_PER_MIN, clientIp));
+
+  // Identity, resolved before the per-user limiters and the routes.
+  // Web: "Authorization: Bearer <Firebase ID token>"; any X-Install-Id is ignored. Android: the install id.
+  app.use("/api", async (req, res, next) => {
+    try {
+      const authorization = req.get("authorization");
+      if (authorization === undefined) {
+        // A browser on the web app's origin must sign in; it cannot fall back to an anonymous install id.
+        if (allowedOrigin(req)) {
+          res.status(401).json({ error: "AUTH_REQUIRED" });
+          return;
+        }
+        identities.set(req, { userId: installIdOf(req) });
+        next();
+        return;
+      }
+      if (!verifyIdToken) {
+        res.status(503).json({ error: "WEB_DISABLED" });
+        return;
+      }
+      const token = authorization.match(/^Bearer\s+(\S+)$/i)?.[1];
+      let firebaseUid: string | null = null;
+      if (token) {
+        try {
+          const decoded = await verifyIdToken(token);
+          if (typeof decoded?.uid === "string" && decoded.uid) firebaseUid = decoded.uid;
+        } catch (err) {
+          // Google's signing certificates could not be fetched: our problem, not the token's. The client
+          // should retry instead of signing the user out.
+          if ((err as { code?: unknown })?.code === "auth/internal-error") {
+            console.error(`token check unavailable: ${describeError(err)}`);
+            res.status(503).json({ error: "AUTH_UNAVAILABLE" });
+            return;
+          }
+        }
+      }
+      if (!firebaseUid) {
+        res.status(401).json({ error: "AUTH_INVALID" });
+        return;
+      }
+      identities.set(req, { userId: getOrCreateWebUser(firebaseUid, clientIp(req)), firebaseUid });
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // Image generation is the only route that costs money: tighter per-IP and per-install limits.
   // Paying installs get a higher per-install limit.
   app.use(
     "/api/redesign",
     limiter(10 * 60_000, REDESIGN_PER_IP, clientIp),
     limiter(10 * 60_000, (req) => {
-      const id = installIdOf(req);
+      const id = userIdOf(req);
       return id && getUser(id)?.paid ? REDESIGN_PER_INSTALL_PAID : REDESIGN_PER_INSTALL_FREE;
     }, byInstall)
   );
@@ -130,17 +231,29 @@ export function createApp(generate: Generate, model: string) {
   });
 
   app.get("/api/me", (req, res) => {
-    const id = installIdOf(req);
+    const id = userIdOf(req);
     if (!id) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
     }
     const user = getOrCreateUser(id, clientIp(req));
-    res.json({ credits: user.credits, paid: !!user.paid, freeDenied: !!user.free_denied && !user.paid });
+    // userId is what the web app logs in to RevenueCat with, so the webhook below credits it.
+    res.json({ userId: user.id, credits: user.credits, paid: !!user.paid, freeDenied: !!user.free_denied && !user.paid });
+  });
+
+  // Web accounts only: deletes the signed-in account and its records. See deleteWebAccount for what goes.
+  app.post("/api/account/delete", (req, res) => {
+    const firebaseUid = identities.get(req)?.firebaseUid;
+    if (!firebaseUid) {
+      res.status(401).json({ error: "AUTH_REQUIRED" });
+      return;
+    }
+    deleteWebAccount(firebaseUid);
+    res.json({ ok: true });
   });
 
   app.post("/api/redesign", async (req, res) => {
-    const installId = installIdOf(req);
+    const installId = userIdOf(req);
     const { image, styleId } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
@@ -245,7 +358,7 @@ export function createApp(generate: Generate, model: string) {
 
   // Google Play's AI-generated content policy requires a way for users to flag outputs.
   app.post("/api/report", (req, res) => {
-    const installId = installIdOf(req);
+    const installId = userIdOf(req);
     const { styleId } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
