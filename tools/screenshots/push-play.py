@@ -7,6 +7,8 @@ managed publishing is on). Reads the service-account key from ~/.secrets/gsc_key
 
   python3 tools/screenshots/push-play.py            # dry run: lists listings and current counts
   python3 tools/screenshots/push-play.py --commit   # upload and commit
+  --brand    only the icon (store/play-icon-512.png) and feature graphics (store/feature-graphic-<lang>.png,
+             made by tools/screenshots/brand.mjs) for every listing; screenshots untouched
   --add-es   also create/update the es-419 listing (text from store/listing.md "## Español",
              feature graphic store/feature-graphic-es.png)
 """
@@ -23,6 +25,7 @@ FOLDER = lambda lang: "es" if lang.startswith("es") else "en"
 
 commit = "--commit" in sys.argv
 add_es = "--add-es" in sys.argv
+brand = "--brand" in sys.argv
 
 
 def spanish_listing():
@@ -52,7 +55,16 @@ try:
             print("  es-419 text + feature graphic set")
         if "es-419" not in langs:
             langs.append("es-419")
-    for lang in langs:
+    for lang in langs if brand else []:
+        fg = os.path.join(ROOT, f"store/feature-graphic-{FOLDER(lang)}.png")
+        print(f"{lang}: icon play-icon-512.png, feature graphic {os.path.basename(fg)}")
+        if commit:
+            for kind, f in (("icon", os.path.join(ROOT, "store/play-icon-512.png")), ("featureGraphic", fg)):
+                edits.images().deleteall(packageName=PKG, editId=eid, language=lang, imageType=kind).execute()
+                edits.images().upload(packageName=PKG, editId=eid, language=lang, imageType=kind,
+                                      media_body=MediaFileUpload(f, mimetype="image/png")).execute()
+            print("  uploaded")
+    for lang in [] if brand else langs:
         files = [os.path.join(SHOTS, FOLDER(lang), f"{i:02d}.png") for i in range(1, 8)]
         assert all(os.path.exists(f) for f in files), f"missing files for {lang}"
         try:
