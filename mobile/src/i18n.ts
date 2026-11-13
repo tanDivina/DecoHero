@@ -1,5 +1,5 @@
 import { getLocales } from "expo-localization";
-import * as SecureStore from "expo-secure-store";
+import { deletePref, getPref, setPref } from "./prefs";
 import { STYLE_PRESETS } from "./stylePresets";
 
 export type Lang = "en" | "es";
@@ -98,6 +98,36 @@ const en = {
   phoneLanguage: "Use phone language",
   packTitle: (n: number) => `${n} credits`,
   perDesign: (price: string) => `${price} per design`,
+  // Web app (deco.hero-apps.com/app)
+  signInWhy: "Sign in so your designs and credits follow you.",
+  signInGoogle: "Continue with Google",
+  signInFailed: "Couldn't sign in. Try again.",
+  notConfiguredTitle: "Not set up yet",
+  notConfiguredBody: "This copy of DecoHero isn't configured yet. Please check back soon.",
+  notConfiguredMissing: "Missing settings:",
+  webDisabled: "DecoHero on the web isn't open yet. Please check back soon.",
+  authUnavailable: "Couldn't check your sign-in just now. Try again in a moment.",
+  choosePhotoWeb: "Choose a photo",
+  dropHint: "Or drop a photo anywhere on this page.",
+  dropHere: "Drop your photo to use it",
+  photoFailed: "Couldn't open that photo. Try a JPEG or PNG.",
+  downloaded: "Design downloaded",
+  creditsStayWeb: "Credits stay with your account. Sign in on any browser to use them.",
+  storeProblemWeb: "The payment didn't go through. You weren't charged. Try again in a moment.",
+  paymentPendingWeb: "Your payment is pending. Credits are added as soon as it's confirmed.",
+  browserLanguage: "Use browser language",
+  accountLabel: "Your account",
+  signedInAs: (email: string) => `Signed in as ${email}`,
+  signOut: "Sign out",
+  deleteAccount: "Delete account",
+  deleteConfirmTitle: "Delete your account?",
+  deleteConfirmBody: "This deletes your account and your design history. Unused credits are lost and can't be restored.",
+  deleteConfirmYes: "Delete my account",
+  deleteReauth: "One more step: confirm with Google to finish deleting your account.",
+  deleteReauthButton: "Confirm with Google",
+  deleteFailed: "Couldn't delete your account. Try again.",
+  cancel: "Cancel",
+  terms: "Terms of use",
 };
 
 type Strings = typeof en;
@@ -187,6 +217,36 @@ const es: Strings = {
   phoneLanguage: "Usar idioma del teléfono",
   packTitle: (n) => `${n} créditos`,
   perDesign: (price) => `${price} por diseño`,
+  // Web app (deco.hero-apps.com/app)
+  signInWhy: "Inicia sesión para que tus diseños y créditos te sigan.",
+  signInGoogle: "Continuar con Google",
+  signInFailed: "No se pudo iniciar sesión. Inténtalo de nuevo.",
+  notConfiguredTitle: "Aún no está listo",
+  notConfiguredBody: "Esta copia de DecoHero todavía no está configurada. Vuelve pronto.",
+  notConfiguredMissing: "Ajustes que faltan:",
+  webDisabled: "DecoHero en la web todavía no está abierto. Vuelve pronto.",
+  authUnavailable: "No pudimos verificar tu sesión en este momento. Inténtalo de nuevo en un momento.",
+  choosePhotoWeb: "Elegir una foto",
+  dropHint: "O suelta una foto en cualquier parte de esta página.",
+  dropHere: "Suelta tu foto para usarla",
+  photoFailed: "No se pudo abrir esa foto. Prueba con un JPEG o PNG.",
+  downloaded: "Diseño descargado",
+  creditsStayWeb: "Los créditos quedan en tu cuenta. Inicia sesión en cualquier navegador para usarlos.",
+  storeProblemWeb: "El pago no se completó. No se te cobró. Inténtalo de nuevo en un momento.",
+  paymentPendingWeb: "Tu pago está pendiente. Los créditos se agregan en cuanto se confirme.",
+  browserLanguage: "Usar idioma del navegador",
+  accountLabel: "Tu cuenta",
+  signedInAs: (email) => `Sesión iniciada como ${email}`,
+  signOut: "Cerrar sesión",
+  deleteAccount: "Eliminar cuenta",
+  deleteConfirmTitle: "¿Eliminar tu cuenta?",
+  deleteConfirmBody: "Esto elimina tu cuenta y tu historial de diseños. Los créditos sin usar se pierden y no se pueden recuperar.",
+  deleteConfirmYes: "Eliminar mi cuenta",
+  deleteReauth: "Un paso más: confirma con Google para terminar de eliminar tu cuenta.",
+  deleteReauthButton: "Confirmar con Google",
+  deleteFailed: "No se pudo eliminar tu cuenta. Inténtalo de nuevo.",
+  cancel: "Cancelar",
+  terms: "Términos de uso",
 };
 
 export let t: Strings = lang === "es" ? es : en;
@@ -206,7 +266,7 @@ export function langPref(): Lang | null {
 /** Load the language the user picked in the app, if any. Call once before the first render. */
 export async function loadLangPref(): Promise<void> {
   try {
-    const saved = await SecureStore.getItemAsync(LANG_KEY);
+    const saved = await getPref(LANG_KEY);
     if (saved === "en" || saved === "es") {
       pref = saved;
       apply(saved);
@@ -218,14 +278,14 @@ export async function loadLangPref(): Promise<void> {
 export function setLang(l: Lang) {
   pref = l;
   apply(l);
-  SecureStore.setItemAsync(LANG_KEY, l).catch(() => {});
+  setPref(LANG_KEY, l).catch(() => {});
 }
 
 /** Forget the in-app choice and follow the phone's language again. */
 export function followPhoneLang() {
   pref = null;
   apply(deviceLang());
-  SecureStore.deleteItemAsync(LANG_KEY).catch(() => {});
+  deletePref(LANG_KEY).catch(() => {});
 }
 
 /**
@@ -257,6 +317,8 @@ export function errorMessage(code?: string, fallback: string = t.genericError, r
     case "FREE_DAILY_LIMIT": return t.freeDailyLimit;
     case "TOO_LARGE":
     case "HTTP_413": return t.tooLarge;
+    case "WEB_DISABLED": return t.webDisabled;
+    case "AUTH_UNAVAILABLE": return t.authUnavailable;
     default: return fallback;
   }
 }

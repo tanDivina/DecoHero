@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { t, styleName } from "../i18n";
 import { MAX_STYLES_PER_RUN, STYLE_PRESETS } from "../stylePresets";
 import { color, font, radius, space } from "../theme";
 import { Photo, choosePhoto, takePhoto } from "../photo";
+import { usePhotoDrop } from "../photoDrop";
 
 // Large system font sizes still scale these, just not past the point where the row or grid breaks.
 const MAX_SCALE = 1.3;
+// Web: one file picker (phones offer the camera from it) plus drag-and-drop, instead of Camera / Gallery.
+const WEB = Platform.OS === "web";
 
 type Props = {
   credits: number | null;
@@ -30,12 +33,14 @@ export function HomeScreen({
   credits, freeDenied, photo, onPhoto, selected, onSelect, onRedesign, onViewResults, onOpenShop, onOpenAbout, onNotice,
 }: Props) {
   const [picking, setPicking] = useState<"camera" | "gallery" | null>(null);
+  const { dragging, canDrop } = usePhotoDrop(onPhoto, () => onNotice(t.photoFailed));
 
   async function pick(source: "camera" | "gallery") {
     setPicking(source);
     try {
       const r = source === "camera" ? await takePhoto() : await choosePhoto();
       if (r.denied) onNotice(t.cameraDenied);
+      if (r.failed) onNotice(t.photoFailed);
       if (r.photo) onPhoto(r.photo);
     } finally {
       setPicking(null);
@@ -84,6 +89,12 @@ export function HomeScreen({
           <View>
             <Image source={{ uri: photo.uri }} style={[styles.photo, { aspectRatio: photo.aspect }]} resizeMode="cover" />
             <View style={styles.changeRow}>
+              {WEB ? (
+                <Pressable onPress={() => pick("gallery")} disabled={!!picking} style={[styles.linkTarget, styles.changeWeb]} accessibilityRole="button">
+                  <Text style={styles.link}>{dragging ? t.dropHere : t.changePhoto}</Text>
+                </Pressable>
+              ) : (
+              <>
               <Text style={styles.changeLabel}>{t.changePhoto}</Text>
               <Pressable
                 onPress={() => pick("camera")}
@@ -103,14 +114,23 @@ export function HomeScreen({
               >
                 <Text style={styles.link}>{t.gallery}</Text>
               </Pressable>
+              </>
+              )}
             </View>
           </View>
         ) : (
-          <View style={styles.emptyFrame}>
-            <Text style={styles.tagline}>{t.tagline}</Text>
+          <View style={[styles.emptyFrame, dragging && styles.emptyFrameDrop]}>
+            <Text style={styles.tagline}>{dragging ? t.dropHere : t.tagline}</Text>
+            {WEB ? (
+              <Button label={t.choosePhotoWeb} onPress={() => pick("gallery")} loading={picking === "gallery"} />
+            ) : (
+            <>
             <Button label={t.takePhoto} onPress={() => pick("camera")} loading={picking === "camera"} disabled={picking === "gallery"} />
             <Button label={t.choosePhoto} variant="quiet" onPress={() => pick("gallery")} loading={picking === "gallery"} disabled={picking === "camera"} />
+            </>
+            )}
             <Text style={styles.tip}>{t.tip}</Text>
+            {canDrop && <Text style={styles.tip}>{t.dropHint}</Text>}
           </View>
         )}
 
@@ -214,6 +234,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: space(3),
   },
+  emptyFrameDrop: { borderColor: color.brass, backgroundColor: color.brassWash },
+  changeWeb: { marginLeft: "auto" },
   tagline: { fontFamily: font.display, fontSize: 26, lineHeight: 30, color: color.ink, marginBottom: space(2) },
   tip: { fontSize: 13, lineHeight: 18, color: color.stone, textAlign: "center" },
   sectionTitle: { marginTop: space(6), marginBottom: space(3), fontSize: 17, fontWeight: "600", color: color.ink },

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import {
   ActivityIndicator, FlatList, Image, NativeScrollEvent, NativeSyntheticEvent,
-  Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions,
+  Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
+import { canShareImages } from "../files";
 import { redesignErrorMessage, styleName, t } from "../i18n";
 import { color, font, space } from "../theme";
 
@@ -36,15 +37,97 @@ type Props = {
 const NEEDS_CREDITS = ["NO_CREDITS", "FREE_DAILY_LIMIT"];
 const NO_RETRY = [...NEEDS_CREDITS, "CONFIG", "TOO_LARGE", "HTTP_413"];
 const MAX_SCALE = 1.3;
+const WEB = Platform.OS === "web";
+// Web: from this window width up, designs sit side by side instead of one per row.
+const TWO_COLUMNS_FROM = 900;
 
 export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, onShare, onReport, onRetry, onOpenShop }: Props) {
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const [comparing, setComparing] = useState<string | null>(null);
+  // Always true on the phone. In a browser Share is hidden unless it can share image files.
+  const [canShare] = useState(canShareImages);
 
   function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
     if (i !== index) setIndex(i);
+  }
+
+  /** One design: photo (hold to compare), style name, then its actions or its error. */
+  function renderCard(item: Result) {
+    const done = item.status === "done";
+    const showOriginal = done && comparing === item.styleId;
+    return (
+      <>
+        <Pressable
+          // Real long press: a quick touch at the start of a swipe no longer flashes the original.
+          onLongPress={() => done && setComparing(item.styleId)}
+          delayLongPress={150}
+          onPressOut={() => setComparing(null)}
+          disabled={!done}
+          accessibilityHint={done ? t.holdToCompare : undefined}
+        >
+          <Image
+            source={{ uri: done && !showOriginal ? item.uri : originalUri }}
+            style={[styles.image, { aspectRatio: aspect }]}
+            resizeMode="cover"
+          />
+          {showOriginal && (
+            <View style={styles.badge} pointerEvents="none">
+              <Text style={styles.badgeText}>{t.original}</Text>
+            </View>
+          )}
+          {item.status === "loading" && (
+            <View style={styles.overlay}>
+              <ActivityIndicator color={color.white} size="large" />
+              <Text style={styles.overlayText}>{t.designing(styleName(item.styleId))}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        <Text style={styles.styleTitle}>{styleName(item.styleId)}</Text>
+
+        {done && (
+          <View style={styles.actions}>
+            <Text style={styles.hint}>{t.holdToCompare}</Text>
+            <View style={styles.row}>
+              <Button label={t.save} onPress={() => onSave(item)} style={styles.flex} maxFontSizeMultiplier={MAX_SCALE} />
+              {canShare && (
+              <Button
+                label={t.share}
+                variant="quiet"
+                onPress={() => onShare(item)}
+                style={styles.flex}
+                maxFontSizeMultiplier={MAX_SCALE}
+              />
+              )}
+            </View>
+            <View style={styles.footRow}>
+              <Text style={styles.notice}>{t.aiNotice}</Text>
+              <Pressable
+                onPress={() => onReport(item)}
+                disabled={item.reported}
+                style={styles.reportTarget}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !!item.reported }}
+              >
+                <Text style={[styles.report, item.reported && styles.reported]}>{t.report}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {item.status === "error" && (
+          <View style={styles.actions}>
+            <Text style={styles.error}>{redesignErrorMessage(item.errorCode, item.retryAfterSec)}</Text>
+            {NEEDS_CREDITS.includes(item.errorCode ?? "") && <Button label={t.getCredits} onPress={onOpenShop} />}
+            {!NO_RETRY.includes(item.errorCode ?? "") && (
+              <Button label={t.tryAgain} variant="quiet" onPress={() => onRetry(item)} />
+            )}
+          </View>
+        )}
+      </>
+    );
   }
 
   return (
@@ -53,7 +136,7 @@ export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, on
         <Pressable onPress={onBack} hitSlop={12} style={styles.target} accessibilityRole="button">
           <Text style={styles.link}>{t.back}</Text>
         </Pressable>
-        {results.length > 1 && (
+        {results.length > 1 && !WEB && (
           <View style={styles.pager} accessible accessibilityLabel={t.pageOf(index + 1, results.length)}>
             <View style={styles.dots}>
               {results.map((r, i) => (
@@ -67,6 +150,16 @@ export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, on
         )}
       </View>
 
+      {WEB ? (
+        // Web: every design on one scrolling page, two across on wide windows. No swiping needed.
+        <ScrollView style={styles.flex} contentContainerStyle={[styles.page, styles.grid]}>
+          {results.map((r) => (
+            <View key={r.styleId} style={width >= TWO_COLUMNS_FROM && results.length > 1 ? styles.cellHalf : styles.cellFull}>
+              {renderCard(r)}
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
       <FlatList
         style={styles.flex}
         data={results}
@@ -75,81 +168,14 @@ export function ResultsScreen({ originalUri, aspect, results, onBack, onSave, on
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScroll}
-        renderItem={({ item }) => {
-          const done = item.status === "done";
-          const showOriginal = done && comparing === item.styleId;
-          return (
-            // Each page scrolls on its own so tall portrait photos never push the actions off small screens.
-            <ScrollView style={{ width }} contentContainerStyle={styles.page}>
-              <Pressable
-                // Real long press: a quick touch at the start of a swipe no longer flashes the original.
-                onLongPress={() => done && setComparing(item.styleId)}
-                delayLongPress={150}
-                onPressOut={() => setComparing(null)}
-                disabled={!done}
-                accessibilityHint={done ? t.holdToCompare : undefined}
-              >
-                <Image
-                  source={{ uri: done && !showOriginal ? item.uri : originalUri }}
-                  style={[styles.image, { aspectRatio: aspect }]}
-                  resizeMode="cover"
-                />
-                {showOriginal && (
-                  <View style={styles.badge} pointerEvents="none">
-                    <Text style={styles.badgeText}>{t.original}</Text>
-                  </View>
-                )}
-                {item.status === "loading" && (
-                  <View style={styles.overlay}>
-                    <ActivityIndicator color={color.white} size="large" />
-                    <Text style={styles.overlayText}>{t.designing(styleName(item.styleId))}</Text>
-                  </View>
-                )}
-              </Pressable>
-
-              <Text style={styles.styleTitle}>{styleName(item.styleId)}</Text>
-
-              {done && (
-                <View style={styles.actions}>
-                  <Text style={styles.hint}>{t.holdToCompare}</Text>
-                  <View style={styles.row}>
-                    <Button label={t.save} onPress={() => onSave(item)} style={styles.flex} maxFontSizeMultiplier={MAX_SCALE} />
-                    <Button
-                      label={t.share}
-                      variant="quiet"
-                      onPress={() => onShare(item)}
-                      style={styles.flex}
-                      maxFontSizeMultiplier={MAX_SCALE}
-                    />
-                  </View>
-                  <View style={styles.footRow}>
-                    <Text style={styles.notice}>{t.aiNotice}</Text>
-                    <Pressable
-                      onPress={() => onReport(item)}
-                      disabled={item.reported}
-                      style={styles.reportTarget}
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: !!item.reported }}
-                    >
-                      <Text style={[styles.report, item.reported && styles.reported]}>{t.report}</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
-
-              {item.status === "error" && (
-                <View style={styles.actions}>
-                  <Text style={styles.error}>{redesignErrorMessage(item.errorCode, item.retryAfterSec)}</Text>
-                  {NEEDS_CREDITS.includes(item.errorCode ?? "") && <Button label={t.getCredits} onPress={onOpenShop} />}
-                  {!NO_RETRY.includes(item.errorCode ?? "") && (
-                    <Button label={t.tryAgain} variant="quiet" onPress={() => onRetry(item)} />
-                  )}
-                </View>
-              )}
-            </ScrollView>
-          );
-        }}
+        renderItem={({ item }) => (
+          // Each page scrolls on its own so tall portrait photos never push the actions off small screens.
+          <ScrollView style={{ width }} contentContainerStyle={styles.page}>
+            {renderCard(item)}
+          </ScrollView>
+        )}
       />
+      )}
     </SafeAreaView>
   );
 }
@@ -197,6 +223,9 @@ const styles = StyleSheet.create({
   hint: { color: color.stone, fontSize: 13 },
   row: { flexDirection: "row", gap: space(3) },
   flex: { flex: 1 },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: space(8) },
+  cellHalf: { width: "48.5%" },
+  cellFull: { width: "100%", maxWidth: 720, marginHorizontal: "auto" },
   footRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space(4) },
   notice: { flex: 1, color: color.stone, fontSize: 12, lineHeight: 16 },
   reportTarget: { minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "flex-end", paddingLeft: space(2) },

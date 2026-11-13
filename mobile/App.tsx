@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, BackHandler, StatusBar, StyleSheet, Text, View } from "react-native";
+import { AppState, BackHandler, Platform, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { InstrumentSerif_400Regular, useFonts } from "@expo-google-fonts/instrument-serif";
 import * as SplashScreen from "expo-splash-screen";
 import { randomUUID } from "expo-crypto";
 import { api, ApiError } from "./src/api";
+import type { Account } from "./src/auth";
+import { AuthGate } from "./src/AuthGate";
 import { getInstallId } from "./src/identity";
 import { initPurchases } from "./src/purchases";
 import { saveToGallery, shareImage, writeTempJpeg } from "./src/files";
@@ -14,13 +16,25 @@ import { HomeScreen } from "./src/screens/HomeScreen";
 import { Result, ResultsScreen } from "./src/screens/ResultsScreen";
 import { ShopScreen } from "./src/screens/ShopScreen";
 import { AboutScreen, type LangChoice } from "./src/screens/AboutScreen";
-import { color, space } from "./src/theme";
+import { color, font, space } from "./src/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 type Screen = "home" | "results" | "shop" | "about";
 
+// Web-only behaviour lives in *.web.ts(x) files and behind this flag; the Android app is unchanged.
+const WEB = Platform.OS === "web";
+// Web layout: a centred column, wider on Results so designs can sit side by side.
+const COLUMN_WIDTH = 560;
+const RESULTS_WIDTH = 1180;
+
+/** Android: AuthGate renders the app at once. Web: it asks for a Google sign-in first (AuthGate.web.tsx). */
 export default function App() {
+  // The key gives each web account its own fresh state (photo, results, credits).
+  return <AuthGate>{(account) => <Main key={account?.uid ?? "app"} account={account} />}</AuthGate>;
+}
+
+function Main({ account }: { account: Account | null }) {
   const [fontsLoaded] = useFonts({ InstrumentSerif_400Regular });
   const [langReady, setLangReady] = useState(false);
   const [uiLang, setUiLang] = useState<Lang>(lang);
@@ -37,6 +51,8 @@ export default function App() {
   const [resultPhoto, setResultPhoto] = useState<Photo | null>(null);
   const [results, setResults] = useState<Result[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  // Web only: the server has the web app switched off (503 WEB_DISABLED).
+  const [webClosed, setWebClosed] = useState(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showNotice = useCallback((msg: string) => {
@@ -70,6 +86,8 @@ export default function App() {
 
   const refreshMe = useCallback(async (id: string) => {
     const me = await api.me(id);
+    // Web: RevenueCat Web Billing must use the server's userId, so it is set up once /api/me answers.
+    if (WEB && me.userId) initPurchases(me.userId);
     setCredits(me.credits);
     setFreeDenied(!!me.freeDenied);
     return me;
@@ -79,10 +97,11 @@ export default function App() {
     (async () => {
       const id = await getInstallId();
       setInstallId(id);
-      initPurchases(id);
+      if (!WEB) initPurchases(id);
       try {
         await refreshMe(id);
       } catch (e) {
+        if (WEB && e instanceof ApiError && e.code === "WEB_DISABLED") setWebClosed(true);
         showNotice(errorMessage(e instanceof ApiError ? e.code : undefined, t.network));
       }
     })();
@@ -156,8 +175,11 @@ export default function App() {
 
   async function waitForCredits(before: number): Promise<boolean> {
     if (!installId) return false;
-    for (let i = 0; i < 12; i++) {
-      await new Promise((r) => setTimeout(r, 1500));
+    // Credits arrive via the server webhook. Phone: 12 tries, 1.5 s apart. Web: every 2 s for up to 60 s.
+    const tries = WEB ? 30 : 12;
+    const everyMs = WEB ? 2000 : 1500;
+    for (let i = 0; i < tries; i++) {
+      await new Promise((r) => setTimeout(r, everyMs));
       try {
         const me = await refreshMe(installId);
         if (me.credits > before) return true;
@@ -172,7 +194,14 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor={color.limewash} />
       <View style={styles.root} key={uiLang}>
-        {screen === "home" && (
+        <View style={[styles.column, WEB && styles.columnWeb, WEB && { maxWidth: screen === "results" ? RESULTS_WIDTH : COLUMN_WIDTH }]}>
+        {webClosed && (
+          <View style={styles.closed}>
+            <Text style={styles.closedBrand}>DecoHero</Text>
+            <Text style={styles.closedText}>{t.webDisabled}</Text>
+          </View>
+        )}
+        {!webClosed && screen === "home" && (
           <HomeScreen
             credits={credits}
             freeDenied={freeDenied}
@@ -187,10 +216,10 @@ export default function App() {
             onNotice={showNotice}
           />
         )}
-        {screen === "about" && (
-          <AboutScreen installId={installId} langChoice={langChoice} onChangeLang={changeLang} onBack={() => setScreen("home")} />
+        {!webClosed && screen === "about" && (
+          <AboutScreen installId={installId} account={account} onNotice={showNotice} langChoice={langChoice} onChangeLang={changeLang} onBack={() => setScreen("home")} />
         )}
-        {screen === "results" && resultPhoto && (
+        {!webClosed && screen === "results" && resultPhoto && (
           <ResultsScreen
             originalUri={resultPhoto.uri}
             aspect={resultPhoto.aspect}
@@ -202,7 +231,7 @@ export default function App() {
               if (!r.uri) return;
               try {
                 const ok = await saveToGallery(r.uri);
-                showNotice(ok ? t.saved : t.mediaDenied);
+                showNotice(ok ? (WEB ? t.downloaded : t.saved) : t.mediaDenied);
               } catch {
                 showNotice(t.saveFailed);
               }
@@ -223,7 +252,7 @@ export default function App() {
             }}
           />
         )}
-        {screen === "shop" && (
+        {!webClosed && screen === "shop" && (
           <ShopScreen
             credits={credits}
             onBack={() => setScreen(returnTo)}
@@ -233,6 +262,7 @@ export default function App() {
         )}
 
         {notice && <Notice text={notice} atTop={screen === "results"} />}
+        </View>
       </View>
     </SafeAreaProvider>
   );
@@ -254,6 +284,11 @@ function Notice({ text, atTop }: { text: string; atTop: boolean }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.limewash },
+  column: { flex: 1 },
+  columnWeb: { width: "100%", alignSelf: "center" },
+  closed: { flex: 1, justifyContent: "center", paddingHorizontal: space(5), gap: space(3) },
+  closedBrand: { fontFamily: font.display, fontSize: 48, color: color.ink },
+  closedText: { fontSize: 16, lineHeight: 23, color: color.ink },
   notice: {
     position: "absolute",
     left: space(5),

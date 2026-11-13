@@ -1,5 +1,7 @@
-import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { Account } from "../auth";
+import { AccountCard } from "../components/AccountCard";
 import { Button } from "../components/Button";
 import { t, type Lang } from "../i18n";
 import { color, font, radius, space } from "../theme";
@@ -11,14 +13,19 @@ export type LangChoice = Lang | "phone";
 
 type Props = {
   installId: string | null;
+  /** Web only: the signed-in Google account. Null on the phone. */
+  account?: Account | null;
+  onNotice?: (msg: string) => void;
   langChoice: LangChoice;
   onChangeLang: (l: LangChoice) => void;
   onBack: () => void;
 };
 
-export function AboutScreen({ installId, langChoice, onChangeLang, onBack }: Props) {
+const WEB = Platform.OS === "web";
+
+export function AboutScreen({ installId, account = null, onNotice = () => {}, langChoice, onChangeLang, onBack }: Props) {
   const langs: { id: LangChoice; label: string }[] = [
-    { id: "phone", label: t.phoneLanguage },
+    { id: "phone", label: WEB ? t.browserLanguage : t.phoneLanguage },
     { id: "en", label: "English" },
     { id: "es", label: "Español" },
   ];
@@ -54,6 +61,11 @@ export function AboutScreen({ installId, langChoice, onChangeLang, onBack }: Pro
         <Text style={styles.text}>{t.aboutBody}</Text>
         <Text style={styles.text}>{t.aiNotice}</Text>
 
+        {WEB ? (
+          // Web: account card with the signed-in email, Sign out, Delete account, and the /privacy and /terms links.
+          <AccountCard account={account} onNotice={onNotice} />
+        ) : (
+        <>
         <Pressable
           onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
           style={styles.target}
@@ -76,6 +88,8 @@ export function AboutScreen({ installId, langChoice, onChangeLang, onBack }: Pro
             />
           )}
         </View>
+        </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

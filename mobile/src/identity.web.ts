@@ -1,11 +1,7 @@
-// Browser stand-in for identity.ts, used only for web previews (expo-secure-store has no web module).
-const KEY = "decohero_install_id";
+// Web build of identity.ts. On the web the account is the Firebase sign-in, sent as a Bearer token by
+// apiAuth.web.ts. This id is only a local "signed in" marker for App.tsx; it is never sent to the server.
+import { currentAccount } from "./auth";
 
 export async function getInstallId(): Promise<string> {
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(KEY, id);
-  }
-  return id;
+  return currentAccount()?.uid ?? "web";
 }
