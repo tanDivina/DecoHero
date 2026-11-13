@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { t, styleName } from "../i18n";
@@ -33,6 +33,10 @@ export function HomeScreen({
   credits, freeDenied, photo, onPhoto, selected, onSelect, onRedesign, onViewResults, onOpenShop, onOpenAbout, onNotice,
 }: Props) {
   const [picking, setPicking] = useState<"camera" | "gallery" | null>(null);
+  // Web: adjustsFontSizeToFit does nothing in a browser, so long names ("Tropical moderno") wrap to two
+  // lines there, in slightly smaller type on narrow phones.
+  const { width } = useWindowDimensions();
+  const chipTextWeb = WEB && (width < 400 ? styles.chipTextWebNarrow : styles.chipTextWeb);
   const { dragging, canDrop } = usePhotoDrop(onPhoto, () => onNotice(t.photoFailed));
 
   async function pick(source: "camera" | "gallery") {
@@ -155,8 +159,8 @@ export function HomeScreen({
               >
                 {on && <View style={styles.chipMark} />}
                 <Text
-                  style={styles.chipText}
-                  numberOfLines={1}
+                  style={[styles.chipText, chipTextWeb]}
+                  numberOfLines={WEB ? 2 : 1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.75}
                   maxFontSizeMultiplier={MAX_SCALE}
@@ -266,6 +270,8 @@ const styles = StyleSheet.create({
     backgroundColor: color.brass,
   },
   chipText: { fontSize: 14, color: color.ink, textAlign: "center" },
+  chipTextWeb: { lineHeight: 17 },
+  chipTextWebNarrow: { fontSize: 13, lineHeight: 16 },
   about: { marginTop: space(4) },
   aboutText: { color: color.stone, fontSize: 14, textDecorationLine: "underline" },
   instruction: { color: color.stone, fontSize: 14, textAlign: "center", marginBottom: space(2) },

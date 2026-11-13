@@ -12,6 +12,7 @@ import { initPurchases } from "./src/purchases";
 import { saveToGallery, shareImage, writeTempJpeg } from "./src/files";
 import { errorMessage, followPhoneLang, lang, langPref, loadLangPref, setLang, syncDeviceLang, t, type Lang } from "./src/i18n";
 import type { Photo } from "./src/photo";
+import { useScreenHistory } from "./src/screenHistory";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { Result, ResultsScreen } from "./src/screens/ResultsScreen";
 import { ShopScreen } from "./src/screens/ShopScreen";
@@ -129,6 +130,14 @@ function Main({ account }: { account: Account | null }) {
     });
     return () => sub.remove();
   }, [screen, returnTo]);
+
+  // Web: the browser's back and forward buttons move between screens (no-op on the phone).
+  useScreenHistory<Screen>(screen, (to, cameFrom) => {
+    // Results that no longer exist (the page was reloaded) fall back to Home.
+    if (to === "results" && !(results.length && resultPhoto)) return setScreen("home");
+    if (to === "shop") setReturnTo(cameFrom === "shop" ? "home" : cameFrom);
+    setScreen(to);
+  });
 
   const openShop = useCallback(() => {
     setReturnTo(screen === "shop" ? "home" : screen);
