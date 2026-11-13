@@ -1,0 +1,23 @@
+# Copied into web-dist/ by scripts/build-web.sh. Nothing below should ever be in a deploy.
+*.py
+*.sh
+*.command
+*.bat
+*.ts
+*.tsx
+*.md
+*.map
+.env*
+*.jks
+*.keystore
+*.pem
+*.key
+*.p12
+*key*.json
+*credentials*.json
+*service-account*.json
+*serviceAccount*.json
+google-services.json
+package.json
+package-lock.json
+.DS_Store
