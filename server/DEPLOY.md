@@ -10,6 +10,7 @@ The API is one small Node container. Credits live in a SQLite file, so it needs 
 | `REVENUECAT_WEBHOOK_SECRET` | yes | Long random string; same value goes in RevenueCat's webhook Authorization header. Without it every purchase webhook gets 401. |
 | `FIREBASE_PROJECT_ID` | for the web app | Project ID of the Firebase project the web app signs in with (Firebase console > Project settings). Public value, not a secret. Without it web requests get 503 `WEB_DISABLED`; Android is not affected. **No service-account key is needed and none may be added**: tokens are checked against Google's public certificates. |
 | `WEB_ORIGINS` | no | Browser origins allowed to call `/api`, comma-separated, default `https://deco.hero-apps.com`. Origin only: no path, no trailing slash. |
+| `TOMBSTONE_SALT` | no | Secret salt for the hash of a deleted web account's Firebase uid (kept 2 hours). Without it the salt is derived from `FIREBASE_PROJECT_ID`, which is public, so set it: `openssl rand -hex 24`. Changing it only means deletes from the last 2 hours are no longer recognised. |
 | `IMAGE_MODEL` | no | Default `gemini-3.1-flash-image`. `gemini-3.1-flash-lite-image` is about half the cost (check quality first). |
 | `MAX_GENERATIONS_PER_DAY` | no | Hard global cap per UTC day, default `300` (~$20/day). Once hit, generation returns 503 `DAILY_LIMIT` until 00:00 UTC. `0` switches generation off (kill switch). |
 | `MAX_FREE_GENERATIONS_PER_DAY` | no | Cap for unpaid users, default `100`. Returns 503 `FREE_DAILY_LIMIT`. Paying users keep working. |
@@ -97,7 +98,7 @@ Then:
 
 ## Local checks
 
-- `npm test`: end-to-end checks (webhook purchase, duplicate, suffixed product id, refund; new-install cap and `freeDenied`; reports; disconnect refund; rate limits; web sign-in, CORS and account delete) against a temp SQLite file with a fake Gemini and a fake token check. No network, no keys.
+- `npm test`: end-to-end checks (webhook purchase, duplicate, suffixed product id, refund; new-install cap and `freeDenied`; reports; disconnect refund; rate limits; web sign-in, CORS, account delete and its abuse cases) against a temp SQLite file with a fake Gemini and a fake token check. No network, no keys.
 - `npm run watermark-sample [input.jpg] [output.jpg]`: renders the free-design watermark and prints the output path. To check the production font, run it inside the built image, e.g. `docker build -t decohero-api . && docker run --rm -v "$PWD/scripts:/app/scripts" -v "$PWD/src:/app/src" -v /tmp:/out decohero-api npx --yes tsx scripts/watermark-sample.ts "" /out/wm.jpg`.
 
 ## API notes
@@ -108,11 +109,19 @@ Then:
 ### Web app
 
 - The web app (Expo web build on `https://deco.hero-apps.com/app`) signs in with Google through Firebase Auth and sends `Authorization: Bearer <Firebase ID token>` on every `/api` call. Any install id on such a request is ignored.
-- The first valid token for a Firebase uid creates a random user id (table `web_accounts`: Firebase uid, user id, created date; no email or name). It gets the same free credits and counts toward the same per-IP new-user limit as an install. Rate limits and credits key on that user id.
+- Only Google sign-ins are accepted (`firebase.sign_in_provider` must be `google.com`), whatever else is switched on in the Firebase project.
+- `GET /api/me` is the only call that creates an account: the first time a Firebase uid is seen it gets a random user id (table `web_accounts`: Firebase uid, user id, created date; no email or name), the same free credits as an install, and it counts toward the same per-IP new-user limit. Every other `/api` call from a uid without an account answers 401 `ACCOUNT_NOT_FOUND`, so the web app calls `/api/me` first. Rate limits and credits key on that user id.
 - The web app logs in to RevenueCat (Web Billing) with the `userId` from `/api/me`, so the same webhook credits it. Nothing web-specific is configured on the webhook.
-- Errors: 401 `AUTH_INVALID` (bad or expired token: get a fresh one), 401 `AUTH_REQUIRED` (request from a web origin without a token), 503 `WEB_DISABLED` (`FIREBASE_PROJECT_ID` not set), 503 `AUTH_UNAVAILABLE` (Google's signing certificates could not be fetched: retry).
+- A web account's `userId` is not an install id: a request that sends it as `X-Install-Id` (or `installId`) without a token gets 401 `AUTH_REQUIRED`.
+- Errors: 401 `AUTH_INVALID` (bad or expired token, not a Google sign-in, or a sign-in older than the account's delete: sign in again), 401 `AUTH_REQUIRED` (request from a web origin without a token), 401 `ACCOUNT_NOT_FOUND` (valid token, no account yet: call `GET /api/me`), 503 `WEB_DISABLED` (`FIREBASE_PROJECT_ID` not set), 503 `AUTH_UNAVAILABLE` (Google's signing keys could not be fetched: retry, do not sign the user out).
 - CORS headers are sent only on `/api`, only to the origins in `WEB_ORIGINS`. Preflights are answered with 204 before the rate limiters. Outside production (`NODE_ENV` other than `production`; the Dockerfile sets `production`) the Expo dev origins `http://localhost:8081` and `http://localhost:19006` are allowed as well.
-- `POST /api/account/delete` (Bearer only) deletes the signed-in web account: the `web_accounts` row, the user row (credits, paid flag, IP), its generation log and its reports. Purchase rows are kept for accounting and so a retried webhook or a refund cannot credit twice, but their user id is replaced by `deleted`. Unused credits are lost. Signing in again afterwards starts a new account. It does not delete the Firebase Auth user or the RevenueCat/Stripe customer; the web app deletes the Firebase user itself, and RevenueCat/Stripe records are removed from their dashboards on request.
+- `POST /api/account/delete` (Bearer only) deletes the signed-in web account: the `web_accounts` row, the user row (credits, paid flag, IP), its generation log and its reports. Unused credits are lost. What stays:
+  - purchase rows, for accounting and so a retried webhook or a refund cannot credit twice, with their user id replaced by `deleted`;
+  - the bare random user id in `deleted_users`, so a purchase webhook that arrives later credits nobody (logged as `NOT CREDITED (account deleted)`, answered 200; refund it in RevenueCat if the buyer asks) and the id cannot be reused;
+  - for 2 hours, a salted SHA-256 hash of the Firebase uid in `web_tombstones`. While it is there, tokens from a sign-in made before the delete get 401 `AUTH_INVALID`, so a token that was still valid cannot re-create the account. A new sign-in after the delete works at once and starts a new account;
+  - for up to 48 hours from when the account was created, the IP it was created from in `free_grants` (IP and time only, no id), so deleting does not hand the free credits back.
+- It does not delete the Firebase Auth user or the RevenueCat/Stripe customer; the web app deletes the Firebase user itself, and RevenueCat/Stripe records are removed from their dashboards on request.
+- The server refuses to start in production when `FIREBASE_AUTH_EMULATOR_HOST` is set (it would switch off token signature checks).
 - `/api/redesign` refunds the credit if the phone disconnects before the response is fully written, and gives the daily slot back if the model returned no image. Both count toward `MAX_FAILURES_PER_INSTALL_PER_DAY`.
 - Webhook purchases that cannot be credited (unknown product id, no install id) answer 500 so RevenueCat retries them; look for `NOT CREDITED` in the logs. Product ids are matched on the part before `:`.
 
@@ -120,9 +129,9 @@ Then:
 
 - Install ids are generated by the app, so a determined abuser on many IPs can still farm free credits. The free daily cap bounds the cost; Play Integrity checks are the real fix if the `users` table shows it.
 - Refunds: a RevenueCat `CANCELLATION` for a credit pack removes that pack's credits (never below 0), once per store transaction, and an install whose purchases are all refunded counts as unpaid again (watermark, free limits). Credits already spent before the refund are not clawed back.
-- Retention: `users.ip` is blanked once an install is 48 hours old (at startup and hourly). The free-credit check only needs the last 24 hours.
+- Retention: `users.ip` is blanked once an install is 48 hours old, and `free_grants` rows (IP and time of each new user) are dropped at the same age (at startup and hourly). The free-credit check only needs the last 24 hours. The uid hashes of deleted web accounts are dropped after 2 hours (checked hourly).
 - Purchases are credited only to an install id (the app logs in to RevenueCat with it). An event without one is logged as `NOT CREDITED`, answered with 500 (RevenueCat retries a few times) and needs a manual fix if it never resolves.
 - Request logs: Railway's HTTP logs record each request's path, so `/api/me?installId=...` calls from app version 1.0.0 put the install id next to the client IP there. Newer app versions send it in a header, which is not logged.
-- Web sign-in trusts every sign-in method enabled in the Firebase project. Keep it to Google only (Firebase console > Authentication > Sign-in method): with anonymous or email/password sign-up enabled, anyone could mint accounts for free credits (bounded by the per-IP limit and the free daily cap).
-- A deleted web account that signs in again gets the free credits again, like a reinstall on Android. The per-IP new-user limit and the free daily cap bound it.
+- Web sign-in accepts Google accounts only. Still keep the other sign-in methods off in the Firebase project (Firebase console > Authentication > Sign-in method).
+- A deleted web account that signs in again is a new user, like a reinstall on Android: it gets free credits only while its IP is under `MAX_NEW_INSTALLS_PER_IP_PER_DAY`. New users are counted per IP in `free_grants`, which a delete does not touch, so a delete and sign-in loop from one IP stops getting credits at the limit. Someone who changes IP for every new account can still collect free credits; the free daily cap bounds the cost.
 - Sandbox purchases (licence testers) grant real credits on this server. Fine for internal testing.

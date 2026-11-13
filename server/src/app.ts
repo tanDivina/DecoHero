@@ -6,10 +6,10 @@ import sharp from "sharp";
 import { buildPrompt, isStyle } from "./styles.js";
 import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
-import { firebaseVerifier, type VerifyIdToken } from "./auth.js";
+import { firebaseVerifier, isKeyFetchFailure, type VerifiedToken, type VerifyIdToken } from "./auth.js";
 import {
-  addReport, deleteWebAccount, failuresToday, getCredits, getOrCreateUser, getOrCreateWebUser, getUser, grantPurchase,
-  logGeneration, MAX_FAILURES_PER_INSTALL_PER_DAY, refundCredits, refundPurchase, releaseGeneration, reserveGeneration,
+  addReport, deletedAt, deleteWebAccount, failuresToday, getCredits, getOrCreateUser, getOrCreateWebUser, getUser,
+  getWebUserId, grantPurchase, isWebUserId, logGeneration, MAX_FAILURES_PER_INSTALL_PER_DAY, refundCredits, refundPurchase, releaseGeneration, reserveGeneration,
   spendCredits, utcDay,
 } from "./db.js";
 
@@ -128,6 +128,11 @@ export type AppOptions = {
 export function createApp(generate: Generate, model: string, options: AppOptions = {}) {
   const verifyIdToken = options.verifyIdToken ?? firebaseVerifier();
   const allowedOrigins = webOrigins();
+  // Salt for the short-lived uid hash kept after an account delete (web_tombstones).
+  const tombstoneSalt =
+    process.env.TOMBSTONE_SALT?.trim() ||
+    crypto.createHash("sha256").update(`decohero-tombstone:${process.env.FIREBASE_PROJECT_ID?.trim() ?? ""}`).digest("hex");
+  const uidHashOf = (uid: string) => crypto.createHash("sha256").update(`${uid}:${tombstoneSalt}`).digest("hex");
   const allowedOrigin = (req: express.Request) => {
     const origin = req.get("origin");
     return origin !== undefined && allowedOrigins.has(origin) ? origin : null;
@@ -180,7 +185,13 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           res.status(401).json({ error: "AUTH_REQUIRED" });
           return;
         }
-        identities.set(req, { userId: installIdOf(req) });
+        const installId = installIdOf(req);
+        // A web account's user id is not an install id: its credits are only reachable with a sign-in.
+        if (installId && isWebUserId(installId)) {
+          res.status(401).json({ error: "AUTH_REQUIRED" });
+          return;
+        }
+        identities.set(req, { userId: installId });
         next();
         return;
       }
@@ -189,26 +200,42 @@ export function createApp(generate: Generate, model: string, options: AppOptions
         return;
       }
       const token = authorization.match(/^Bearer\s+(\S+)$/i)?.[1];
-      let firebaseUid: string | null = null;
+      let decoded: VerifiedToken | null = null;
       if (token) {
         try {
-          const decoded = await verifyIdToken(token);
-          if (typeof decoded?.uid === "string" && decoded.uid) firebaseUid = decoded.uid;
+          decoded = await verifyIdToken(token);
         } catch (err) {
-          // Google's signing certificates could not be fetched: our problem, not the token's. The client
-          // should retry instead of signing the user out.
-          if ((err as { code?: unknown })?.code === "auth/internal-error") {
+          // Google's signing keys could not be fetched: our problem, not the token's. The client should
+          // retry instead of signing the user out.
+          if (isKeyFetchFailure(err)) {
             console.error(`token check unavailable: ${describeError(err)}`);
             res.status(503).json({ error: "AUTH_UNAVAILABLE" });
             return;
           }
         }
       }
-      if (!firebaseUid) {
+      const firebaseUid = typeof decoded?.uid === "string" && decoded.uid ? decoded.uid : null;
+      // Google sign-in only, whatever else gets switched on in the Firebase project.
+      if (!firebaseUid || decoded?.firebase?.sign_in_provider !== "google.com") {
         res.status(401).json({ error: "AUTH_INVALID" });
         return;
       }
-      identities.set(req, { userId: getOrCreateWebUser(firebaseUid, clientIp(req)), firebaseUid });
+      const userId = getWebUserId(firebaseUid);
+      if (!userId) {
+        // Deleted in the last 2 hours: only a sign-in made after the delete may start a new account.
+        const deleted = deletedAt(uidHashOf(firebaseUid));
+        const authTimeMs = typeof decoded?.auth_time === "number" ? decoded.auth_time * 1000 : 0;
+        if (deleted !== null && authTimeMs <= deleted) {
+          res.status(401).json({ error: "AUTH_INVALID" });
+          return;
+        }
+        // Accounts are created by GET /api/me only.
+        if (!(req.method === "GET" && req.path === "/me")) {
+          res.status(401).json({ error: "ACCOUNT_NOT_FOUND" });
+          return;
+        }
+      }
+      identities.set(req, { userId, firebaseUid });
       next();
     } catch (err) {
       next(err);
@@ -231,7 +258,8 @@ export function createApp(generate: Generate, model: string, options: AppOptions
   });
 
   app.get("/api/me", (req, res) => {
-    const id = userIdOf(req);
+    const firebaseUid = identities.get(req)?.firebaseUid;
+    const id = firebaseUid ? getOrCreateWebUser(firebaseUid, clientIp(req)) : userIdOf(req);
     if (!id) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
@@ -248,7 +276,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       res.status(401).json({ error: "AUTH_REQUIRED" });
       return;
     }
-    deleteWebAccount(firebaseUid);
+    deleteWebAccount(firebaseUid, uidHashOf(firebaseUid));
     res.json({ ok: true });
   });
 
@@ -286,7 +314,13 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       return;
     }
 
-    const user = getOrCreateUser(installId, clientIp(req));
+    // A web account deleted while the photo was being prepared must not come back as a new user.
+    const isWeb = !!identities.get(req)?.firebaseUid;
+    const user = isWeb ? getUser(installId) : getOrCreateUser(installId, clientIp(req));
+    if (!user) {
+      res.status(401).json({ error: "ACCOUNT_NOT_FOUND" });
+      return;
+    }
     // Stops one install from burning daily slots and our money through endless failures or dropped connections.
     if (failuresToday(installId) >= MAX_FAILURES_PER_INSTALL_PER_DAY) {
       res.status(429).json({ error: "TOO_MANY_FAILURES", credits: getCredits(installId) });
@@ -412,8 +446,13 @@ export function createApp(generate: Generate, model: string, options: AppOptions
         res.status(500).json({ error: "NO_INSTALL_ID" });
         return;
       }
-      const granted = grantPurchase(event.id, userId, pack.id, pack.credits, transactionIds[0] ?? null);
-      console.log(`purchase ${event.id}: ${pack.id} -> ${userId} (granted=${granted}, ${event.environment ?? "?"})`);
+      const result = grantPurchase(event.id, userId, pack.id, pack.credits, transactionIds[0] ?? null);
+      if (result === "account_deleted") {
+        // Answered 200: a retry cannot fix it. Refund it by hand in RevenueCat if the buyer asks.
+        console.error(`purchase ${event.id}: ${pack.id} NOT CREDITED (account deleted), ${event.environment ?? "?"}`);
+      } else {
+        console.log(`purchase ${event.id}: ${pack.id} -> ${userId} (granted=${result === "granted"}, ${event.environment ?? "?"})`);
+      }
     } else if (event.type === "CANCELLATION" && transactionIds.length) {
       // For one-time purchases RevenueCat sends CANCELLATION when Google refunds the order.
       const removed = refundPurchase(transactionIds);

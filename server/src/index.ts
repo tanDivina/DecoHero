@@ -5,7 +5,8 @@ import { MAX_FREE_GENERATIONS_PER_DAY, MAX_GENERATIONS_PER_DAY, purgeOldIps } fr
 
 const app = createApp(generateRedesign, IMAGE_MODEL);
 
-// Retention: blank stored IPs older than 48 h, at startup and then hourly.
+// Retention, at startup and then hourly: blank stored IPs and drop per-IP new-user rows older than 48 h,
+// and drop the uid hashes of web accounts deleted more than 2 h ago.
 const runIpPurge = () => {
   try {
     const n = purgeOldIps();
