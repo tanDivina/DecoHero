@@ -18,7 +18,7 @@ export async function renewIdentity(): Promise<boolean> {
   }
 }
 
-/** The token is no longer accepted: sign out, which brings back the sign-in screen. */
+/** Even a freshly renewed token was rejected: sign out (the page reloads to the sign-in screen). */
 export async function identityRejected(): Promise<void> {
   await signOutUser().catch(() => {});
 }

@@ -1,40 +1,48 @@
 // Web only: who is signed in, Sign out, and Delete account with a confirm step inside the page.
 import { useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { api } from "../api";
-import { deleteSignedInUser, reauthAndDeleteUser, signOutUser, type Account } from "../auth";
+import { api, pauseApiForDelete, resumeApi } from "../api";
+import { deleteCurrentUser, reauthenticate, signOutUser, type Account } from "../auth";
 import { t } from "../i18n";
 import { color, radius, space } from "../theme";
 import { Button } from "./Button";
 
-type Step = "idle" | "confirm" | "reauth";
+type Step = "idle" | "confirm";
+
+/** Read once by the sign-in screen after the reload that ends a delete. */
+export const DELETED_FLASH_KEY = "decohero_deleted";
 
 export function AccountCard({ account, onNotice }: { account: Account | null; onNotice: (msg: string) => void }) {
   const [step, setStep] = useState<Step>("idle");
   const [busy, setBusy] = useState(false);
 
-  // Server side first (credits, history), then the Google sign-in itself. Signing out unmounts this screen.
   async function deleteAccount() {
     setBusy(true);
+    // 1. Google confirms it is the same person. First thing after the click, or the popup is blocked.
+    //    Firebase refuses to delete a sign-in without it, so it comes before anything is deleted.
+    const confirmed = await reauthenticate();
+    if (confirmed !== "ok") {
+      setBusy(false);
+      return onNotice(t.deleteNotConfirmed);
+    }
+    // 2. Stop balance refreshes and purchase polling, and let requests already sent finish:
+    //    a late GET /api/me would re-create the account.
+    await pauseApiForDelete();
+    // 3. Server side: credits, design log, reports.
     try {
       await api.deleteAccount("");
-      if ((await deleteSignedInUser()) === "reauth") setStep("reauth");
     } catch {
-      onNotice(t.deleteFailed);
-    } finally {
+      resumeApi();
       setBusy(false);
+      return onNotice(t.deleteFailed);
     }
-  }
-
-  async function confirmWithGoogle() {
-    setBusy(true);
+    // 4. The Google sign-in itself. If that fails the data is still gone, so sign out either way.
+    const removed = await deleteCurrentUser();
     try {
-      await reauthAndDeleteUser();
-    } catch {
-      onNotice(t.deleteFailed);
-    } finally {
-      setBusy(false);
-    }
+      sessionStorage.setItem(DELETED_FLASH_KEY, removed ? "all" : "data");
+    } catch {}
+    // 5. Sign out and reload; the sign-in screen shows what happened.
+    await signOutUser().catch(() => {});
   }
 
   return (
@@ -75,13 +83,6 @@ export function AccountCard({ account, onNotice }: { account: Account | null; on
               <Text style={styles.dangerButtonText}>{t.deleteConfirmYes}</Text>
             </Pressable>
             <Button label={t.cancel} variant="quiet" onPress={() => setStep("idle")} disabled={busy} />
-          </View>
-        )}
-
-        {step === "reauth" && (
-          <View style={styles.confirm} accessibilityRole="alert">
-            <Text style={styles.text}>{t.deleteReauth}</Text>
-            <Button label={t.deleteReauthButton} onPress={confirmWithGoogle} loading={busy} />
           </View>
         )}
       </View>

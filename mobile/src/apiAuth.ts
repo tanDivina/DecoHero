@@ -10,10 +10,10 @@ export function identityBody<T extends object>(installId: string, body: T): { in
   return { installId, ...body };
 }
 
-/** Called on a 401 AUTH_INVALID. True = credentials were renewed, retry the request once. */
+/** Called on a 401 AUTH_INVALID. True = credentials were renewed, retry the request once. False = could not renew. */
 export async function renewIdentity(): Promise<boolean> {
   return false;
 }
 
-/** Called when the server still rejects the identity after a renewal. */
+/** Called when the server rejects the renewed credentials with AUTH_INVALID again. */
 export async function identityRejected(): Promise<void> {}

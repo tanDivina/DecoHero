@@ -70,8 +70,13 @@ export async function signInWithGoogle(): Promise<SignInResult> {
   }
 }
 
+/** Signs out and reloads the page, so nothing of this account (state, RevenueCat user) stays in memory. */
 export async function signOutUser(): Promise<void> {
-  if (auth) await signOut(auth);
+  try {
+    if (auth) await signOut(auth);
+  } finally {
+    window.location.reload();
+  }
 }
 
 export function currentAccount(): Account | null {
@@ -86,26 +91,28 @@ export async function getIdToken(forceRefresh = false): Promise<string | null> {
 }
 
 /**
- * Deletes the Firebase sign-in after the server side of the account is gone, then signs out.
- * "reauth": Firebase wants a fresh Google confirmation first; call reauthAndDeleteUser() from a click.
+ * Asks Google to confirm it is still the same person, which Firebase requires before deleting a sign-in.
+ * Must run straight from a click (no await before it), or the browser blocks the popup.
  */
-export async function deleteSignedInUser(): Promise<"done" | "reauth"> {
+export async function reauthenticate(): Promise<"ok" | "cancelled" | "failed"> {
   const user = auth?.currentUser;
-  if (!user) return "done";
+  if (!user) return "failed";
   try {
-    await deleteUser(user);
+    await reauthenticateWithPopup(user, new GoogleAuthProvider());
+    return "ok";
   } catch (e: any) {
-    if (e?.code === "auth/requires-recent-login") return "reauth";
-    throw e;
+    return POPUP_CLOSED.includes(e?.code) ? "cancelled" : "failed";
   }
-  await signOutUser().catch(() => {});
-  return "done";
 }
 
-export async function reauthAndDeleteUser(): Promise<void> {
+/** Deletes the Firebase sign-in, after the server side of the account is gone. False = could not. */
+export async function deleteCurrentUser(): Promise<boolean> {
   const user = auth?.currentUser;
-  if (!user) return;
-  await reauthenticateWithPopup(user, new GoogleAuthProvider());
-  await deleteUser(user);
-  await signOutUser().catch(() => {});
+  if (!user) return true;
+  try {
+    await deleteUser(user);
+    return true;
+  } catch {
+    return false;
+  }
 }

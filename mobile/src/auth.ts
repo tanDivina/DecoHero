@@ -24,11 +24,11 @@ export function currentAccount(): Account | null {
 export async function getIdToken(_forceRefresh = false): Promise<string | null> {
   return null;
 }
-/** Deletes the sign-in itself (after the server side is gone). "reauth" = Google must confirm first. */
-export async function deleteSignedInUser(): Promise<"done" | "reauth"> {
+/** Asks Google to confirm it is still the same person. Call straight from a click, or the popup is blocked. */
+export async function reauthenticate(): Promise<"ok" | "cancelled" | "failed"> {
   return webOnly();
 }
-/** Opens Google to confirm, then deletes the sign-in. Call from a click. */
-export async function reauthAndDeleteUser(): Promise<void> {
+/** Deletes the sign-in itself, after the server side of the account is gone. False = could not. */
+export async function deleteCurrentUser(): Promise<boolean> {
   return webOnly();
 }

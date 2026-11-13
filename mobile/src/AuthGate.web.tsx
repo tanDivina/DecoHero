@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { InstrumentSerif_400Regular, useFonts } from "@expo-google-fonts/instrument-serif";
 import { finishRedirectSignIn, signInWithGoogle, watchAccount, type Account } from "./auth";
+import { DELETED_FLASH_KEY } from "./components/AccountCard.web";
 import { Button } from "./components/Button";
 import { lang, loadLangPref, t } from "./i18n";
 import { color, font, space } from "./theme";
@@ -19,6 +20,16 @@ export function AuthGate({ children }: { children: (account: Account | null) => 
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [problems] = useState(webConfigProblems);
+  // Set by the account delete just before it reloads the page: "all" or "data" (sign-in link not removed).
+  const [deleted] = useState(() => {
+    try {
+      const v = sessionStorage.getItem(DELETED_FLASH_KEY);
+      sessionStorage.removeItem(DELETED_FLASH_KEY);
+      return v;
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
     loadLangPref().finally(() => {
@@ -71,6 +82,11 @@ export function AuthGate({ children }: { children: (account: Account | null) => 
           ) : (
             <>
               <Text style={styles.tagline}>{t.tagline}</Text>
+              {!!deleted && (
+                <Text style={styles.flash} accessibilityLiveRegion="polite">
+                  {deleted === "all" ? t.accountDeleted : t.accountDataDeleted}
+                </Text>
+              )}
               <View style={styles.card}>
                 <Button label={t.signInGoogle} onPress={signIn} loading={busy} />
                 <Text style={styles.why}>{t.signInWhy}</Text>
@@ -109,6 +125,7 @@ const styles = StyleSheet.create({
     borderColor: color.line,
   },
   text: { fontSize: 15, lineHeight: 22, color: color.ink },
+  flash: { fontSize: 15, lineHeight: 21, color: color.ink, fontWeight: "600" },
   why: { fontSize: 15, lineHeight: 21, color: color.stone, textAlign: "center" },
   small: { fontSize: 13, lineHeight: 19, color: color.stone },
   error: { fontSize: 15, lineHeight: 21, color: color.danger, textAlign: "center" },
