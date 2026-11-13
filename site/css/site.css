@@ -81,13 +81,28 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
 .lede { font-size: 1.14rem; color: var(--stone); max-width: 34rem; margin-top: 22px; }
 .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 .hero-note { font-size: 0.92rem; color: var(--stone); margin-top: 16px; }
-.hero-media { position: relative; width: min(100%, 272px); margin: 0 auto; padding-top: 28px; }
-.arch { position: absolute; inset: 0 -22px 44px -22px; background: var(--olive); border-radius: 999px 999px 0 0; }
-.screen { position: relative; border-radius: 28px; overflow: hidden; background: var(--limewash); border: 6px solid var(--ink); box-shadow: 0 18px 40px rgba(28, 35, 33, .18); aspect-ratio: 9 / 16; }
-.screen video { width: 100%; height: 100%; object-fit: cover; }
-.hero-media figcaption { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; font-size: 0.85rem; color: var(--stone); min-height: 32px; }
-.video-toggle { font: 600 0.82rem/1 var(--sans); color: var(--olive-deep); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
-.video-toggle:hover { border-color: var(--olive); }
+/* before/after: two pictures side by side without JS, one draggable comparison with it */
+.ba { width: 100%; max-width: 440px; margin: 0 auto; }
+.ba-landscape { max-width: 640px; }
+.ba-stage { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border-radius: 22px; overflow: hidden; background: var(--line); box-shadow: 0 18px 40px rgba(28, 35, 33, .14); }
+.ba-pane { position: relative; }
+.ba-pane img { width: 100%; height: 100%; object-fit: cover; }
+.ba-tag { position: absolute; top: 12px; left: 12px; padding: 6px 12px; border-radius: 999px; background: rgba(246, 247, 244, .94); color: var(--ink); font-size: 0.75rem; font-weight: 600; line-height: 1.2; pointer-events: none; }
+.ba-tag-after { background: var(--olive); color: var(--white); }
+.ba figcaption, .sample-note { font-size: 0.85rem; color: var(--stone); margin-top: 14px; }
+.sample-note { margin-top: 28px; }
+.ba-on .ba-stage { display: block; --pos: 50%; }
+.ba-portrait.ba-on .ba-stage { aspect-ratio: 896 / 1200; }
+.ba-landscape.ba-on .ba-stage { aspect-ratio: 1200 / 896; }
+.ba-on .ba-pane { position: absolute; inset: 0; }
+.ba-on .ba-after { clip-path: inset(0 0 0 var(--pos)); }
+.ba-on .ba-tag-after { left: auto; right: 12px; }
+.ba-handle { position: absolute; top: 0; bottom: 0; left: var(--pos); width: 2px; margin-left: -1px; background: var(--white); pointer-events: none; }
+.ba-handle svg { position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; padding: 11px; margin: -22px 0 0 -22px; border-radius: 50%; background: var(--white); color: var(--olive-deep); box-shadow: 0 2px 10px rgba(28, 35, 33, .28); }
+.ba-range { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; touch-action: pan-y; -webkit-appearance: none; appearance: none; background: transparent; }
+.ba-range::-webkit-slider-thumb { -webkit-appearance: none; width: 44px; height: 100vh; }
+.ba-range::-moz-range-thumb { width: 44px; height: 100vh; border: 0; }
+.ba-stage:has(.ba-range:focus-visible) { outline: 2px solid var(--brass); outline-offset: 4px; }
 
 /* sections */
 .section { padding: 72px 0; }
@@ -104,9 +119,9 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
 .step p { color: var(--stone); margin-top: 10px; max-width: 26rem; }
 
 /* styles */
-.styles { display: grid; margin-top: 40px; }
-.style { border-top: 1px solid var(--line); padding: 22px 0 24px; }
-.style h3 { margin-top: 6px; }
+.styles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 14px; margin-top: 40px; }
+.style img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; background: var(--line); margin-bottom: 14px; }
+.style h3 { margin-top: 4px; font-size: 1.45rem; }
 .style p { color: var(--stone); font-size: 0.97rem; margin-top: 6px; max-width: 24rem; }
 
 /* pricing */
@@ -179,7 +194,8 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
 @media (min-width: 640px) {
   :root { --gutter: 32px; }
   .steps { grid-template-columns: repeat(3, 1fr); gap: 28px; }
-  .styles { grid-template-columns: repeat(2, 1fr); column-gap: 40px; }
+  .styles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 24px; }
+  .style h3 { font-size: 1.7rem; }
   .packs { grid-template-columns: repeat(2, 1fr); }
   .field { grid-template-columns: 1fr auto; }
   .foot-in { grid-template-columns: 1fr auto; align-items: start; }
@@ -190,12 +206,15 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
   .top-links { display: flex; }
   .top-in { min-height: 68px; }
   .hero { padding: 72px 0 104px; }
-  .hero-in { grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); align-items: center; gap: 72px; }
-  .hero-media { width: min(100%, 340px); margin: 0 30px 0 auto; }
+  .hero-in { align-items: center; gap: 72px; }
+  .hero-in { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); }
+  .hero-landscape .hero-in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; }
+  .hero-landscape h1 { font-size: clamp(2.6rem, 5.4vw, 4.5rem); }
+  .ba { margin: 0 0 0 auto; }
   .section { padding: 112px 0; }
   .section-head { grid-template-columns: 1.2fr .8fr; align-items: end; gap: 48px; }
   .steps { gap: 44px; margin-top: 56px; }
-  .styles { grid-template-columns: repeat(3, 1fr); column-gap: 48px; margin-top: 56px; }
+  .styles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 48px 24px; margin-top: 56px; }
   .packs { grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 52px; }
   .pricing-foot { grid-template-columns: 1fr auto; align-items: center; }
   .faq-in { grid-template-columns: .8fr 1.2fr; gap: 64px; }
@@ -204,12 +223,12 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
 
 /* motion: only when the visitor has not asked for less of it */
 @media (prefers-reduced-motion: no-preference) {
-  .hero-text > *, .hero-media { animation: rise .9s var(--ease) both; }
+  .hero-text > *, .ba { animation: rise .9s var(--ease) both; }
   .hero-text > :nth-child(2) { animation-delay: .08s; }
   .hero-text > :nth-child(3) { animation-delay: .16s; }
   .hero-text > :nth-child(4) { animation-delay: .24s; }
   .hero-text > :nth-child(5) { animation-delay: .32s; }
-  .hero-media { animation-delay: .2s; }
+  .ba { animation-delay: .2s; }
   @supports (animation-timeline: view()) {
     .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 45%; }
   }

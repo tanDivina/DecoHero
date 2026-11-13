@@ -56,7 +56,7 @@
   </header>
 
   <main id="main">
-    <section class="hero">
+    <section class="hero hero-{{hero_shape}}">
       <div class="wrap hero-in">
         <div class="hero-text">
           <p class="eyebrow">{{eyebrow}}</p>
@@ -71,19 +71,22 @@
           <p class="hero-note">{{hero_note}}</p>
         </div>
 
-        <figure class="hero-media">
-          <div class="arch" aria-hidden="true"></div>
-          <div class="screen">
-            <video id="promo" playsinline muted loop controls preload="none" width="720" height="1280"
-                   poster="/img/promo-poster.jpg" aria-label="{{video_label}}">
-              <source src="/media/decohero-promo.mp4" type="video/mp4">
-            </video>
+        <figure class="ba ba-{{hero_shape}}" id="compare">
+          <div class="ba-stage">
+            <div class="ba-pane ba-before">
+              <img src="{{ba_before_img}}" width="{{ba_w}}" height="{{ba_h}}" fetchpriority="high" decoding="async" alt="{{ba_before_alt}}">
+              <span class="ba-tag">{{ba_before}}</span>
+            </div>
+            <div class="ba-pane ba-after">
+              <img src="{{ba_after_img}}" width="{{ba_w}}" height="{{ba_h}}" decoding="async" alt="{{ba_after_alt}}">
+              <span class="ba-tag ba-tag-after">{{ba_after}}</span>
+            </div>
+            <span class="ba-handle" aria-hidden="true" hidden>
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9.5 7.5 5 12l4.5 4.5M14.5 7.5 19 12l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <input class="ba-range" type="range" min="0" max="100" step="1" value="50" aria-label="{{ba_slider}}" hidden>
           </div>
-          <figcaption>
-            <span>{{video_caption}}</span>
-            <button type="button" class="video-toggle" id="promo-toggle" hidden
-                    data-pause="{{video_pause}}" data-play="{{video_play}}">{{video_play}}</button>
-          </figcaption>
+          <figcaption>{{sample_note}}</figcaption>
         </figure>
       </div>
     </section>
@@ -106,8 +109,7 @@
             <p>{{step2_p}}</p>
           </li>
           <li class="step reveal">
-            <!-- TODO(Dorien): this is the only real results capture in the repo (a design still loading, English UI). Replace it with a finished design from the live app, in EN and ES, once you have one you like. -->
-            <img src="/img/step-3.webp" width="720" height="960" loading="lazy" decoding="async" alt="{{step3_alt}}">
+            <img src="{{step3_img}}" width="720" height="960" loading="lazy" decoding="async" alt="{{step3_alt}}">
             <span class="step-n">03</span>
             <h3>{{step3_h}}</h3>
             <p>{{step3_p}}</p>
@@ -125,10 +127,10 @@
           </div>
           <p class="section-sub">{{styles_sub}}</p>
         </div>
-        <!-- TODO(Dorien): the repo has no finished redesigns, so this gallery is text only. Add one real before/after per style (same room, made with the live app) and they can go here and in the hero. Never use stock or mocked-up results. -->
         <ol class="styles">
 {{style_list}}
         </ol>
+        <p class="sample-note">{{sample_note}}</p>
       </div>
     </section>
 

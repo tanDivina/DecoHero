@@ -1,38 +1,24 @@
-// DecoHero landing: promo video control and the Android waitlist form (Hero Inbox). No tracking.
+// DecoHero landing: before/after comparison and the Android waitlist form (Hero Inbox). No tracking.
 (function () {
   "use strict";
 
-  // ---- promo video: plays muted while visible, never for visitors who asked for reduced motion ----
-  var video = document.getElementById("promo");
-  var toggle = document.getElementById("promo-toggle");
-  if (video && toggle) {
-    var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var userPaused = calm;
-    video.controls = false;
-    toggle.hidden = false;
-    var label = function () {
-      toggle.textContent = video.paused ? toggle.dataset.play : toggle.dataset.pause;
+  // ---- before/after comparison. Without this script the two pictures simply sit side by side. ----
+  // A native range input does the work, so dragging, touch and the arrow keys all behave as usual.
+  var compare = document.getElementById("compare");
+  if (compare) {
+    var stage = compare.querySelector(".ba-stage");
+    var range = compare.querySelector(".ba-range");
+    var handle = compare.querySelector(".ba-handle");
+    var setPos = function () {
+      stage.style.setProperty("--pos", range.value + "%");
+      range.setAttribute("aria-valuetext", range.value + "%");
     };
-    var play = function () {
-      var p = video.play();
-      if (p && p.catch) p.catch(function () {});
-    };
-    toggle.addEventListener("click", function () {
-      if (video.paused) { userPaused = false; play(); } else { userPaused = true; video.pause(); }
-    });
-    video.addEventListener("play", label);
-    video.addEventListener("pause", label);
-    if ("IntersectionObserver" in window) {
-      new IntersectionObserver(function (entries) {
-        entries.forEach(function (e) {
-          if (e.isIntersecting && !userPaused) play();
-          else if (!e.isIntersecting) video.pause();
-        });
-      }, { threshold: 0.35 }).observe(video);
-    } else if (!userPaused) {
-      play();
-    }
-    label();
+    compare.classList.add("ba-on");
+    range.hidden = false;
+    handle.hidden = false;
+    range.addEventListener("input", setPos);
+    range.addEventListener("change", setPos);
+    setPos();
   }
 
   // ---- Android waitlist -> Hero Inbox ----

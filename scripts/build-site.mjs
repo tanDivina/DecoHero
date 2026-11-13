@@ -10,7 +10,8 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { strings, styleNotes } from "./site-src/strings.mjs";
+import { existsSync } from "node:fs";
+import { roomNames, strings, styleNotes, styleThumbs } from "./site-src/strings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -41,9 +42,15 @@ if (presets.length === 0) throw new Error("No styles found in mobile/src/stylePr
 for (const p of presets) {
   for (const l of LANGS) if (!styleNotes[l][p.id]) throw new Error(`No ${l} note for style ${p.id}`);
 }
-const styleList = (lang) => presets.map((p, i) =>
-  `        <li class="style reveal"><span class="style-n">${String(i + 1).padStart(2, "0")}</span>` +
-  `<h3>${esc(p[lang])}</h3><p>${esc(styleNotes[lang][p.id])}</p></li>`).join("\n");
+const styleList = (lang) => presets.map((p, i) => {
+  const room = styleThumbs[p.id];
+  const img = `/img/rooms/thumb-${room}-${p.id}.webp`;
+  if (!room || !existsSync(join(out, img))) throw new Error(`No thumbnail for style ${p.id} (${img})`);
+  const alt = strings[lang].style_alt.replace("{room}", roomNames[lang][room]).replace("{style}", p[lang]);
+  return `        <li class="style reveal"><img src="${img}" width="640" height="480" loading="lazy" decoding="async" alt="${esc(alt)}">` +
+    `<span class="style-n">${String(i + 1).padStart(2, "0")}</span>` +
+    `<h3>${esc(p[lang])}</h3><p>${esc(styleNotes[lang][p.id])}</p></li>`;
+}).join("\n");
 
 // ---- tiny Markdown subset for the legal pages: h1, h2, paragraphs, - lists, tables, **bold**, _italic_ ----
 function inline(s) {

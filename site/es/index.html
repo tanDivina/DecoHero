@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css?v=281e8277fb">
+  <link rel="stylesheet" href="/css/site.css?v=a9d15b1e39">
 </head>
 <body>
   <a class="skip" href="#main">Ir al contenido</a>
@@ -56,7 +56,7 @@
   </header>
 
   <main id="main">
-    <section class="hero">
+    <section class="hero hero-landscape">
       <div class="wrap hero-in">
         <div class="hero-text">
           <p class="eyebrow">Rediseño de interiores con IA</p>
@@ -71,19 +71,22 @@
           <p class="hero-note">3 diseños gratis al iniciar sesión con Google. Sin suscripción.</p>
         </div>
 
-        <figure class="hero-media">
-          <div class="arch" aria-hidden="true"></div>
-          <div class="screen">
-            <video id="promo" playsinline muted loop controls preload="none" width="720" height="1280"
-                   poster="/img/promo-poster.jpg" aria-label="Video promocional de DecoHero, 18 segundos, sin sonido: fotografiar un espacio, elegir estilos y tocar Rediseñar. El video está en inglés.">
-              <source src="/media/decohero-promo.mp4" type="video/mp4">
-            </video>
+        <figure class="ba ba-landscape" id="compare">
+          <div class="ba-stage">
+            <div class="ba-pane ba-before">
+              <img src="/img/rooms/sala-panama-before.webp" width="1200" height="896" fetchpriority="high" decoding="async" alt="Sala de muestra antes: sofás marrones, piso de baldosas, ventanas con rejas y abanico de techo">
+              <span class="ba-tag">Antes</span>
+            </div>
+            <div class="ba-pane ba-after">
+              <img src="/img/rooms/sala-panama-coastal.webp" width="1200" height="896" decoding="async" alt="La misma sala rediseñada en estilo Costero: sofás blancos, alfombra de yute, madera clara, las mismas ventanas y el mismo piso">
+              <span class="ba-tag ba-tag-after">Después, Costero</span>
+            </div>
+            <span class="ba-handle" aria-hidden="true" hidden>
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9.5 7.5 5 12l4.5 4.5M14.5 7.5 19 12l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <input class="ba-range" type="range" min="0" max="100" step="1" value="50" aria-label="Arrastra para comparar el antes y el después" hidden>
           </div>
-          <figcaption>
-            <span>La app en 18 segundos</span>
-            <button type="button" class="video-toggle" id="promo-toggle" hidden
-                    data-pause="Pausar" data-play="Reproducir">Reproducir</button>
-          </figcaption>
+          <figcaption>Espacios de muestra. Los diseños son ideas generadas con IA, no productos ni medidas exactas.</figcaption>
         </figure>
       </div>
     </section>
@@ -106,8 +109,7 @@
             <p>Elige entre 12 estilos de interiorismo. Cada estilo que eliges usa un crédito y te da un diseño.</p>
           </li>
           <li class="step reveal">
-            <!-- TODO(Dorien): this is the only real results capture in the repo (a design still loading, English UI). Replace it with a finished design from the live app, in EN and ES, once you have one you like. -->
-            <img src="/img/step-3.webp" width="720" height="960" loading="lazy" decoding="async" alt="Pantalla de resultados de DecoHero (en inglés) mientras se crea el diseño Japandi, diseño 1 de 3">
+            <img src="/img/step-3-es.webp" width="720" height="960" loading="lazy" decoding="async" alt="Pantalla de resultados de DecoHero con un diseño Mediterráneo terminado de una terraza de muestra y los botones Guardar y Compartir">
             <span class="step-n">03</span>
             <h3>Compara y guarda</h3>
             <p>Los diseños llegan uno por uno. Mantén presionado un diseño para volver a tu espacio original y guarda los que te gusten.</p>
@@ -125,21 +127,21 @@
           </div>
           <p class="section-sub">Cada diseño usa uno de estos estilos fijos. No hay que escribir instrucciones: eliges, tocas y comparas.</p>
         </div>
-        <!-- TODO(Dorien): the repo has no finished redesigns, so this gallery is text only. Add one real before/after per style (same room, made with the live app) and they can go here and in the hero. Never use stock or mocked-up results. -->
         <ol class="styles">
-        <li class="style reveal"><span class="style-n">01</span><h3>Tropical moderno</h3><p>Teca y ratán, estuco blanco, plantas tropicales grandes, lino.</p></li>
-        <li class="style reveal"><span class="style-n">02</span><h3>Minimalista</h3><p>Líneas limpias, blancos cálidos y grises, almacenaje oculto, una lámpara protagonista.</p></li>
-        <li class="style reveal"><span class="style-n">03</span><h3>Japandi</h3><p>Muebles bajos de madera natural, tonos tierra apagados, lámparas de papel, cerámica.</p></li>
-        <li class="style reveal"><span class="style-n">04</span><h3>Nórdico</h3><p>Roble claro, paredes blancas, lana y lino, grises suaves, plantas.</p></li>
-        <li class="style reveal"><span class="style-n">05</span><h3>Mid-century</h3><p>Muebles de nogal con patas cónicas, toques mostaza y verde azulado, lámparas de globo.</p></li>
-        <li class="style reveal"><span class="style-n">06</span><h3>Boho</h3><p>Alfombras superpuestas, macramé, ratán, macetas de terracota, muchas plantas.</p></li>
-        <li class="style reveal"><span class="style-n">07</span><h3>Costero</h3><p>Blancos y azules suaves, madera de deriva, fundas de lino, alfombra de yute.</p></li>
-        <li class="style reveal"><span class="style-n">08</span><h3>Mediterráneo</h3><p>Paredes encaladas, tonos terracota, hierro forjado, madera de olivo.</p></li>
-        <li class="style reveal"><span class="style-n">09</span><h3>Industrial</h3><p>Metal negro, madera recuperada, cuero, bombillas a la vista, tonos de concreto.</p></li>
-        <li class="style reveal"><span class="style-n">10</span><h3>Clásico de lujo</h3><p>Tapicería de terciopelo, mármol, detalles en latón, distribución simétrica.</p></li>
-        <li class="style reveal"><span class="style-n">11</span><h3>Rústico moderno</h3><p>Madera envejecida, herrajes negros, linos neutros, detalles vintage.</p></li>
-        <li class="style reveal"><span class="style-n">12</span><h3>Art déco</h3><p>Patrones geométricos, esmeralda y dorado, muebles curvos de terciopelo, laca.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-tropical-modern.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Tropical moderno"><span class="style-n">01</span><h3>Tropical moderno</h3><p>Teca y ratán, estuco blanco, plantas tropicales grandes, lino.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-home-office-modern-minimal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: oficina en casa, estilo Minimalista"><span class="style-n">02</span><h3>Minimalista</h3><p>Líneas limpias, blancos cálidos y grises, almacenaje oculto, una lámpara protagonista.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-japandi.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: dormitorio, estilo Japandi"><span class="style-n">03</span><h3>Japandi</h3><p>Muebles bajos de madera natural, tonos tierra apagados, lámparas de papel, cerámica.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-scandinavian.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Nórdico"><span class="style-n">04</span><h3>Nórdico</h3><p>Roble claro, paredes blancas, lana y lino, grises suaves, plantas.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-mid-century.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Mid-century"><span class="style-n">05</span><h3>Mid-century</h3><p>Muebles de nogal con patas cónicas, toques mostaza y verde azulado, lámparas de globo.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-boho.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: dormitorio, estilo Boho"><span class="style-n">06</span><h3>Boho</h3><p>Alfombras superpuestas, macramé, ratán, macetas de terracota, muchas plantas.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-coastal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Costero"><span class="style-n">07</span><h3>Costero</h3><p>Blancos y azules suaves, madera de deriva, fundas de lino, alfombra de yute.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-terrace-mediterranean.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: terraza, estilo Mediterráneo"><span class="style-n">08</span><h3>Mediterráneo</h3><p>Paredes encaladas, tonos terracota, hierro forjado, madera de olivo.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-home-office-industrial.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: oficina en casa, estilo Industrial"><span class="style-n">09</span><h3>Industrial</h3><p>Metal negro, madera recuperada, cuero, bombillas a la vista, tonos de concreto.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-luxury-classic.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: comedor, estilo Clásico de lujo"><span class="style-n">10</span><h3>Clásico de lujo</h3><p>Tapicería de terciopelo, mármol, detalles en latón, distribución simétrica.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-farmhouse.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: comedor, estilo Rústico moderno"><span class="style-n">11</span><h3>Rústico moderno</h3><p>Madera envejecida, herrajes negros, linos neutros, detalles vintage.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-art-deco.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: comedor, estilo Art déco"><span class="style-n">12</span><h3>Art déco</h3><p>Patrones geométricos, esmeralda y dorado, muebles curvos de terciopelo, laca.</p></li>
         </ol>
+        <p class="sample-note">Espacios de muestra. Los diseños son ideas generadas con IA, no productos ni medidas exactas.</p>
       </div>
     </section>
 
@@ -246,6 +248,6 @@
   </footer>
 
   <script src="https://hero-inbox-2026.web.app/inbox.js" defer></script>
-  <script src="/js/site.js?v=5ecea8f943" defer></script>
+  <script src="/js/site.js?v=1dc0b32177" defer></script>
 </body>
 </html>

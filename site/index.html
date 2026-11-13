@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css?v=281e8277fb">
+  <link rel="stylesheet" href="/css/site.css?v=a9d15b1e39">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -56,7 +56,7 @@
   </header>
 
   <main id="main">
-    <section class="hero">
+    <section class="hero hero-portrait">
       <div class="wrap hero-in">
         <div class="hero-text">
           <p class="eyebrow">AI room redesign</p>
@@ -71,19 +71,22 @@
           <p class="hero-note">3 free designs when you sign in with Google. No subscription.</p>
         </div>
 
-        <figure class="hero-media">
-          <div class="arch" aria-hidden="true"></div>
-          <div class="screen">
-            <video id="promo" playsinline muted loop controls preload="none" width="720" height="1280"
-                   poster="/img/promo-poster.jpg" aria-label="DecoHero promo video, 18 seconds, no sound: photograph a room, pick styles, tap Redesign.">
-              <source src="/media/decohero-promo.mp4" type="video/mp4">
-            </video>
+        <figure class="ba ba-portrait" id="compare">
+          <div class="ba-stage">
+            <div class="ba-pane ba-before">
+              <img src="/img/rooms/living-room-before.webp" width="896" height="1200" fetchpriority="high" decoding="async" alt="Sample living room before: beige sofa, brown armchair, glass coffee table and a TV on a pine chest">
+              <span class="ba-tag">Before</span>
+            </div>
+            <div class="ba-pane ba-after">
+              <img src="/img/rooms/living-room-japandi.webp" width="896" height="1200" decoding="async" alt="The same living room redesigned in Japandi style: low wooden sofa, round wooden table, paper lamp, same window and walls">
+              <span class="ba-tag ba-tag-after">After, Japandi</span>
+            </div>
+            <span class="ba-handle" aria-hidden="true" hidden>
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9.5 7.5 5 12l4.5 4.5M14.5 7.5 19 12l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <input class="ba-range" type="range" min="0" max="100" step="1" value="50" aria-label="Drag to compare before and after" hidden>
           </div>
-          <figcaption>
-            <span>The app in 18 seconds</span>
-            <button type="button" class="video-toggle" id="promo-toggle" hidden
-                    data-pause="Pause" data-play="Play">Play</button>
-          </figcaption>
+          <figcaption>Sample rooms. Designs are AI-generated ideas, not exact products or measurements.</figcaption>
         </figure>
       </div>
     </section>
@@ -106,8 +109,7 @@
             <p>Choose from 12 interior styles. Each style you pick uses one credit and gives you one design.</p>
           </li>
           <li class="step reveal">
-            <!-- TODO(Dorien): this is the only real results capture in the repo (a design still loading, English UI). Replace it with a finished design from the live app, in EN and ES, once you have one you like. -->
-            <img src="/img/step-3.webp" width="720" height="960" loading="lazy" decoding="async" alt="DecoHero results screen while the Japandi design is being made, showing design 1 of 3">
+            <img src="/img/step-3-en.webp" width="720" height="960" loading="lazy" decoding="async" alt="DecoHero results screen with a finished Mediterranean design of a sample terrace and the buttons Save and Share">
             <span class="step-n">03</span>
             <h3>Compare and keep</h3>
             <p>Designs arrive one at a time. Press and hold a design to flip back to your original room, then save the ones you like.</p>
@@ -125,21 +127,21 @@
           </div>
           <p class="section-sub">Every design uses one of these fixed styles. There is no prompt box, so you pick, tap and compare.</p>
         </div>
-        <!-- TODO(Dorien): the repo has no finished redesigns, so this gallery is text only. Add one real before/after per style (same room, made with the live app) and they can go here and in the hero. Never use stock or mocked-up results. -->
         <ol class="styles">
-        <li class="style reveal"><span class="style-n">01</span><h3>Tropical modern</h3><p>Teak and rattan, white plaster, large tropical plants, linen.</p></li>
-        <li class="style reveal"><span class="style-n">02</span><h3>Minimal</h3><p>Clean lines, warm whites and greys, hidden storage, one statement light.</p></li>
-        <li class="style reveal"><span class="style-n">03</span><h3>Japandi</h3><p>Low natural-wood furniture, muted earthy tones, paper lamps, ceramics.</p></li>
-        <li class="style reveal"><span class="style-n">04</span><h3>Scandinavian</h3><p>Light oak, white walls, wool and linen, soft greys, plants.</p></li>
-        <li class="style reveal"><span class="style-n">05</span><h3>Mid-century</h3><p>Walnut furniture on tapered legs, mustard and teal accents, globe lights.</p></li>
-        <li class="style reveal"><span class="style-n">06</span><h3>Boho</h3><p>Layered rugs, macrame, rattan, terracotta pots, many plants.</p></li>
-        <li class="style reveal"><span class="style-n">07</span><h3>Coastal</h3><p>Whites and soft blues, driftwood, linen slipcovers, a jute rug.</p></li>
-        <li class="style reveal"><span class="style-n">08</span><h3>Mediterranean</h3><p>Limewashed walls, terracotta tones, wrought iron, olive wood.</p></li>
-        <li class="style reveal"><span class="style-n">09</span><h3>Industrial</h3><p>Black metal, reclaimed wood, leather, exposed bulbs, concrete tones.</p></li>
-        <li class="style reveal"><span class="style-n">10</span><h3>Classic luxury</h3><p>Velvet upholstery, marble, brass details, a symmetrical layout.</p></li>
-        <li class="style reveal"><span class="style-n">11</span><h3>Farmhouse</h3><p>Distressed wood, black hardware, neutral linens, vintage accents.</p></li>
-        <li class="style reveal"><span class="style-n">12</span><h3>Art deco</h3><p>Geometric patterns, emerald and gold, curved velvet furniture, lacquer.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-tropical-modern.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Tropical modern style"><span class="style-n">01</span><h3>Tropical modern</h3><p>Teak and rattan, white plaster, large tropical plants, linen.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-home-office-modern-minimal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: home office, Minimal style"><span class="style-n">02</span><h3>Minimal</h3><p>Clean lines, warm whites and greys, hidden storage, one statement light.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-japandi.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: bedroom, Japandi style"><span class="style-n">03</span><h3>Japandi</h3><p>Low natural-wood furniture, muted earthy tones, paper lamps, ceramics.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-scandinavian.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Scandinavian style"><span class="style-n">04</span><h3>Scandinavian</h3><p>Light oak, white walls, wool and linen, soft greys, plants.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-mid-century.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Mid-century style"><span class="style-n">05</span><h3>Mid-century</h3><p>Walnut furniture on tapered legs, mustard and teal accents, globe lights.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-boho.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: bedroom, Boho style"><span class="style-n">06</span><h3>Boho</h3><p>Layered rugs, macrame, rattan, terracotta pots, many plants.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-coastal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Coastal style"><span class="style-n">07</span><h3>Coastal</h3><p>Whites and soft blues, driftwood, linen slipcovers, a jute rug.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-terrace-mediterranean.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: terrace, Mediterranean style"><span class="style-n">08</span><h3>Mediterranean</h3><p>Limewashed walls, terracotta tones, wrought iron, olive wood.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-home-office-industrial.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: home office, Industrial style"><span class="style-n">09</span><h3>Industrial</h3><p>Black metal, reclaimed wood, leather, exposed bulbs, concrete tones.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-luxury-classic.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: dining room, Classic luxury style"><span class="style-n">10</span><h3>Classic luxury</h3><p>Velvet upholstery, marble, brass details, a symmetrical layout.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-farmhouse.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: dining room, Farmhouse style"><span class="style-n">11</span><h3>Farmhouse</h3><p>Distressed wood, black hardware, neutral linens, vintage accents.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-art-deco.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: dining room, Art deco style"><span class="style-n">12</span><h3>Art deco</h3><p>Geometric patterns, emerald and gold, curved velvet furniture, lacquer.</p></li>
         </ol>
+        <p class="sample-note">Sample rooms. Designs are AI-generated ideas, not exact products or measurements.</p>
       </div>
     </section>
 
@@ -246,6 +248,6 @@
   </footer>
 
   <script src="https://hero-inbox-2026.web.app/inbox.js" defer></script>
-  <script src="/js/site.js?v=5ecea8f943" defer></script>
+  <script src="/js/site.js?v=1dc0b32177" defer></script>
 </body>
 </html>
