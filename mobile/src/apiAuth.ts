@@ -17,3 +17,8 @@ export async function renewIdentity(): Promise<boolean> {
 
 /** Called when the server rejects the renewed credentials with AUTH_INVALID again. */
 export async function identityRejected(): Promise<void> {}
+
+/** How long a request may take before it is abandoned. Null = no limit (the phone, as before). */
+export function requestTimeoutMs(_path: string): number | null {
+  return null;
+}

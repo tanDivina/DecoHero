@@ -22,3 +22,8 @@ export async function renewIdentity(): Promise<boolean> {
 export async function identityRejected(): Promise<void> {
   await signOutUser().catch(() => {});
 }
+
+/** A design can take a while to generate; everything else should answer quickly. */
+export function requestTimeoutMs(path: string): number | null {
+  return path === "/api/redesign" ? 120_000 : 20_000;
+}

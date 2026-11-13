@@ -1,4 +1,4 @@
-import { identityBody, identityHeaders, identityRejected, renewIdentity } from "./apiAuth";
+import { identityBody, identityHeaders, identityRejected, renewIdentity, requestTimeoutMs } from "./apiAuth";
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? "";
 // Release builds only talk to an https server (app.config.js also blocks such builds at bundle time).
@@ -24,10 +24,22 @@ const DELETE_PATH = "/api/account/delete";
 let deleting = false;
 const inFlight = new Set<Promise<unknown>>();
 
-/** Stops all API traffic and waits for requests already on the wire. Call before deleteAccount(). */
-export async function pauseApiForDelete(): Promise<void> {
+const PAUSE_WAIT_MS = 15_000;
+
+/**
+ * Stops all API traffic and waits (up to 15 s) for requests already on the wire. Call before
+ * deleteAccount(). False = something is still in flight: call resumeApi() and do not delete.
+ */
+export async function pauseApiForDelete(): Promise<boolean> {
   deleting = true;
-  await Promise.allSettled([...inFlight]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const settled = Promise.allSettled([...inFlight]).then(() => true);
+  const tooLong = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(false), PAUSE_WAIT_MS);
+  });
+  const ok = await Promise.race([settled, tooLong]);
+  clearTimeout(timer);
+  return ok;
 }
 
 /** The delete did not happen: let API calls through again. */
@@ -49,15 +61,21 @@ type Retried = { renewed?: boolean; recreated?: boolean };
 async function send<T>(path: string, installId: string, init: RequestInit | undefined, retried: Retried): Promise<T> {
   if (BAD_CONFIG) throw new ApiError("CONFIG");
   if (deleting && path !== DELETE_PATH) throw new ApiError("DELETING");
+  // Web only (null on the phone): give up on a request that hangs, and report it as a lost connection.
+  const timeoutMs = requestTimeoutMs(path);
+  const abort = timeoutMs ? new AbortController() : null;
+  const timer = abort ? setTimeout(() => abort.abort(), timeoutMs!) : undefined;
   let res: Response;
   try {
     // Android: X-Install-Id. Web: Authorization: Bearer <Firebase ID token>. See apiAuth(.web).ts.
     const identity = await identityHeaders(installId);
     res = await fetch(`${BASE}${path}`, {
       ...init,
+      ...(abort ? { signal: abort.signal } : {}),
       headers: { "Content-Type": "application/json", ...identity, ...(init?.headers ?? {}) },
     });
   } catch {
+    clearTimeout(timer);
     throw new ApiError("NETWORK");
   }
   let body: any;
@@ -65,15 +83,19 @@ async function send<T>(path: string, installId: string, init: RequestInit | unde
     body = await res.json();
   } catch {
     // A 200 whose body never fully arrived is a dropped connection, not a server error.
-    if (res.ok) throw new ApiError("NETWORK");
+    if (res.ok || abort?.signal.aborted) throw new ApiError("NETWORK");
     body = {};
+  } finally {
+    clearTimeout(timer);
   }
   // Web only (the phone never gets these codes).
   if (res.status === 401 && body.error === "AUTH_INVALID") {
     // Expired or revoked sign-in: retry once with a freshly renewed token. Sign out only when that
     // retry is rejected too, never on the first failure or when the renewal itself could not run.
-    if (retried.renewed) await identityRejected();
-    else if (await renewIdentity()) return send<T>(path, installId, init, { ...retried, renewed: true });
+    // (The delete call decides for itself what a rejected token means, so it never signs out here.)
+    if (retried.renewed) {
+      if (path !== DELETE_PATH) await identityRejected();
+    } else if (await renewIdentity()) return send<T>(path, installId, init, { ...retried, renewed: true });
   }
   if (res.status === 401 && body.error === "ACCOUNT_NOT_FOUND" && !retried.recreated && path !== "/api/me" && path !== DELETE_PATH) {
     // Only GET /api/me creates the web account: ask it once, then repeat this request.

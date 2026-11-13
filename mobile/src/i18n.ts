@@ -125,8 +125,8 @@ const en = {
   deleteConfirmYes: "Delete my account",
   deleteNotConfirmed: "Google didn't confirm it's you, so nothing was deleted.",
   accountDeleted: "Your account was deleted.",
-  accountDataDeleted: "Your account data is deleted. Signing in again starts a new, empty account.",
-  deleteFailed: "Couldn't delete your account. Nothing was deleted. Try again.",
+  accountDataDeleted: "Your DecoHero data is deleted, but the Google sign-in record could not be removed. Email support@hero-apps.com to finish.",
+  deleteFailed: "Couldn't delete your account. Try again.",
   cancel: "Cancel",
   terms: "Terms of use",
 };
@@ -245,8 +245,8 @@ const es: Strings = {
   deleteConfirmYes: "Eliminar mi cuenta",
   deleteNotConfirmed: "Google no confirmó que eres tú, así que no se eliminó nada.",
   accountDeleted: "Tu cuenta fue eliminada.",
-  accountDataDeleted: "Los datos de tu cuenta fueron eliminados. Si vuelves a iniciar sesión, empiezas con una cuenta nueva y vacía.",
-  deleteFailed: "No se pudo eliminar tu cuenta. No se eliminó nada. Inténtalo de nuevo.",
+  accountDataDeleted: "Tus datos de DecoHero fueron eliminados, pero no se pudo quitar el registro de inicio de sesión con Google. Escribe a support@hero-apps.com para terminar.",
+  deleteFailed: "No se pudo eliminar tu cuenta. Inténtalo de nuevo.",
   cancel: "Cancelar",
   terms: "Términos de uso",
 };

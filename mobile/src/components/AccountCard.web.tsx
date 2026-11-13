@@ -1,7 +1,7 @@
 // Web only: who is signed in, Sign out, and Delete account with a confirm step inside the page.
 import { useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { api, pauseApiForDelete, resumeApi } from "../api";
+import { api, ApiError, pauseApiForDelete, resumeApi } from "../api";
 import { deleteCurrentUser, reauthenticate, signOutUser, type Account } from "../auth";
 import { t } from "../i18n";
 import { color, radius, space } from "../theme";
@@ -11,6 +11,26 @@ type Step = "idle" | "confirm";
 
 /** Read once by the sign-in screen after the reload that ends a delete. */
 export const DELETED_FLASH_KEY = "decohero_deleted";
+
+/** True once the server holds no data for this account (deleted now, earlier, or never created). */
+async function deleteOnServer(): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await api.deleteAccount("");
+      return true;
+    } catch (e) {
+      const code = e instanceof ApiError ? e.code : "";
+      // /api/me never created an account for this sign-in: nothing to delete on the server.
+      if (code === "ACCOUNT_NOT_FOUND") return true;
+      // Second try after a lost answer: the first one did delete it, so the token is now refused.
+      if (attempt === 1 && code === "AUTH_INVALID") return true;
+      // The answer was lost (or timed out): the server may or may not have deleted. Ask once more.
+      if (attempt === 0 && code === "NETWORK") continue;
+      return false;
+    }
+  }
+  return false;
+}
 
 export function AccountCard({ account, onNotice }: { account: Account | null; onNotice: (msg: string) => void }) {
   const [step, setStep] = useState<Step>("idle");
@@ -27,11 +47,13 @@ export function AccountCard({ account, onNotice }: { account: Account | null; on
     }
     // 2. Stop balance refreshes and purchase polling, and let requests already sent finish:
     //    a late GET /api/me would re-create the account.
-    await pauseApiForDelete();
+    //    If one is stuck, or the server delete fails, the app goes back to normal and says so.
     // 3. Server side: credits, design log, reports.
+    let serverGone = false;
     try {
-      await api.deleteAccount("");
-    } catch {
+      serverGone = (await pauseApiForDelete()) && (await deleteOnServer());
+    } catch {}
+    if (!serverGone) {
       resumeApi();
       setBusy(false);
       return onNotice(t.deleteFailed);
