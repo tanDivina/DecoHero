@@ -30,6 +30,9 @@ Read first: `server/DEPLOY.md`, `mobile/.env.web.example`, `site/vercel.json` an
 In the existing Railway service (`splendid-inspiration-production-08761935.up.railway.app`), add:
 - `FIREBASE_PROJECT_ID` = the project id from step 1
 - `WEB_ORIGINS` = `https://deco.hero-apps.com`
+- `TOMBSTONE_SALT` = a random value: run `openssl rand -hex 24` in a terminal and paste the output straight into Railway. It's a secret: don't write it anywhere else.
+
+Make sure `FIREBASE_AUTH_EMULATOR_HOST` is **not** set; the new server refuses to start in production if it is.
 
 Railway may restart the service with the new variables. That's fine: the code running now ignores them. Claude Code deploys the new server code later. Check that `https://splendid-inspiration-production-08761935.up.railway.app/health` still returns `"ok":true`.
 

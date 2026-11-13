@@ -104,7 +104,7 @@ Las fotos y los diseños no se guardan en nuestro servidor. La dirección IP de 
 
 **App web.** Abre Acerca de y privacidad en la app web y elige Eliminar cuenta. Esto quita de inmediato de nuestro servidor el vínculo con tu inicio de sesión, tu saldo de créditos, tu registro de diseños y tus reportes, y borra tu cuenta en Firebase Authentication. Los registros de compras se conservan por motivos fiscales y contables, ya sin vínculo con la cuenta. Los créditos sin usar se pierden y no se pueden recuperar.
 
-Después de borrar la cuenta conservamos dos cosas por poco tiempo, solo para prevenir abusos: un hash unidireccional con sal de tu ID de inicio de sesión durante 2 horas, para que una sesión que seguía abierta no pueda volver a crear la cuenta, y el registro de que se dieron créditos gratis de inicio a tu dirección IP, que se borra a las 48 horas como los demás datos de IP.
+Después de borrar la cuenta conservamos dos cosas por poco tiempo, solo para prevenir abusos: un hash unidireccional con sal de tu ID de inicio de sesión durante un máximo de 3 horas, para que una sesión que seguía abierta no pueda volver a crear la cuenta, y el registro de que se dieron créditos gratis de inicio a tu dirección IP, que se borra a las 48 horas como los demás datos de IP. También conservamos el ID aleatorio de DecoHero de la cuenta en una lista de cuentas borradas, sin ID de inicio de sesión, correo ni IP, para que un pago que llegue tarde no se acredite a una cuenta borrada.
 
 Si no puedes iniciar sesión, escribe a support@hero-apps.com desde el correo de tu cuenta de Google y borramos la cuenta por ti.
 

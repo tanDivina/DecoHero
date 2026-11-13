@@ -107,7 +107,7 @@ Photos and designs are not kept on our server at all. The IP address in your ins
 
 **Web app.** Open About and privacy in the web app and choose Delete account. This immediately removes the link to your sign-in, your credit balance, your design log and your reports from our server, and deletes your account in Firebase Authentication. Purchase records are kept for tax and accounting, no longer linked to the account. Unused credits are lost and cannot be restored.
 
-After the deletion we keep two things for a short time, only to prevent abuse: a one-way salted hash of your sign-in ID for 2 hours, so that a session that was still open cannot re-create the account, and the record that free starter credits were given to your IP address, which is deleted after 48 hours like the other IP data.
+After the deletion we keep two things for a short time, only to prevent abuse: a one-way salted hash of your sign-in ID for up to 3 hours, so that a session that was still open cannot re-create the account, and the record that free starter credits were given to your IP address, which is deleted after 48 hours like the other IP data. We also keep the account's random DecoHero ID on a list of deleted accounts, with no sign-in ID, email or IP attached, so that a payment that arrives late is not credited to a deleted account.
 
 If you cannot sign in, email support@hero-apps.com from the address of your Google account and we will delete the account for you.
 
