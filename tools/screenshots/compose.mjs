@@ -118,8 +118,9 @@ h1 em{font-style:italic;color:${color.olive}}
 .phone img{display:block;width:100%}
 `;
 
-/** A plain phone frame around a real app capture. `w` = screen width in px, `crop` = visible share of the capture's height. */
-function phone({ src, w, left, top, crop = 1, dp = 920 }) {
+/** A plain phone frame around a real app capture (448x960 dp, see capture.mjs), so the screen keeps a real
+ * phone's 448:997 shape. `w` = screen width in px. */
+function phone({ src, w, left, top, crop = 1, dp = 960 }) {
   const bar = Math.round(w * 0.082);
   const h = Math.round(((w * dp) / 448) * crop);
   const k = w / 448;
@@ -191,7 +192,7 @@ function s3(lang) {
   return page(color.brassWash, `
     <div class="pad" style="top:84px"><h1>${c.s3.h}</h1></div>
     <div class="pad" style="top:384px;display:flex;gap:26px">${steps}</div>
-    ${phone({ src: capture(lang, "home-sala"), w: 660, left: 197, top: 572, dp: 840 })}
+    ${phone({ src: capture(lang, "home-sala"), w: 560, left: 247, top: 584 })}
   `, `h1{font-size:126px}`);
 }
 
@@ -212,7 +213,7 @@ function s4(lang) {
       </div>
       <div style="margin-top:64px"><div class="rule"></div>${notes}</div>
     </div>
-    ${phone({ src: capture(lang, "results-terrace"), w: 620, left: 414, top: 440, crop: 0.957 })}
+    ${phone({ src: capture(lang, "results-terrace"), w: 570, left: 434, top: 440 })}
     <div class="foot">${c.foot}</div>
   `, `h1{font-size:${lang === "es" ? 112 : 126}px}`);
 }

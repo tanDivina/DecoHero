@@ -12,7 +12,7 @@
 #      `vercel link` can overwrite a .env.local in the folder it runs in. web-dist/ has none; never run
 #      it from the repo root or from mobile/.
 #   3. Google sign-in on phones: site/vercel.json proxies /__/auth/* and /__/firebase/* to the Firebase project
-#      `decohero-web` (decohero-web.firebaseapp.com), so the app can use authDomain = deco.hero-apps.com.
+#      `first-grove-453221-q7` (first-grove-453221-q7.firebaseapp.com), so the app can use authDomain = deco.hero-apps.com.
 #      If the Firebase project gets another id, change both rewrites. In Google Cloud > Credentials > the
 #      OAuth web client, add https://deco.hero-apps.com/__/auth/handler as an authorized redirect URI.
 #

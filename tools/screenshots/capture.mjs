@@ -2,7 +2,7 @@
 // in mobile/src/demo. Start the dev server first:
 //   cd mobile && npx expo start --web --port 8099
 //   node tools/screenshots/capture.mjs            (APP_URL=http://localhost:8099 by default)
-// Output: tools/screenshots/captures/<lang>/<scene>.png at 448x920 dp, 2.5x (1120x2300 px).
+// Output: tools/screenshots/captures/<lang>/<scene>.png at 448x960 dp, 2.5x (1120x2400 px).
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -12,15 +12,16 @@ import { ROOMS, ROOT } from "./fal.mjs";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const APP_URL = process.env.APP_URL || "http://localhost:8099";
 const IMG_PORT = 8097;
-// A large-phone viewport (448x920 dp at 2.5x = 1120x2300 px): at 412 dp the browser build cuts off the
-// longest Spanish style names ("Tropical moderno", "Rústico moderno"); on Android they shrink to fit.
-const VIEW = { w: 448, h: 920, dpr: 2.5 };
+// A real large phone: Pixel 9 Pro XL is 448x997 dp (1344x2992 px at 3x). 960 dp = its screen minus the
+// 37 dp status bar compose.mjs draws. At 412 dp the browser build cuts off the longest Spanish style
+// names ("Tropical moderno", "Rústico moderno"); on Android they shrink to fit.
+const VIEW = { w: 448, h: 960, dpr: 2.5 };
 const OUT = path.join(ROOT, "tools/screenshots/captures");
 const img = (p) => `http://localhost:${IMG_PORT}/${p}`;
 const after = (room, style) => `${style}|${img(`after/${room}-${style}.jpg`)}`;
 
 const SCENES = {
-  "home-sala": { h: 840, demo: "home", photo: img("before/sala-panama.jpg"), styles: "tropical-modern,coastal,boho", credits: 12 },
+  "home-sala": { demo: "home", photo: img("before/sala-panama.jpg"), styles: "tropical-modern,coastal,boho", credits: 12 },
   "results-terrace": { demo: "results", photo: img("before/terrace.jpg"), results: ["mediterranean", "tropical-modern", "boho"].map((s) => after("terrace", s)).join(",") },
 };
 

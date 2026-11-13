@@ -5,11 +5,11 @@
   "rewrites": [
     {
       "source": "/__/auth/:path*",
-      "destination": "https://decohero-web.firebaseapp.com/__/auth/:path*"
+      "destination": "https://first-grove-453221-q7.firebaseapp.com/__/auth/:path*"
     },
     {
       "source": "/__/firebase/:path*",
-      "destination": "https://decohero-web.firebaseapp.com/__/firebase/:path*"
+      "destination": "https://first-grove-453221-q7.firebaseapp.com/__/firebase/:path*"
     },
     {
       "source": "/app/((?!_expo/|assets/).*)",
