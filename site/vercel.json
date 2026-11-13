@@ -13,7 +13,7 @@
     },
     {
       "source": "/app/((?!_expo/|assets/).*)",
-      "destination": "/app/index.html"
+      "destination": "/app"
     }
   ],
   "headers": [

@@ -65,9 +65,9 @@ else
   FAIL=1
 fi
 
-# The Firebase sign-in helper behind the /__/auth and /__/firebase rewrites.
+# The Firebase sign-in helper behind the /__/auth rewrite. (/__/firebase/init.json is 404 at the source
+# too: it only exists for projects with Firebase Hosting, and sign-in does not need it.)
 expect 200 "/__/auth/handler"
-expect 200 "/__/firebase/init.json"
 
 # A hashed asset that does not exist must be a 404, not the app shell (which would be cached for a year).
 expect 404 "/app/_expo/static/js/web/nope-123.js"
