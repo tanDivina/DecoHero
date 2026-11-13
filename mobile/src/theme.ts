@@ -3,12 +3,14 @@ export const color = {
   limewash: "#E8EBE6", // app background
   plaster: "#F6F7F4",  // raised surfaces
   ink: "#1C2321",      // text
-  stone: "#6E746C",    // secondary text
+  stone: "#5A6058",    // secondary text (5.4:1 on limewash)
   olive: "#3E5641",    // primary actions
   oliveDeep: "#2C3E2F",
-  brass: "#A87B2F",    // selection + credits
+  brass: "#8A6220",    // selection + credits (4.5:1 on limewash)
+  brassWash: "#F3EBDD", // selected chip fill
   line: "#CDD2CB",
   danger: "#9E3A2B",
+  disabled: "#D5D9D2", // disabled button fill; stone text on it is 4.5:1
   white: "#FFFFFF",
 };
 

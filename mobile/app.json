@@ -3,17 +3,16 @@
     "name": "DecoHero",
     "slug": "decohero",
     "scheme": "decohero",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.heroapps.decohero",
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
-        "backgroundColor": "#3E5641",
+        "backgroundColor": "#EDE3D0",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -50,14 +49,21 @@
       ],
       "expo-sharing",
       "expo-secure-store",
-      "expo-localization",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "android": ["en", "es"]
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#E8EBE6"
+          "backgroundColor": "#EDE3D0"
         }
       ],
       "expo-font"

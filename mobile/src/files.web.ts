@@ -11,4 +11,6 @@ export async function saveToGallery(uri: string): Promise<boolean> {
   return true;
 }
 
-export async function shareImage(_uri: string) {}
+export async function shareImage(_uri: string): Promise<boolean> {
+  return false;
+}

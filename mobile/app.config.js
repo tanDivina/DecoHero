@@ -38,6 +38,6 @@ module.exports = ({ config }) => {
   }
   return {
     ...config,
-    plugins: [...(config.plugins ?? []), "./plugins/withReleaseSigning"],
+    plugins: [...(config.plugins ?? []), "./plugins/withReleaseSigning", "./plugins/withNoFontWeightAdjustment"],
   };
 };
