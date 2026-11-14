@@ -2,14 +2,15 @@
 import * as ImagePicker from "expo-image-picker";
 import { photoAspect } from "./photoShape";
 
-export type { Photo, PickResult } from "./photoShape";
+export type { Photo, PickResult, Place } from "./photoShape";
 import type { PickResult } from "./photoShape";
 
 async function pickWeb(): Promise<PickResult> {
   const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], base64: true, quality: 0.8 });
   const a = res.canceled ? undefined : res.assets[0];
   if (!a) return {};
-  return { photo: { uri: a.uri, base64: a.base64 ?? a.uri.split(",")[1] ?? "", aspect: photoAspect(a.width, a.height) } };
+  const base64 = a.base64 ?? a.uri.split(",")[1] ?? "";
+  return { photo: { uri: a.uri, base64, aspect: photoAspect(a.width, a.height), width: a.width, height: a.height } };
 }
 
 export const takePhoto = pickWeb;

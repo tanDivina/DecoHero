@@ -72,7 +72,7 @@ Notes:
 |---|---|
 | Privacy policy | `https://hero-apps.com/decohero/privacy.html` (EN + ES on one page). Final text written Nov 12 2026 and staged at `~/hero-apps/decohero/privacy.html`; goes live with the next `./deploy.sh` in `~/hero-apps` (check it returns 200 before entering it in Play). `PRIVACY_POLICY.md` holds the same English text. Operator: Divina Endeavors LLC, contact support@hero-apps.com. Deletion is by email with the install ID shown (copy/share) on the in-app About and privacy screen (link at the bottom of Home); Play order number or first-use date as fallback. |
 | Ads | No ads. |
-| App access | All functionality available without login. Note for reviewers: new installs get 3 free credits; no special access needed. |
+| App access | All functionality available without login. Note for reviewers: new installs get 1 free credit; no special access needed. |
 | Content rating (IARC) | Category: Utility / productivity style app (House & Home). No violence, sexual content, drugs, gambling, or profanity. Users do not interact or communicate with each other. Shares content only via the Android share sheet. Contains digital purchases: Yes. Generative AI content: Yes, with an in-app Report button on every design. |
 | Target audience | 18 and over (keeps it out of the Families policy; the privacy policy says it is not directed at children under 13). Not designed to appeal to children. |
 | News app | No. |

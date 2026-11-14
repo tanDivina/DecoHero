@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
     "test": "tsx test/smoke.ts",
-    "watermark-sample": "tsx scripts/watermark-sample.ts"
+    "watermark-sample": "tsx scripts/watermark-sample.ts",
+    "marker-sample": "tsx scripts/marker-sample.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

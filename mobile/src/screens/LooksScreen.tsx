@@ -2,13 +2,16 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { ShopLinks } from "../api";
 import { Button } from "../components/Button";
-import { lang, t } from "../i18n";
+import { buyTreeLabel, lang, t, treeForCeiling } from "../i18n";
+import type { TreeFit } from "../treeSize";
 import { TREE_PRESETS } from "../stylePresets";
 import { color, font, space } from "../theme";
 
 type Props = {
   /** Partner store link for real trees; empty hides that block. */
   treeShopUrl: string;
+  /** The tree recommended for the ceiling entered on Home; null while that height is not valid. */
+  tree: TreeFit | null;
   /** Decor links per Christmas theme, from the server. */
   shopLinks: ShopLinks;
   /** Opens a shop link outside the app. */
@@ -20,8 +23,12 @@ type Props = {
  * Every shop link of Christmas mode in one place, reachable from Home without a photo, a design or credits
  * (partner rules: no link may sit behind a payment). Same links and disclosures as under a Christmas result.
  */
-export function LooksScreen({ treeShopUrl, shopLinks, onOpenLink, onBack }: Props) {
-  const themes = TREE_PRESETS.map((p) => ({ ...p, links: shopLinks[p.id] ?? [] })).filter((p) => p.links.length > 0);
+export function LooksScreen({ treeShopUrl, tree, shopLinks, onOpenLink, onBack }: Props) {
+  // The real tree to order for the ceiling on Home; its link already carries the affiliate parameters.
+  const product = treeShopUrl && tree ? tree.product : null;
+  // Winter wonderland is drawn flocked, but the shop sells the fir without snow: its card always says so.
+  const themes = TREE_PRESETS.map((p) => ({ ...p, links: shopLinks[p.id] ?? [], flocked: p.id === "xmas-winter" && !!product }))
+    .filter((p) => p.links.length > 0 || p.flocked);
   const all = themes.flatMap((p) => p.links);
   const partnerShown = !!treeShopUrl || all.some((l) => l.kind === "partner");
   const amazonShown = all.some((l) => l.kind === "amazon");
@@ -39,14 +46,31 @@ export function LooksScreen({ treeShopUrl, shopLinks, onOpenLink, onBack }: Prop
         {!!treeShopUrl && (
           <View style={styles.card}>
             <Text style={styles.theme} accessibilityRole="header">{t.realTree}</Text>
-            <Button label={t.buyTree} onPress={() => onOpenLink(treeShopUrl)} />
-            <Text style={styles.note}>{t.buyTreeNote}</Text>
+            {product && tree ? (
+              <>
+                <Text style={styles.text}>{treeForCeiling(tree, true)}</Text>
+                <Button label={buyTreeLabel(product)} onPress={() => onOpenLink(product.url)} />
+                <Button label={t.allTrees} variant="quiet" onPress={() => onOpenLink(treeShopUrl)} />
+                <Text style={styles.note}>{t.buyTreeNote} {t.pricesNote}</Text>
+              </>
+            ) : (
+              <>
+                <Button label={t.buyTree} onPress={() => onOpenLink(treeShopUrl)} />
+                <Text style={styles.note}>{t.buyTreeNote}</Text>
+              </>
+            )}
           </View>
         )}
 
         {themes.map((p) => (
           <View key={p.id} style={styles.card}>
             <Text style={styles.theme} accessibilityRole="header">{p[lang]}</Text>
+            {p.flocked && product && (
+              <>
+                <Button label={buyTreeLabel(product)} variant="quiet" onPress={() => onOpenLink(product.url)} />
+                <Text style={styles.text}>{t.flockNote(t.species(product.species))}</Text>
+              </>
+            )}
             {p.links.map((link, i) => (
               <Button key={`${i}-${link.url}`} label={link[lang]} variant="quiet" onPress={() => onOpenLink(link.url)} />
             ))}

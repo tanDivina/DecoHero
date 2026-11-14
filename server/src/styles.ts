@@ -1,5 +1,6 @@
 // Prompts live on the server so nobody can use your API key to generate arbitrary images.
 // Style ids must match mobile/src/stylePresets.ts.
+import { CLEARANCE_CM, productForHeight, recommendTree, SPECIES_PROMPT, type TreeProduct } from "./treeCatalog.js";
 
 const BASE = `Redesign the room in this photo as a professional interior designer would.
 Keep the room's architecture exactly as it is: same walls, windows, doors, floor plan, ceiling height,
@@ -23,14 +24,28 @@ export const STYLE_PROMPTS: Record<string, string> = {
 };
 
 // Christmas mode (app 1.0.3+): add one tree, leave the room alone. Ids must match mobile/src/stylePresets.ts.
-const TREE_BASE = `Edit this photo of a room by adding ONE Christmas tree to it. This is a careful photo edit, not a redesign.
+const TREE_INTRO = `Edit this photo of a room by adding ONE Christmas tree to it. This is a careful photo edit, not a redesign.
 Keep everything else exactly as it is: the same walls, windows, doors, floor, ceiling, furniture, rugs, curtains, art,
-plants, colors, daylight, camera position, lens and perspective. Do not move, remove, restyle, recolor or replace anything.
-Stand the tree on the floor in a free spot where a person would really put it: best in an empty corner or beside a window.
+plants, colors, daylight, camera position, lens and perspective. Do not move, remove, restyle, recolor or replace anything.`;
+
+// Where the tree goes when the user leaves it to us.
+const PLACE_AUTO = `Stand the tree on the floor in a free spot where a person would really put it: best in an empty corner or beside a window.
 Keep it well clear of every door, closet doors included: leave at least about 1 m (an arm's length) of open floor between
 the tree and any door frame, and keep it out of the arc a door needs to swing fully open. Never put it in a doorway or a
 walkway, in front of a radiator, baseboard heater or air vent, or in front of the TV, and it must not cover or pass
-through furniture. If a corner is next to a door, use a different corner or wall. Before placing the tree, find every door, doorway and opening in the photo, open or closed: in the final image the tree, its skirt and the gifts must not overlap any of them, and every door must stay exactly as it is (an open door stays open and fully visible, a closed door stays closed). Never remove, hide or redraw a door to make room for the tree. The tree is a real, fresh-cut
+through furniture. If a corner is next to a door, use a different corner or wall. Before placing the tree, find every door, doorway and opening in the photo, open or closed: in the final image the tree, its skirt and the gifts must not overlap any of them, and every door must stay exactly as it is (an open door stays open and fully visible, a closed door stays closed). Never remove, hide or redraw a door to make room for the tree.`;
+
+// Where the tree goes when the user tapped a spot (app 1.0.5+). The server drew the marker (see marker.ts);
+// the spot wins over our own placement preferences, but doors stay untouchable.
+const PLACE_MARKED = `The photo has a bright magenta circle with a magenta dot in its centre drawn on top of it. That is a marker
+the user added to show where the tree goes; it is not part of the room. Stand the tree on the floor with the centre of its
+base exactly on the magenta marker. If the marker is not on the floor, use the floor spot directly below it. Use this spot
+even if it is close to a door, a window or furniture, but every door must stay exactly as it is (an open door stays open and
+fully visible, a closed door stays closed): never remove, hide or redraw a door to make room for the tree. Remove the marker
+completely: the final image must contain no magenta circle, no magenta dot and no magenta tint anywhere. Wherever the tree,
+its skirt or the gifts do not cover the marker, show the floor exactly as it looks right around it.`;
+
+const TREE_REST = `The tree is a real, fresh-cut
 fir with natural, slightly irregular branches, standing in a tree stand that is hidden by the tree skirt or collar
 described below. Add only the modest decor described below, close to the tree, and no other Christmas decorations anywhere
 else in the room. The tree must look like it was really there when the photo was taken: correct perspective, contact
@@ -55,11 +70,13 @@ export function isStyle(styleId: unknown): styleId is string {
   return (typeof styleId === "string" && Object.hasOwn(STYLE_PROMPTS, styleId)) || isTreeStyle(styleId);
 }
 
-// Accepted ranges for the optional sizes on /api/redesign: ceilings from 6 to 20 ft, trees from 4 to 12 ft.
+// Accepted ranges for the optional sizes on /api/redesign: ceilings from 6 to 20 ft, trees from 4 to 12 ft
+// (what apps up to 1.0.4 send) or the height of a product in the partner's catalogue (app 1.0.5+).
 const CEILING_CM = { min: 180, max: 620 };
 const TREE_CM = { min: 120, max: 370 };
 
-export type TreeSize = { ceilingCm?: number; treeCm?: number };
+/** `species` is one of the fixed SPECIES_PROMPT texts, set here from the catalogue and never by a client. */
+export type TreeSize = { ceilingCm?: number; treeCm?: number; species?: string };
 
 const sizeIn = (v: unknown, range: { min: number; max: number }): number | undefined | null => {
   if (v === undefined || v === null) return undefined;
@@ -70,37 +87,81 @@ const sizeIn = (v: unknown, range: { min: number; max: number }): number | undef
 /**
  * Checks the optional ceilingCm / treeCm numbers of a Christmas request. Returns whole centimetres, or null
  * when a value is present but not a number in range, or the tree would not fit under the ceiling.
+ * A tree height that matches a catalogue product also names that product's species. With a ceiling and no
+ * tree height, the tree is the one the catalogue rules recommend for that ceiling.
  */
-export function parseTreeSize(ceilingCm: unknown, treeCm: unknown): TreeSize | null {
+export function parseTreeSize(ceilingCm: unknown, treeCm: unknown, catalog: readonly TreeProduct[] = []): TreeSize | null {
   const ceiling = sizeIn(ceilingCm, CEILING_CM);
-  const tree = sizeIn(treeCm, TREE_CM);
-  if (ceiling === null || tree === null) return null;
+  if (ceiling === null) return null;
+  let tree: number | undefined;
+  let product: TreeProduct | null = null;
+  if (treeCm !== undefined && treeCm !== null) {
+    if (typeof treeCm !== "number" || !Number.isFinite(treeCm)) return null;
+    product = productForHeight(treeCm, catalog);
+    if (!product && (treeCm < TREE_CM.min || treeCm > TREE_CM.max)) return null;
+    tree = Math.round(treeCm);
+  } else if (ceiling !== undefined) {
+    product = recommendTree(ceiling, catalog);
+    if (product) tree = Math.round(product.maxFt * 30.48);
+  }
   if (ceiling !== undefined && tree !== undefined && tree >= ceiling) return null;
-  return { ceilingCm: ceiling, treeCm: tree };
+  return { ceilingCm: ceiling, treeCm: tree, species: product ? SPECIES_PROMPT[product.species] : undefined };
 }
 
 /** "7.5 ft (229 cm)": both units, built from a checked whole number, so nothing a client sends reaches the prompt. */
 const length = (cm: number) => `${String(Math.round((cm / 30.48) * 10) / 10)} ft (${cm} cm)`;
 
-function scaleLine({ ceilingCm, treeCm }: TreeSize): string {
+/** Standard interior door height (80 in). Gives the model a second ruler besides the ceiling. */
+const DOOR_CM = 203;
+
+/** "Compared with a standard door ..." sentence, so trees aren't drawn door-height when they should be taller (or vice versa). */
+function doorLine(treeCm: number): string {
+  const diff = treeCm - DOOR_CM;
+  if (diff >= 8) {
+    return ` For reference, a standard interior door is about 203 cm (6 ft 8 in) tall, so this tree is clearly taller than a door: ` +
+      `its tip is about ${diff} cm above the top of a standard door standing at the same distance from the camera.`;
+  }
+  if (diff <= -8) {
+    return ` For reference, a standard interior door is about 203 cm (6 ft 8 in) tall, so this tree is about ${-diff} cm shorter than ` +
+      `a door standing at the same distance from the camera.`;
+  }
+  return " For reference, this tree is about as tall as a standard interior door (203 cm, 6 ft 8 in).";
+}
+
+const GAP = `about ${Math.round(CLEARANCE_CM)} cm (12 in)`;
+
+function scaleLine({ ceilingCm, treeCm, species }: TreeSize): string {
+  // What the shop will deliver, so the picture matches the tree that arrives.
+  const kind = species ? ` The tree is a fresh-cut ${species}.` : "";
   if (ceilingCm !== undefined && treeCm !== undefined) {
     return `Scale: the ceiling of this room is ${length(ceilingCm)} high. The tree is ${length(treeCm)} tall from the floor to its tip, ` +
       `so there is a gap of about ${ceilingCm - treeCm} cm between the tip and the ceiling, where the topper sits. Draw the tree at exactly ` +
-      `that height relative to the ceiling, the doors and the furniture. Nothing touches the ceiling.`;
+      `that height relative to the ceiling, the doors and the furniture. Nothing touches the ceiling.` + doorLine(treeCm) + kind;
   }
   if (treeCm !== undefined) {
     return `Scale: the tree is ${length(treeCm)} tall from the floor to its tip. Draw it at exactly that height relative to the doors ` +
-      `and the furniture. Nothing touches the ceiling.`;
+      `and the furniture. Nothing touches the ceiling.` + doorLine(treeCm) + kind;
   }
   if (ceilingCm !== undefined) {
-    return `Scale: the ceiling of this room is ${length(ceilingCm)} high. Size the tree so that its tip ends about 15 cm (6 in) below ` +
+    return `Scale: the ceiling of this room is ${length(ceilingCm)} high. Size the tree so that its tip ends ${GAP} below ` +
       `the ceiling, with the topper in that gap. Nothing touches the ceiling.`;
   }
-  return "Scale: size the tree so that its tip ends about 15 cm (6 in) below the ceiling, with the topper in that gap. Nothing touches the ceiling.";
+  return `Scale: size the tree so that its tip ends ${GAP} below the ceiling, with the topper in that gap. Nothing touches the ceiling.`;
 }
 
-/** `size` only matters for Christmas styles; interior styles ignore it. */
-export function buildPrompt(styleId: string, size: TreeSize = {}): string | null {
-  if (isTreeStyle(styleId)) return `${TREE_BASE}\n\n${TREE_PROMPTS[styleId]}\n\n${scaleLine(size)}`;
+/** Theme text with the species the shop will deliver; the themes are written for a Fraser fir. */
+function themeText(styleId: string, species?: string): string {
+  const text = TREE_PROMPTS[styleId];
+  return species && species !== SPECIES_PROMPT.fraser ? text.replaceAll(SPECIES_PROMPT.fraser, species) : text;
+}
+
+/**
+ * `size` and `marked` only matter for Christmas styles; interior styles ignore them.
+ * `marked`: the photo sent to the model carries the user's magenta placement marker.
+ */
+export function buildPrompt(styleId: string, size: TreeSize = {}, marked = false): string | null {
+  if (isTreeStyle(styleId)) {
+    return `${TREE_INTRO}\n${marked ? PLACE_MARKED : PLACE_AUTO} ${TREE_REST}\n\n${themeText(styleId, size.species)}\n\n${scaleLine(size)}`;
+  }
   return isStyle(styleId) ? `${BASE}\n\n${STYLE_PROMPTS[styleId]}` : null;
 }

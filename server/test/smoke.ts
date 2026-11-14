@@ -31,14 +31,18 @@ const { createApp } = await import("../src/app.js");
 const Database = (await import("better-sqlite3")).default;
 const peek = new Database(process.env.DB_PATH, { readonly: true });
 
-type Mode = "ok" | "fail" | "slow";
+// "echo" hands the input image straight back, like a model that ignored the edit (and left the marker in).
+type Mode = "ok" | "fail" | "slow" | "echo";
 let mode: Mode = "ok";
 let calls = 0;
 let lastPrompt = "";
-const fakeGenerate = async (_img: string, prompt: string): Promise<Buffer> => {
+let lastImage = "";
+const fakeGenerate = async (img: string, prompt: string): Promise<Buffer> => {
   calls++;
   lastPrompt = prompt;
+  lastImage = img;
   if (mode === "fail") throw new Error("Gemini returned no image (SAFETY)");
+  if (mode === "echo") return Buffer.from(img, "base64");
   if (mode === "slow") await new Promise((r) => setTimeout(r, 400));
   return sharp({ create: { width: 640, height: 480, channels: 3, background: "#a08060" } }).png().toBuffer();
 };
@@ -226,7 +230,7 @@ await test("christmas: six tree styles, sizes in the prompt, room kept; sizes va
 
   // No sizes, or only one of them: still a valid Christmas request.
   assert.equal((await post({ styleId: "xmas-classic" })).status, 200);
-  assert.ok(lastPrompt.includes("about 15 cm (6 in) below the ceiling") && !lastPrompt.includes("undefined"));
+  assert.ok(lastPrompt.includes("about 30 cm (12 in) below the ceiling") && !lastPrompt.includes("undefined"));
   assert.equal((await post({ styleId: "xmas-classic", ceilingCm: 300, treeCm: null })).status, 200);
   assert.ok(lastPrompt.includes("9.8 ft (300 cm)") && !/NaN|null|undefined/.test(lastPrompt));
   assert.equal(await credits(id), 42);
@@ -261,7 +265,10 @@ await test("config: tree shop link defaults to the store, can be replaced or swi
   delete process.env.CHRISTMAS_MODE;
   delete process.env.SHOP_LINKS;
   delete process.env.AMAZON_APP_APPROVED;
-  assert.deepEqual(await get(), { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {} });
+  delete process.env.TREE_CATALOG;
+  const { treeCatalog: trees, ...rest } = await get();
+  assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {} });
+  assert.equal(trees.length, 10);
   process.env.TREE_SHOP_URL = "https://christmastreesinthemail.com/?ref=decohero";
   assert.equal((await get()).treeShopUrl, "https://christmastreesinthemail.com/?ref=decohero");
   for (const off of ["", "off", " OFF "]) {
@@ -295,13 +302,14 @@ await test("shop links: mixed config, Amazon gate off and on, invalid entries ig
   assert.deepEqual(closed.shopLinks, {
     "xmas-classic": [{ en: "Velvet ribbon", es: "Cinta de terciopelo", url: "https://shop.example.com/ribbon?ref=decohero", kind: "partner" }],
   });
-  assert.ok(!/amazon|amzn/i.test(JSON.stringify(closed)));
+  // (Checked on the links only: one of the tree store's own product addresses happens to end in "amazon-og".)
+  assert.ok(!/amazon|amzn/i.test(JSON.stringify({ ...closed, treeCatalog: [] })));
   // What 1.0.3 reads is still there, with the same types.
   assert.equal(closed.christmas, true);
   assert.equal(closed.treeShopUrl, "https://christmastreesinthemail.com");
   for (const notTrue of ["", "1", "yes", "false", "TRUE-ish"]) {
     process.env.AMAZON_APP_APPROVED = notTrue;
-    assert.ok(!/amazon|amzn/i.test(JSON.stringify(await get())), JSON.stringify(notTrue));
+    assert.ok(!/amazon|amzn/i.test(JSON.stringify({ ...(await get()), treeCatalog: [] })), JSON.stringify(notTrue));
   }
 
   // Gate open: both kinds, in the configured order; a missing label_es falls back to English.
@@ -346,10 +354,240 @@ await test("shop links: mixed config, Amazon gate off and on, invalid entries ig
     set(broken);
     const r = await req("GET", "/api/config");
     assert.equal(r.status, 200, broken.slice(0, 20));
-    assert.deepEqual(r.json, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {} }, broken.slice(0, 20));
+    const { treeCatalog: _trees, ...rest } = r.json;
+    assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {} }, broken.slice(0, 20));
   }
   delete process.env.SHOP_LINKS;
   delete process.env.AMAZON_APP_APPROVED;
+});
+
+await test("tree catalogue: default list, affiliate parameter on every product link, TREE_CATALOG override validated", async () => {
+  const get = async () => (await req("GET", "/api/config")).json;
+  const STORE = "https://christmastreesinthemail.com";
+  delete process.env.TREE_SHOP_URL;
+  delete process.env.TREE_CATALOG;
+
+  const plain = (await get()).treeCatalog;
+  assert.equal(plain.length, 10);
+  for (const t of plain) {
+    assert.deepEqual(Object.keys(t), ["id", "name", "species", "minFt", "maxFt", "price", "url"]);
+    assert.ok(t.url.startsWith(`${STORE}/products/`) && !t.url.includes("?"), t.url);
+    assert.ok(["fraser", "balsam", "hybrid"].includes(t.species) && t.minFt <= t.maxFt && t.price > 100);
+  }
+  assert.deepEqual(plain.find((t: any) => t.name === "7 Ft Premium Fraser"), {
+    id: "copy-of-real-christmas-trees-delivered-7-foot-premium-balsam-fir-amazon-og", name: "7 Ft Premium Fraser", species: "fraser",
+    minFt: 7, maxFt: 7, price: 227.95, url: `${STORE}/products/copy-of-real-christmas-trees-delivered-7-foot-premium-balsam-fir-amazon-og`,
+  });
+
+  // The affiliate parameter exists only in TREE_SHOP_URL and is carried onto every product link (made-up value here).
+  process.env.TREE_SHOP_URL = `${STORE}/?sca_ref=1234567.TestRefOnly`;
+  const withRef = await get();
+  assert.equal(withRef.treeShopUrl, `${STORE}/?sca_ref=1234567.TestRefOnly`);
+  for (const t of withRef.treeCatalog) assert.ok(t.url.endsWith("?sca_ref=1234567.TestRefOnly") && t.url.startsWith(`${STORE}/products/`), t.url);
+  // A shop link on another host keeps its parameters to itself; "off" leaves the product links plain.
+  for (const other of ["https://trees.example.com/?ref=abc", "off"]) {
+    process.env.TREE_SHOP_URL = other;
+    assert.ok((await get()).treeCatalog.every((t: any) => !t.url.includes("?")), other);
+  }
+  process.env.TREE_SHOP_URL = `${STORE}/?sca_ref=1234567.TestRefOnly`;
+
+  // Override: valid products replace the default list; a path is read as a page on the partner's store.
+  const good = { name: "6 Ft Test Fraser", species: "fraser", minFt: 6, maxFt: 6.5, price: 199.5, url: "/products/test-fraser?variant=1" };
+  const set = (v: unknown) => { process.env.TREE_CATALOG = typeof v === "string" ? v : JSON.stringify(v); };
+  set([good, { ...good, name: "Full address", url: `${STORE}/products/test-two` }]);
+  assert.deepEqual((await get()).treeCatalog, [
+    { id: "test-fraser", name: "6 Ft Test Fraser", species: "fraser", minFt: 6, maxFt: 6.5, price: 199.5, url: `${STORE}/products/test-fraser?variant=1&sca_ref=1234567.TestRefOnly` },
+    { id: "test-two", name: "Full address", species: "fraser", minFt: 6, maxFt: 6.5, price: 199.5, url: `${STORE}/products/test-two?sca_ref=1234567.TestRefOnly` },
+  ]);
+  // Invalid products are dropped one by one; the valid one next to them survives.
+  const bad: unknown[] = [
+    { ...good, url: "http://christmastreesinthemail.com/products/x" }, { ...good, url: "https://evil.example.com/products/x" },
+    { ...good, url: "https://christmastreesinthemail.com.evil.example/products/x" }, { ...good, url: "https://www.amazon.com/dp/EXAMPLE" },
+    { ...good, url: "https://user:pw@christmastreesinthemail.com/products/x" }, { ...good, url: "https://christmastreesinthemail.com:8443/products/x" },
+    { ...good, url: "javascript:alert(1)" }, { ...good, url: "//evil.example.com/products/x" }, { ...good, url: 5 }, { ...good, url: `${STORE}/` },
+    { ...good, url: `${STORE}/products/` + "a".repeat(700) }, { ...good, species: "spruce" }, { ...good, species: undefined },
+    { ...good, maxFt: 40 }, { ...good, maxFt: "7" }, { ...good, maxFt: 1 }, { ...good, minFt: 9 }, { ...good, minFt: "6" },
+    { ...good, price: 0 }, { ...good, price: -5 }, { ...good, price: 99999 }, { ...good, price: "199" }, { ...good, name: "" }, { ...good, name: 7 },
+    { ...good, url: "/products/test-fraser#again" }, "text", null, [good],
+  ];
+  for (const entry of bad) {
+    set([entry, good]);
+    assert.deepEqual((await get()).treeCatalog.map((t: any) => t.id), ["test-fraser"], JSON.stringify(entry));
+  }
+  // Broken as a whole, or nothing valid left: the built-in list, never a crash.
+  for (const broken of ["{not json", "{}", "null", "42", "[]", JSON.stringify([bad[0]]), JSON.stringify([good]) + " ".repeat(30_000)]) {
+    set(broken);
+    const r = await req("GET", "/api/config");
+    assert.equal(r.status, 200, broken.slice(0, 20));
+    assert.deepEqual(r.json.treeCatalog.map((t: any) => t.name), plain.map((t: any) => t.name), broken.slice(0, 20));
+  }
+  delete process.env.TREE_CATALOG;
+  delete process.env.TREE_SHOP_URL;
+});
+
+await test("tree recommendation: 12 in clearance, tallest fit, Fraser first, nothing above 9 ft", async () => {
+  const { recommendTree, productForHeight, DEFAULT_TREE_CATALOG } = await import("../src/treeCatalog.js");
+  const forFt = (ft: number) => recommendTree(ft * 30.48, DEFAULT_TREE_CATALOG)?.name ?? null;
+  const forM = (m: number) => recommendTree(m * 100, DEFAULT_TREE_CATALOG)?.name ?? null;
+  assert.deepEqual(
+    [6, 7, 7.5, 8, 8.5, 9, 9.5, 10, 12, 20].map(forFt),
+    ["4 Ft Premium", "5 Ft Premium Fraser", "5 Ft Premium Fraser", "7 Ft Premium Fraser", "7 Ft Premium Fraser", "7 Ft Premium Fraser",
+      "7 Ft Balsam-Fraser Hybrid", "8-9 Ft Premium Fraser", "8-9 Ft Premium Fraser", "8-9 Ft Premium Fraser"]
+  );
+  assert.deepEqual([2.4, 2.7, 3.0].map(forM), ["5 Ft Premium Fraser", "7 Ft Premium Fraser", "7 Ft Balsam-Fraser Hybrid"]);
+  // Just under a threshold the smaller tree wins; too low for the 4 ft tree: the tabletop; lower still: nothing.
+  assert.equal(forFt(7.99), "5 Ft Premium Fraser");
+  assert.equal(forFt(4.99), "3 Ft Tabletop");
+  assert.equal(forFt(4), "3 Ft Tabletop");
+  assert.equal(forFt(3.9), null);
+  assert.equal(productForHeight(213.36, DEFAULT_TREE_CATALOG)?.name, "7 Ft Premium Fraser");
+  assert.equal(productForHeight(183, DEFAULT_TREE_CATALOG)?.name, "5 Ft Premium Fraser");
+  assert.equal(productForHeight(228.6, DEFAULT_TREE_CATALOG), null); // 7.5 ft: an old app's size, not a product
+});
+
+await test("christmas 1.0.5: species from the catalogue in the prompt, catalogue heights accepted, old sizes still fine", async () => {
+  const { TREE_PROMPTS } = await import("../src/styles.js");
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: "GPA.species" });
+  const post = (body: Record<string, unknown>) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, ...body }, ip });
+  mode = "ok";
+  delete process.env.TREE_CATALOG;
+
+  // 8 ft ceiling, 7 ft Fraser (what app 1.0.5 sends).
+  assert.equal((await post({ styleId: "xmas-classic", ceilingCm: 243.84, treeCm: 213.36 })).status, 200);
+  assert.ok(lastPrompt.includes("7 ft (213 cm)") && lastPrompt.includes("The tree is a fresh-cut Fraser fir."));
+  assert.ok(lastPrompt.includes(TREE_PROMPTS["xmas-classic"]) && lastPrompt.includes("gap of about 31 cm"));
+  // The flocked theme is still drawn flocked, as a Fraser fir.
+  assert.equal((await post({ styleId: "xmas-winter", ceilingCm: 243.84, treeCm: 213.36 })).status, 200);
+  assert.ok(lastPrompt.includes("heavily flocked with white") && lastPrompt.includes("fresh-cut Fraser fir"));
+  // 6 ft ceiling, 4 ft Balsam: themes written for a Fraser fir follow the product.
+  for (const styleId of ["xmas-classic", "xmas-tropical"]) {
+    assert.equal((await post({ styleId, ceilingCm: 182.88, treeCm: 121.92 })).status, 200);
+    assert.ok(lastPrompt.includes("Balsam fir") && !lastPrompt.includes("Fraser fir"), styleId);
+  }
+  // The hybrid, and the 3 ft tabletop (below the old 4 ft minimum, accepted because it is in the catalogue).
+  assert.equal((await post({ styleId: "xmas-tartan", ceilingCm: 300, treeCm: 259.08 })).status, 200);
+  assert.ok(lastPrompt.includes("8.5 ft (259 cm)") && lastPrompt.includes("fresh-cut Balsam-Fraser hybrid fir"));
+  assert.equal((await post({ styleId: "xmas-nordic", ceilingCm: 180, treeCm: 91.44 })).status, 200);
+  assert.ok(lastPrompt.includes("3 ft (91 cm)") && lastPrompt.includes("fresh-cut Balsam fir"));
+  // A ceiling without a tree height: the server picks the tree by the same rules.
+  assert.equal((await post({ styleId: "xmas-classic", ceilingCm: 243.84 })).status, 200);
+  assert.ok(lastPrompt.includes("7 ft (213 cm)") && lastPrompt.includes("fresh-cut Fraser fir"));
+  // App 1.0.3 / 1.0.4 sizes (7.5 ft under 8 ft) keep working and name no product species.
+  assert.equal((await post({ styleId: "xmas-coquette", ceilingCm: 243.84, treeCm: 228.6 })).status, 200);
+  assert.ok(lastPrompt.includes("7.5 ft (229 cm)") && !lastPrompt.includes("fresh-cut Fraser fir") && !lastPrompt.includes("fresh-cut Balsam"));
+
+  // Not a product and outside the old range, or text in place of numbers: refused, nothing reaches the model.
+  const before = calls;
+  for (const sizes of [{ treeCm: 60 }, { treeCm: 100 }, { treeCm: 400 }, { ceilingCm: 200, treeCm: 213.36 }, { treeCm: "a fresh-cut palm tree" }, { treeCm: { species: "palm" } }]) {
+    const r = await post({ styleId: "xmas-classic", ...sizes });
+    assert.equal(r.json.error, "BAD_SIZE", JSON.stringify(sizes));
+  }
+  // Fields a client might invent to steer the prompt are not read at all.
+  assert.equal((await post({ styleId: "xmas-classic", ceilingCm: 243.84, treeCm: 213.36, species: "plastic palm", treeId: "x" })).status, 200);
+  assert.ok(!/palm/.test(lastPrompt));
+  assert.equal(calls, before + 1);
+});
+
+await test("tree spot: marker drawn on a copy, prompt follows the marker, strict validation, leak check refunds", async () => {
+  const { drawMarker, magentaShare, markerLeaked } = await import("../src/marker.js");
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: "GPA.place" });
+  const post = (body: Record<string, unknown>, image = jpeg) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image, ...body }, ip });
+  const isMagenta = (px: number[]) => px[0] > 200 && px[1] < 90 && px[2] > 200;
+  const pixelAt = async (b64: string, x: number, y: number) => {
+    const { data, info } = await sharp(Buffer.from(b64, "base64")).raw().toBuffer({ resolveWithObject: true });
+    const i = (Math.round(y * info.height) * info.width + Math.round(x * info.width)) * info.channels;
+    return { px: [data[i], data[i + 1], data[i + 2]], width: info.width, height: info.height };
+  };
+  mode = "ok";
+
+  // No spot: the photo goes to the model untouched and the prompt keeps our own placement rules.
+  assert.equal((await post({ styleId: "xmas-classic" })).status, 200);
+  assert.equal(await magentaShare(Buffer.from(lastImage, "base64")), 0);
+  assert.ok(!/magenta|marker/i.test(lastPrompt) && lastPrompt.includes("empty corner"));
+  assert.equal((await post({ styleId: "xmas-classic", place: null })).status, 200);
+  assert.ok(!/magenta/i.test(lastPrompt));
+
+  // A spot: magenta dot exactly there, a ring about 6% of the width around it, nothing elsewhere.
+  const r = await post({ styleId: "xmas-classic", ceilingCm: 243.84, treeCm: 213.36, place: { x: 0.25, y: 0.75 } });
+  assert.equal(r.status, 200);
+  const centre = await pixelAt(lastImage, 0.25, 0.75);
+  assert.deepEqual([centre.width, centre.height], [800, 600]);
+  assert.ok(isMagenta(centre.px), `centre ${centre.px}`);
+  const ringOffset = (0.03 * 0.85 * 800) / 800; // middle of the ring stroke
+  assert.ok(isMagenta((await pixelAt(lastImage, 0.25 + ringOffset, 0.75)).px), "ring right of the centre");
+  assert.ok(isMagenta((await pixelAt(lastImage, 0.25 - ringOffset, 0.75)).px), "ring left of the centre");
+  assert.ok(!isMagenta((await pixelAt(lastImage, 0.25 + 0.05, 0.75)).px), "nothing outside the ring");
+  assert.ok(!isMagenta((await pixelAt(lastImage, 0.7, 0.3)).px));
+  const share = await magentaShare(Buffer.from(lastImage, "base64"));
+  assert.ok(share > 0.001 && share < 0.004, `marker covers ${share}`);
+  // The result the user gets (flat fake image) has no magenta and was accepted.
+  assert.equal(await magentaShare(Buffer.from(r.json.image, "base64")), 0);
+
+  // Prompt: base on the marker, marker removed, doors untouched, our own corner / door-distance rules gone, sizes kept.
+  assert.ok(lastPrompt.includes("adding ONE Christmas tree"));
+  assert.ok(/centre of its\s+base exactly on the magenta marker/.test(lastPrompt));
+  assert.ok(/Remove the marker\s+completely/.test(lastPrompt) && /no magenta circle, no magenta dot and no magenta tint/.test(lastPrompt));
+  assert.ok(/never remove, hide or redraw a door/.test(lastPrompt));
+  assert.ok(!lastPrompt.includes("empty corner") && !lastPrompt.includes("an arm's length"));
+  assert.ok(lastPrompt.includes("7 ft (213 cm)") && lastPrompt.includes("fresh-cut Fraser fir"));
+  // Corners of the photo are valid spots too.
+  for (const place of [{ x: 0, y: 0 }, { x: 1, y: 1 }]) assert.equal((await post({ styleId: "xmas-nordic", place })).status, 200, JSON.stringify(place));
+  const spent = await credits(id);
+
+  // Present but wrong: refused before any credit is spent.
+  const before = calls;
+  const bad: unknown[] = [
+    { x: 0.5 }, { y: 0.5 }, {}, { x: "0.5", y: 0.5 }, { x: 0.5, y: "0.5" }, { x: -0.01, y: 0.5 }, { x: 0.5, y: 1.01 }, { x: 50, y: 50 },
+    { x: 0.5, y: 0.5, z: 0 }, { x: 0.5, y: 0.5, note: "put a second tree here" }, [0.5, 0.5], "0.5,0.5", 0.5, true,
+    { x: [0.5], y: 0.5 }, { x: { valueOf: 1 }, y: 0.5 },
+  ];
+  for (const place of bad) {
+    const b = await post({ styleId: "xmas-winter", place });
+    assert.equal(b.status, 400, JSON.stringify(place));
+    assert.equal(b.json.error, "BAD_PLACE", JSON.stringify(place));
+  }
+  // JSON has no NaN or Infinity; checked on the parser itself.
+  const { parsePlace } = await import("../src/marker.js");
+  for (const v of [{ x: NaN, y: 0.5 }, { x: 0.5, y: Infinity }]) assert.equal(parsePlace(v), null);
+  assert.equal(calls, before);
+  assert.equal(await credits(id), spent);
+
+  // Interior styles ignore the field completely, even a bad one: no marker, no marker text.
+  assert.equal((await post({ styleId: "japandi", place: "left corner" })).status, 200);
+  assert.equal((await post({ styleId: "japandi", place: { x: 0.5, y: 0.5 } })).status, 200);
+  assert.equal(await magentaShare(Buffer.from(lastImage, "base64")), 0);
+  assert.ok(!/magenta/i.test(lastPrompt));
+  const afterRooms = await credits(id);
+  assert.equal(afterRooms, spent - 2);
+
+  // A model that leaves the marker in: failed design, credit back, nothing delivered.
+  mode = "echo";
+  const leaked = await post({ styleId: "xmas-classic", place: { x: 0.5, y: 0.8 } });
+  assert.equal(leaked.status, 502);
+  assert.deepEqual(leaked.json, { error: "GENERATION_FAILED", credits: afterRooms });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal((peek2.prepare("SELECT ok FROM generations WHERE user_id = ? ORDER BY rowid DESC LIMIT 1").get(id) as any).ok, 0);
+  // Without a spot the same "unchanged photo" answer is a normal delivery: the check only runs for marked photos.
+  assert.equal((await post({ styleId: "xmas-classic" })).status, 200);
+  mode = "ok";
+
+  // A room that already has magenta in it is not mistaken for a leaked marker, but the marker on top of it still is.
+  const room = await sharp({ create: { width: 800, height: 600, channels: 3, background: "#ccbbaa" } })
+    .composite([{ input: await sharp({ create: { width: 200, height: 150, channels: 3, background: "#ff00ff" } }).png().toBuffer(), left: 500, top: 100 }])
+    .jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
+  assert.ok((await magentaShare(room)) > 0.05);
+  assert.equal(await markerLeaked(room, room), false);
+  assert.equal(await markerLeaked(room, await drawMarker(room, { x: 0.2, y: 0.8 })), true);
+  // drawMarker returns a copy: the photo it was given is unchanged.
+  const copy = Buffer.from(room);
+  await drawMarker(room, { x: 0.5, y: 0.5 });
+  assert.ok(copy.equals(room));
 });
 
 await test("watermark: text sits clear of the bottom-right corner", async () => {

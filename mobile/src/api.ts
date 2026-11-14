@@ -46,7 +46,7 @@ async function call<T>(path: string, installId: string | null, init?: RequestIni
 export type Me = { credits: number; paid: boolean; freeDenied?: boolean };
 
 /** Settings the server can change without an app release. Older servers don't have the endpoint (404). */
-export type AppConfig = { christmas: boolean; treeShopUrl: string; shopLinks: unknown };
+export type AppConfig = { christmas: boolean; treeShopUrl: string; shopLinks: unknown; treeCatalog: unknown };
 
 /** A "Shop this look" link for one Christmas theme. Amazon links only arrive once the server's gate is open. */
 export type ShopLink = { en: string; es: string; url: string; kind: "amazon" | "partner" };
@@ -78,14 +78,16 @@ export const api = {
   /**
    * requestId lets the server refund the credit if this design never reaches the phone.
    * size is for Christmas styles only: ceiling and tree height in cm, so the tree is drawn to scale.
+   * place (Christmas only, optional): where the user tapped for the tree, as fractions of the photo.
    */
   redesign: (
     installId: string, image: string, styleId: string, requestId: string,
-    size?: { ceilingCm: number; treeCm: number }
+    size?: { ceilingCm: number; treeCm?: number },
+    place?: { x: number; y: number } | null
   ) =>
     call<{ image: string; credits: number }>("/api/redesign", installId, {
       method: "POST",
-      body: JSON.stringify({ installId, image, styleId, requestId, ...size }),
+      body: JSON.stringify({ installId, image, styleId, requestId, ...size, ...(place ? { place: { x: place.x, y: place.y } } : {}) }),
     }),
 
   report: (installId: string, styleId: string) =>

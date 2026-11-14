@@ -1,6 +1,7 @@
 import { getLocales } from "expo-localization";
 import * as SecureStore from "expo-secure-store";
 import { STYLE_PRESETS, TREE_PRESETS } from "./stylePresets";
+import { CM_PER_FT, formatLength, formatPrice, type TreeFit, type TreePick, type TreeProduct, type Unit } from "./treeSize";
 
 export type Lang = "en" | "es";
 const LANG_KEY = "decohero_lang";
@@ -112,8 +113,27 @@ const en = {
   ceilingRange: (unit: "ft" | "m"): string =>
     unit === "ft" ? "Enter a ceiling height between 6 and 20 ft" : "Enter a ceiling height between 1.8 and 6 m",
   treeFit: (tree: string, unit: "ft" | "m") =>
-    `Recommended tree: ${tree}. That leaves about ${unit === "ft" ? "6 in" : "15 cm"} under the ceiling for the topper.`,
-  treeRecommended: (tree: string, ceiling: string) => `Recommended: ${tree} tree for your ${ceiling} ceiling`,
+    `Recommended tree: ${tree}. That leaves at least ${unit === "ft" ? "12 in" : "30 cm"} under the ceiling for the stand and the topper.`,
+  treeLargest: (tree: string) => `Recommended tree: ${tree}. It is the largest tree our partner sells.`,
+  treeTabletop: (tree: string) => `Your ceiling is too low for a floor tree with its stand and topper. Recommended: ${tree}.`,
+  treeNone: (tree: string) => `No floor tree fits under this ceiling. A small tree on a table still works: ${tree}.`,
+  treeNoneBare: "No floor tree fits under this ceiling.",
+  treeRecommended: (tree: string, ceiling: string) => `Recommended for your ${ceiling} ceiling: ${tree}`,
+  species: (s: "fraser" | "balsam" | "hybrid"): string =>
+    s === "fraser" ? "Fraser fir" : s === "balsam" ? "Balsam fir" : "Balsam-Fraser hybrid",
+  sizeRange: (from: string, to: string) => `${from} to ${to} ft`,
+  sizeUpTo: (size: string) => `up to ${size}`,
+  buyThisTree: (size: string, species: string, price: string) => `Buy this ${size} ${species}, ${price}`,
+  allTrees: "See all trees",
+  pricesNote: "Prices from the partner's store, may change.",
+  flockNote: (species: string) => `Real ${species}; add your own snow flocking.`,
+  placeHint: "Tap where the tree should go (optional)",
+  placeSet: "Tree spot set. Tap the photo to move it.",
+  placeAuto: "Let DecoHero choose",
+  placeMarker: "Tree spot",
+  moveTree: "Move tree · 1 credit",
+  moveTreeTitle: "Move the tree",
+  moveTreeHint: "Tap the spot on the floor where the tree should stand. Moving it makes a new design and uses 1 credit.",
   treeEstimate: "This is an estimate. Measure your ceiling before you order.",
   buyTree: "Buy a real tree",
   shopLook: "Shop this look",
@@ -227,8 +247,26 @@ const es: Strings = {
   ceilingRange: (unit) =>
     unit === "ft" ? "Escribe una altura de techo entre 6 y 20 ft" : "Escribe una altura de techo entre 1.8 y 6 m",
   treeFit: (tree, unit) =>
-    `Árbol recomendado: ${tree}. Así quedan unos ${unit === "ft" ? "6 in" : "15 cm"} bajo el techo para la estrella.`,
-  treeRecommended: (tree, ceiling) => `Recomendado: árbol de ${tree} para tu techo de ${ceiling}`,
+    `Árbol recomendado: ${tree}. Así quedan al menos ${unit === "ft" ? "12 in" : "30 cm"} bajo el techo para la base y la estrella.`,
+  treeLargest: (tree) => `Árbol recomendado: ${tree}. Es el más grande que vende nuestro aliado.`,
+  treeTabletop: (tree) => `Tu techo es muy bajo para un árbol de piso con su base y la estrella. Recomendado: ${tree}.`,
+  treeNone: (tree) => `Bajo este techo no cabe un árbol de piso. Un árbol pequeño sobre una mesa sí funciona: ${tree}.`,
+  treeNoneBare: "Bajo este techo no cabe un árbol de piso.",
+  treeRecommended: (tree, ceiling) => `Recomendado para tu techo de ${ceiling}: ${tree}`,
+  species: (s) => (s === "fraser" ? "abeto Fraser" : s === "balsam" ? "abeto balsámico" : "híbrido balsámico-Fraser"),
+  sizeRange: (from, to) => `${from} a ${to} ft`,
+  sizeUpTo: (size) => `hasta ${size}`,
+  buyThisTree: (size, species, price) => `Comprar este ${species} de ${size}, ${price}`,
+  allTrees: "Ver todos los árboles",
+  pricesNote: "Precios de la tienda de nuestro aliado; pueden cambiar.",
+  flockNote: (species) => `Es un ${species} natural; la nieve artificial la agregas tú.`,
+  placeHint: "Toca donde quieres el árbol (opcional)",
+  placeSet: "Lugar del árbol marcado. Toca la foto para cambiarlo.",
+  placeAuto: "Que DecoHero elija",
+  placeMarker: "Lugar del árbol",
+  moveTree: "Mover el árbol · 1 crédito",
+  moveTreeTitle: "Mover el árbol",
+  moveTreeHint: "Toca el lugar del piso donde quieres el árbol. Moverlo genera un diseño nuevo y usa 1 crédito.",
   treeEstimate: "Es un cálculo aproximado. Mide tu techo antes de hacer el pedido.",
   buyTree: "Comprar un árbol real",
   shopLook: "Compra este look",
@@ -295,6 +333,44 @@ export function syncDeviceLang(): boolean {
 export function styleName(id: string): string {
   const s = [...STYLE_PRESETS, ...TREE_PRESETS].find((p) => p.id === id);
   return s ? s[lang] : id;
+}
+
+const ftText = (ft: number) => String(Number(ft.toFixed(1)));
+
+/** "7 ft" or "5 to 6 ft": the sizes the store lists for a product. Metric users also get the tallest in metres. */
+export function treeSizeLabel(p: TreeProduct, unit: Unit = "ft"): string {
+  const feet = p.minFt === p.maxFt ? `${ftText(p.maxFt)} ft` : t.sizeRange(ftText(p.minFt), ftText(p.maxFt));
+  return unit === "m" ? `${feet}, ${t.sizeUpTo(formatLength(p.maxFt * CM_PER_FT, "m"))}` : feet;
+}
+
+/** "7 Ft Premium Fraser (Fraser fir, 7 ft), $227.95". Without a shop link: species and size only. */
+export function treeDescription(p: TreeProduct, unit: Unit, withShop: boolean): string {
+  const what = `${t.species(p.species)}, ${treeSizeLabel(p, unit)}`;
+  return withShop ? `${p.name} (${what}), ${formatPrice(p.price)}` : what;
+}
+
+/** The recommendation sentence for a ceiling: Home shows it live, Results repeats it. */
+export function treeAdvice(pick: TreePick, unit: Unit, withShop: boolean): string {
+  if (!pick.product) return t.treeNoneBare;
+  const tree = treeDescription(pick.product, unit, withShop);
+  switch (pick.kind) {
+    case "largest": return t.treeLargest(tree);
+    case "tabletop": return t.treeTabletop(tree);
+    case "none": return t.treeNone(tree);
+    default: return t.treeFit(tree, unit);
+  }
+}
+
+/** The same recommendation next to a result or a shop link: "Recommended for your 8 ft ceiling: ...". */
+export function treeForCeiling(fit: TreeFit, withShop: boolean): string {
+  return fit.product && (fit.kind === "fit" || fit.kind === "largest")
+    ? t.treeRecommended(treeDescription(fit.product, fit.unit, withShop), formatLength(fit.ceilingCm, fit.unit))
+    : treeAdvice(fit, fit.unit, withShop);
+}
+
+/** "Buy this 7 ft Fraser fir, $227.95" */
+export function buyTreeLabel(p: TreeProduct): string {
+  return t.buyThisTree(treeSizeLabel(p), t.species(p.species), formatPrice(p.price));
 }
 
 /** Friendly text for an API error code (see src/api.ts). */

@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
-import { t, styleName } from "../i18n";
+import { TreeSpotPhoto } from "../components/TreeSpotPhoto";
+import { t, styleName, treeAdvice } from "../i18n";
 import { MAX_STYLES_PER_RUN, STYLE_PRESETS, TREE_PRESETS } from "../stylePresets";
-import { Ceiling, Unit, ceilingCm, formatTree, recommendTreeCm, switchUnit } from "../treeSize";
+import { Ceiling, TreeProduct, Unit, ceilingCm, recommendTree, switchUnit } from "../treeSize";
 import { color, font, radius, space } from "../theme";
-import { Photo, choosePhoto, takePhoto } from "../photo";
+import { Photo, Place, choosePhoto, takePhoto } from "../photo";
 
 // Large system font sizes still scale these, just not past the point where the row or grid breaks.
 const MAX_SCALE = 1.3;
@@ -17,6 +18,13 @@ type Props = {
   freeDenied: boolean;
   photo: Photo | null;
   onPhoto: (p: Photo) => void;
+  /** Christmas mode: the spot the user tapped for the tree; null = DecoHero chooses. */
+  place: Place | null;
+  onPlace: (place: Place | null) => void;
+  /** The partner's trees, for the live recommendation. */
+  treeCatalog: TreeProduct[];
+  /** False when the server switched the tree shop off: sizes are shown without product names or prices. */
+  treeShop: boolean;
   mode: "rooms" | "christmas";
   /** Missing when the server has switched Christmas mode off: the switch is hidden. */
   onMode?: (mode: "rooms" | "christmas") => void;
@@ -36,8 +44,8 @@ type Props = {
 };
 
 export function HomeScreen({
-  credits, freeDenied, photo, onPhoto, mode, onMode, selected, onSelect, ceiling, onCeiling, onRedesign, onViewResults,
-  onOpenShop, onOpenAbout, onOpenLooks, onNotice,
+  credits, freeDenied, photo, onPhoto, place, onPlace, treeCatalog, treeShop, mode, onMode, selected, onSelect, ceiling, onCeiling,
+  onRedesign, onViewResults, onOpenShop, onOpenAbout, onOpenLooks, onNotice,
 }: Props) {
   const christmas = mode === "christmas";
   const presets = christmas ? TREE_PRESETS : STYLE_PRESETS;
@@ -102,7 +110,17 @@ export function HomeScreen({
 
         {photo ? (
           <View>
-            <Image source={{ uri: photo.uri }} style={[styles.photo, { aspectRatio: photo.aspect }]} resizeMode="cover" />
+            <TreeSpotPhoto photo={photo} place={christmas ? place : null} onPlace={christmas ? onPlace : undefined} />
+            {christmas && (
+              <View style={styles.placeRow}>
+                <Text style={styles.placeText}>{place ? t.placeSet : t.placeHint}</Text>
+                {place && (
+                  <Pressable onPress={() => onPlace(null)} style={styles.linkTarget} accessibilityRole="button">
+                    <Text style={styles.link}>{t.placeAuto}</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
             <View style={styles.changeRow}>
               <Text style={styles.changeLabel}>{t.changePhoto}</Text>
               <Pressable
@@ -164,12 +182,6 @@ export function HomeScreen({
 
         <Text style={[styles.sectionTitle, onMode && styles.sectionAfterModes]}>{christmas ? t.pickTrees : t.pickStyles}</Text>
         {christmas && <Text style={styles.intro}>{t.treeIntro}</Text>}
-        {/* Shop links never sit behind a design or a credit: this entry needs neither. */}
-        {christmas && onOpenLooks && (
-          <Pressable onPress={onOpenLooks} style={[styles.linkTarget, styles.looks]} accessibilityRole="button">
-            <Text style={styles.link}>{t.shopStyles}</Text>
-          </Pressable>
-        )}
         <View style={styles.chips}>
           {presets.map((s) => {
             const on = selected.includes(s.id);
@@ -233,8 +245,16 @@ export function HomeScreen({
             <Text style={[styles.fit, badCeiling && styles.fitBad]}>
               {height === null
                 ? t.ceilingRange(ceiling.unit)
-                : `${t.treeFit(formatTree(recommendTreeCm(height), ceiling.unit), ceiling.unit)} ${t.treeEstimate}`}
+                : `${treeAdvice(recommendTree(height, treeCatalog), ceiling.unit, treeShop)} ${t.treeEstimate}`}
             </Text>
+            {height !== null && treeShop && <Text style={styles.prices}>{t.pricesNote}</Text>}
+            {/* Shop links never sit behind a design or a credit: this entry needs neither.
+                Placed after the ceiling block so the style chips above can't be mistaken for shop buttons. */}
+            {onOpenLooks && (
+              <Pressable onPress={onOpenLooks} style={[styles.linkTarget, styles.looks]} accessibilityRole="button">
+                <Text style={styles.link}>{t.shopStyles}</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -301,7 +321,9 @@ const styles = StyleSheet.create({
     gap: space(1),
   },
   freeDeniedText: { fontSize: 15, lineHeight: 21, color: color.ink },
-  photo: { width: "100%", borderRadius: radius.photo, backgroundColor: color.line },
+  placeRow: { marginTop: space(2) },
+  placeText: { color: color.stone, fontSize: 14, lineHeight: 20 },
+  prices: { marginTop: space(1), fontSize: 12, lineHeight: 16, color: color.stone },
   changeRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: space(4) },
   changeLabel: { color: color.stone, fontSize: 15, marginRight: "auto" },
   // 44dp tall tap area for text links.
@@ -344,7 +366,7 @@ const styles = StyleSheet.create({
   tree: { alignItems: "center" },
   treeTier: { width: 0, height: 0, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: color.olive },
   treeTrunk: { width: 3, height: 3, backgroundColor: color.brass },
-  looks: { marginTop: -space(3), marginBottom: space(1) },
+  looks: { marginTop: space(3), alignSelf: "flex-start" },
   intro: { marginTop: -space(1), marginBottom: space(3), fontSize: 14, lineHeight: 20, color: color.stone },
   ceilingRow: { flexDirection: "row", alignItems: "center", gap: space(3) },
   ceilingInput: {

@@ -6,10 +6,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import type { ShopLinks } from "../api";
-import { lang, redesignErrorMessage, styleName, t } from "../i18n";
+import { buyTreeLabel, lang, redesignErrorMessage, styleName, t, treeForCeiling } from "../i18n";
+import type { Place } from "../photoShape";
 import { isTreeStyle } from "../stylePresets";
 import { color, font, space } from "../theme";
-import { TreeFit, formatLength, formatTree } from "../treeSize";
+import type { TreeFit } from "../treeSize";
 
 export type Result = {
   styleId: string;
@@ -20,6 +21,8 @@ export type Result = {
   errorCode?: string;
   retryAfterSec?: number;
   reported?: boolean;
+  /** Christmas only: the spot the user tapped for the tree in this attempt; missing = DecoHero chose. */
+  place?: Place | null;
 };
 
 type Props = {
@@ -27,8 +30,12 @@ type Props = {
   /** Width ÷ height of the original photo; used until a design has loaded and reports its own shape. */
   aspect: number;
   results: Result[];
-  /** Ceiling and tree height of a Christmas run; null for room designs. */
+  /** Ceiling, tree height and recommended product of a Christmas run; null for room designs. */
   tree: TreeFit | null;
+  /** Style to open on (after "Move tree"); the first design otherwise. */
+  startAt?: string;
+  /** Christmas results: pick a new spot for the tree and run that style again (1 credit). */
+  onMoveTree: (r: Result) => void;
   /** Partner store link for real trees; empty hides the button. */
   treeShopUrl: string;
   /** Decor links per Christmas theme, from the server. */
@@ -52,10 +59,11 @@ const MIN_ASPECT = 9 / 16;
 const MAX_ASPECT = 2;
 
 export function ResultsScreen({
-  originalUri, aspect, results, tree, treeShopUrl, shopLinks, onOpenLink, onBack, onSave, onShare, onReport, onRetry, onOpenShop,
+  originalUri, aspect, results, tree, startAt, treeShopUrl, shopLinks, onOpenLink, onBack, onSave, onShare, onReport, onRetry,
+  onMoveTree, onOpenShop,
 }: Props) {
   const { width } = useWindowDimensions();
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => Math.max(0, results.findIndex((r) => r.styleId === startAt)));
   const [comparing, setComparing] = useState<string | null>(null);
   // Real width ÷ height of each loaded design, by file uri. The model doesn't always keep the photo's shape.
   const [shapes, setShapes] = useState<Record<string, number>>({});
@@ -91,6 +99,9 @@ export function ResultsScreen({
         keyExtractor={(r) => r.styleId}
         horizontal
         pagingEnabled
+        // Pages are exactly one screen wide, so the list can open on any of them.
+        getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+        initialScrollIndex={index}
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScroll}
         renderItem={({ item }) => {
@@ -103,6 +114,8 @@ export function ResultsScreen({
           // "Shop this look": the real tree first, then this theme's decor. No links at all = no section.
           const decor = christmas ? shopLinks[item.styleId] ?? [] : [];
           const showShop = christmas && (!!treeShopUrl || decor.length > 0);
+          // The real tree to order for this ceiling; its link already carries the affiliate parameters.
+          const product = showTree && tree && treeShopUrl ? tree.product : null;
           const partnerShown = !!treeShopUrl || decor.some((l) => l.kind === "partner");
           const amazonShown = decor.some((l) => l.kind === "amazon");
           return (
@@ -156,12 +169,15 @@ export function ResultsScreen({
                       maxFontSizeMultiplier={MAX_SCALE}
                     />
                   </View>
+                  {christmas && (
+                    <Button label={t.moveTree} variant="quiet" onPress={() => onMoveTree(item)} maxFontSizeMultiplier={MAX_SCALE} />
+                  )}
                   {(showTree || showShop) && (
                     <View style={styles.treeCard}>
                       {showTree && tree && (
                         <>
                           <Text style={styles.treeTitle}>
-                            {t.treeRecommended(formatTree(tree.treeCm, tree.unit), formatLength(tree.ceilingCm, tree.unit))}
+                            {treeForCeiling(tree, !!treeShopUrl)}
                           </Text>
                           <Text style={styles.treeText}>{t.treeEstimate}</Text>
                         </>
@@ -171,8 +187,16 @@ export function ResultsScreen({
                           <Text style={styles.shopTitle} accessibilityRole="header">{t.shopLook}</Text>
                           {!!treeShopUrl && (
                             <>
-                              <Button label={t.buyTree} onPress={() => onOpenLink(treeShopUrl)} maxFontSizeMultiplier={MAX_SCALE} />
-                              <Text style={styles.treeNote}>{t.buyTreeNote}</Text>
+                              <Button
+                                label={product ? buyTreeLabel(product) : t.buyTree}
+                                onPress={() => onOpenLink(product ? product.url : treeShopUrl)}
+                                maxFontSizeMultiplier={MAX_SCALE}
+                              />
+                              {/* The picture shows a flocked tree; the shop sells the same fir without the snow. */}
+                              {product && item.styleId === "xmas-winter" && (
+                                <Text style={styles.flock}>{t.flockNote(t.species(product.species))}</Text>
+                              )}
+                              <Text style={styles.treeNote}>{t.buyTreeNote}{product ? ` ${t.pricesNote}` : ""}</Text>
                             </>
                           )}
                           {decor.map((link, i) => (
@@ -278,6 +302,7 @@ const styles = StyleSheet.create({
   treeText: { fontSize: 14, lineHeight: 20, color: color.stone, marginBottom: space(1) },
   shopTitle: { fontFamily: font.display, fontSize: 22, color: color.ink },
   treeNote: { fontSize: 12, lineHeight: 16, color: color.stone },
+  flock: { fontSize: 14, lineHeight: 20, color: color.ink },
   footRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space(4) },
   notice: { flex: 1, color: color.stone, fontSize: 12, lineHeight: 16 },
   reportTarget: { minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "flex-end", paddingLeft: space(2) },

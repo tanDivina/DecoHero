@@ -1,28 +1,36 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, BackHandler, Linking, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { InstrumentSerif_400Regular, useFonts } from "@expo-google-fonts/instrument-serif";
 import * as SplashScreen from "expo-splash-screen";
+import * as SecureStore from "expo-secure-store";
 import { randomUUID } from "expo-crypto";
 import { api, ApiError, parseShopLinks, type ShopLinks } from "./src/api";
 import { getInstallId } from "./src/identity";
 import { initPurchases } from "./src/purchases";
 import { saveToGallery, shareImage, writeTempJpeg } from "./src/files";
 import { errorMessage, followPhoneLang, lang, langPref, loadLangPref, setLang, syncDeviceLang, t, type Lang } from "./src/i18n";
-import type { Photo } from "./src/photo";
+import type { Photo, Place } from "./src/photo";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { LooksScreen } from "./src/screens/LooksScreen";
 import { Result, ResultsScreen } from "./src/screens/ResultsScreen";
+import { MoveTreeScreen } from "./src/screens/MoveTreeScreen";
 import { ShopScreen } from "./src/screens/ShopScreen";
 import { AboutScreen, type LangChoice } from "./src/screens/AboutScreen";
 import { isTreeStyle } from "./src/stylePresets";
-import { ceilingCm, DEFAULT_CEILING, defaultUnit, recommendTreeCm, type Ceiling, type TreeFit } from "./src/treeSize";
+import {
+  ceilingCm, DEFAULT_CEILING, defaultUnit, FALLBACK_CATALOG, parseTreeCatalog, treeFit, withAffiliate,
+  type Ceiling, type TreeFit, type TreeProduct,
+} from "./src/treeSize";
 import { color, space } from "./src/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // "shop" sells credit packs; "looks" lists the Christmas shop links (free to open, nothing to generate).
-type Screen = "home" | "results" | "shop" | "about" | "looks";
+const MODE_KEY = "decohero_mode";
+
+// "move" picks a new spot for the tree of one finished Christmas design.
+type Screen = "home" | "results" | "shop" | "about" | "looks" | "move";
 export type Mode = "rooms" | "christmas";
 
 // Used until the server's /api/config answers, and when it can't be reached.
@@ -38,11 +46,32 @@ export default function App() {
   const [freeDenied, setFreeDenied] = useState(false);
   const [screen, setScreen] = useState<Screen>("home");
   const [returnTo, setReturnTo] = useState<Screen>("home");
-  const [photo, setPhoto] = useState<Photo | null>(null);
+  const [photo, setPhotoState] = useState<Photo | null>(null);
+  // Christmas mode: where the user tapped for the tree on the current photo; null = DecoHero chooses.
+  const [place, setPlace] = useState<Place | null>(null);
+  const setPhoto = useCallback((p: Photo) => {
+    setPhotoState(p);
+    setPlace(null);
+  }, []);
+  // "Move tree": the result being redone, and the page Results opens on afterwards.
+  const [moving, setMoving] = useState<{ styleId: string; place: Place | null } | null>(null);
+  const [resultsAt, setResultsAt] = useState<string | undefined>(undefined);
   // Styles picked on Home; kept here so they survive trips to the shop, About and results.
   const [selected, setSelected] = useState<string[]>([]);
   // Christmas mode keeps its own picks, so switching back and forth loses nothing.
-  const [mode, setMode] = useState<Mode>("rooms");
+  const [mode, setModeState] = useState<Mode>("rooms");
+  const christmasOffRef = useRef(false);
+  // Remember the last mode on this device, so a holiday user lands back in Christmas mode.
+  const setMode = useCallback((m: Mode) => {
+    setModeState(m);
+    SecureStore.setItemAsync(MODE_KEY, m).catch(() => {});
+  }, []);
+  useEffect(() => {
+    SecureStore.getItemAsync(MODE_KEY)
+      // Ignore a saved "christmas" if the server already switched Christmas mode off.
+      .then((m) => { if ((m === "christmas" && !christmasOffRef.current) || m === "rooms") setModeState((cur) => (cur === "rooms" ? m : cur)); })
+      .catch(() => {});
+  }, []);
   const [treeSelected, setTreeSelected] = useState<string[]>([]);
   const [ceiling, setCeiling] = useState<Ceiling>(() => {
     const unit = defaultUnit(lang);
@@ -52,6 +81,13 @@ export default function App() {
   const [resultTree, setResultTree] = useState<TreeFit | null>(null);
   const [christmasOn, setChristmasOn] = useState(true);
   const [treeShopUrl, setTreeShopUrl] = useState(DEFAULT_TREE_SHOP_URL);
+  // The partner's trees: the built-in list until the server sends its own.
+  const [rawCatalog, setRawCatalog] = useState<TreeProduct[]>(FALLBACK_CATALOG);
+  // Product links carry the affiliate parameters of the shop link, which only the server knows.
+  const treeCatalog = useMemo(
+    () => rawCatalog.map((p) => ({ ...p, url: withAffiliate(p.url, treeShopUrl) })),
+    [rawCatalog, treeShopUrl]
+  );
   // Decor links per Christmas theme; none until the server sends some.
   const [shopLinks, setShopLinks] = useState<ShopLinks>({});
   // The photo the current results were made from (the user may pick a new photo after Back).
@@ -113,12 +149,14 @@ export default function App() {
   useEffect(() => {
     api.config().then((cfg) => {
       if (cfg.christmas === false) {
+        christmasOffRef.current = true;
         setChristmasOn(false);
-        setMode("rooms");
+        setModeState("rooms");
       }
       // Empty = no button. Anything else must be an https link, or the built-in default stays.
       if (cfg.treeShopUrl === "" || cfg.treeShopUrl?.startsWith("https://")) setTreeShopUrl(cfg.treeShopUrl);
       setShopLinks(parseShopLinks(cfg.shopLinks));
+      setRawCatalog(parseTreeCatalog(cfg.treeCatalog));
     }).catch(() => {});
   }, []);
 
@@ -139,7 +177,7 @@ export default function App() {
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (screen === "home") return false;
-      setScreen(screen === "shop" ? returnTo : "home");
+      setScreen(screen === "shop" ? returnTo : screen === "move" ? "results" : "home");
       return true;
     });
     return () => sub.remove();
@@ -154,10 +192,11 @@ export default function App() {
   const updateResult = (requestId: string, patch: Partial<Result>) =>
     setResults((cur) => cur.map((r) => (r.requestId === requestId ? { ...r, ...patch } : r)));
 
-  async function runStyle(id: string, source: Photo, styleId: string, requestId: string, tree: TreeFit | null) {
+  async function runStyle(id: string, source: Photo, styleId: string, requestId: string, tree: TreeFit | null, spot: Place | null) {
     try {
-      const size = tree && isTreeStyle(styleId) ? { ceilingCm: tree.ceilingCm, treeCm: tree.treeCm } : undefined;
-      const res = await api.redesign(id, source.base64, styleId, requestId, size);
+      const christmas = isTreeStyle(styleId);
+      const size = tree && christmas ? { ceilingCm: tree.ceilingCm, treeCm: tree.treeCm } : undefined;
+      const res = await api.redesign(id, source.base64, styleId, requestId, size, christmas ? spot : null);
       const uri = await writeTempJpeg(res.image, `decohero-${styleId}-${Date.now()}`);
       setCredits(res.credits);
       updateResult(requestId, { status: "done", uri });
@@ -172,25 +211,38 @@ export default function App() {
 
   function redesign(styleIds: string[]) {
     if (!installId || !photo) return;
-    const run = styleIds.map((styleId) => ({ styleId, requestId: randomUUID(), status: "loading" as const }));
+    const spot = mode === "christmas" ? place : null;
+    const run = styleIds.map((styleId) => ({ styleId, requestId: randomUUID(), status: "loading" as const, place: spot }));
     // Home only enables the button in Christmas mode once the ceiling height is valid.
     const height = mode === "christmas" ? ceilingCm(ceiling) : null;
-    const tree = height === null ? null : { ceilingCm: height, treeCm: recommendTreeCm(height), unit: ceiling.unit };
+    const tree = height === null ? null : treeFit(height, ceiling.unit, treeCatalog);
     setResultTree(tree);
     setResultPhoto(photo);
     setResults(run);
+    setResultsAt(undefined);
     setScreen("results");
     // One request per style, in parallel: each design appears as soon as it's ready.
-    run.forEach((r) => runStyle(installId, photo, r.styleId, r.requestId, tree));
+    run.forEach((r) => runStyle(installId, photo, r.styleId, r.requestId, tree, spot));
   }
 
   function retry(r: Result) {
     if (!installId || !resultPhoto) return;
     const requestId = randomUUID();
     setResults((cur) =>
-      cur.map((x) => (x.styleId === r.styleId ? { styleId: x.styleId, requestId, status: "loading" } : x))
+      cur.map((x) => (x.styleId === r.styleId ? { styleId: x.styleId, requestId, status: "loading", place: x.place } : x))
     );
-    runStyle(installId, resultPhoto, r.styleId, requestId, resultTree);
+    runStyle(installId, resultPhoto, r.styleId, requestId, resultTree, r.place ?? null);
+  }
+
+  /** "Move tree": the same style again with the tree on a new spot. One credit, like any design. */
+  function moveTree(styleId: string, spot: Place) {
+    if (!installId || !resultPhoto) return;
+    const requestId = randomUUID();
+    setResults((cur) => cur.map((x) => (x.styleId === styleId ? { styleId, requestId, status: "loading", place: spot } : x)));
+    setMoving(null);
+    setResultsAt(styleId);
+    setScreen("results");
+    runStyle(installId, resultPhoto, styleId, requestId, resultTree, spot);
   }
 
   async function waitForCredits(before: number): Promise<boolean> {
@@ -210,6 +262,9 @@ export default function App() {
     Linking.openURL(url).catch(() => showNotice(t.linkFailed));
   };
   const hasShopLinks = !!treeShopUrl || Object.keys(shopLinks).length > 0;
+  // "Shop the styles" shows the tree for the ceiling typed on Home, when that is a valid height.
+  const looksHeight = ceilingCm(ceiling);
+  const looksTree = looksHeight === null ? null : treeFit(looksHeight, ceiling.unit, treeCatalog);
 
   if (!fontsLoaded || !langReady) return null;
 
@@ -223,6 +278,10 @@ export default function App() {
             freeDenied={freeDenied}
             photo={photo}
             onPhoto={setPhoto}
+            place={place}
+            onPlace={setPlace}
+            treeCatalog={treeCatalog}
+            treeShop={!!treeShopUrl}
             mode={mode}
             onMode={christmasOn ? setMode : undefined}
             selected={mode === "christmas" ? treeSelected : selected}
@@ -238,7 +297,13 @@ export default function App() {
           />
         )}
         {screen === "looks" && (
-          <LooksScreen treeShopUrl={treeShopUrl} shopLinks={shopLinks} onOpenLink={openLink} onBack={() => setScreen("home")} />
+          <LooksScreen
+            treeShopUrl={treeShopUrl}
+            tree={looksTree}
+            shopLinks={shopLinks}
+            onOpenLink={openLink}
+            onBack={() => setScreen("home")}
+          />
         )}
         {screen === "about" && (
           <AboutScreen installId={installId} langChoice={langChoice} onChangeLang={changeLang} onBack={() => setScreen("home")} />
@@ -249,6 +314,12 @@ export default function App() {
             aspect={resultPhoto.aspect}
             results={results}
             tree={resultTree}
+            startAt={resultsAt}
+            onMoveTree={(r) => {
+              setMoving({ styleId: r.styleId, place: r.place ?? null });
+              setResultsAt(r.styleId);
+              setScreen("move");
+            }}
             treeShopUrl={treeShopUrl}
             shopLinks={shopLinks}
             onOpenLink={openLink}
@@ -278,6 +349,17 @@ export default function App() {
               api.report(installId, r.styleId).catch(() => {});
               showNotice(t.reported);
             }}
+          />
+        )}
+        {screen === "move" && resultPhoto && moving && (
+          <MoveTreeScreen
+            photo={resultPhoto}
+            styleId={moving.styleId}
+            initial={moving.place}
+            credits={credits}
+            onConfirm={(spot) => moveTree(moving.styleId, spot)}
+            onOpenShop={openShop}
+            onBack={() => setScreen("results")}
           />
         )}
         {screen === "shop" && (

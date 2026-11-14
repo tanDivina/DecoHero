@@ -2,7 +2,7 @@ import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { Photo, PickResult, photoAspect } from "./photoShape";
 
-export type { Photo, PickResult } from "./photoShape";
+export type { Photo, PickResult, Place } from "./photoShape";
 
 const MAX_EDGE = 1280;
 
@@ -13,7 +13,7 @@ async function prepare(asset: ImagePicker.ImagePickerAsset): Promise<Photo> {
   else if (asset.height > asset.width && asset.height > MAX_EDGE) ctx.resize({ height: MAX_EDGE });
   const rendered = await ctx.renderAsync();
   const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.8, base64: true });
-  return { uri: saved.uri, base64: saved.base64 ?? "", aspect: photoAspect(saved.width, saved.height) };
+  return { uri: saved.uri, base64: saved.base64 ?? "", aspect: photoAspect(saved.width, saved.height), width: saved.width, height: saved.height };
 }
 
 export async function takePhoto(): Promise<PickResult> {

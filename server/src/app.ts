@@ -7,6 +7,8 @@ import { buildPrompt, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
 import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
+import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
+import { drawMarker, markerLeaked, parsePlace } from "./marker.js";
 import {
   addReport, failuresToday, getCredits, getOrCreateUser, getUser, grantPurchase, logGeneration,
   MAX_FAILURES_PER_INSTALL_PER_DAY, refundCredits, refundPurchase, releaseGeneration, reserveGeneration,
@@ -99,7 +101,7 @@ const REDESIGN_PER_INSTALL_FREE = envInt("REDESIGN_LIMIT_PER_INSTALL_PER_10MIN",
 const REDESIGN_PER_INSTALL_PAID = envInt("REDESIGN_LIMIT_PER_PAID_INSTALL_PER_10MIN", 40);
 
 /** The partner store for real trees; TREE_SHOP_URL replaces it with the affiliate link once there is one. */
-export const DEFAULT_TREE_SHOP_URL = "https://christmastreesinthemail.com";
+export const DEFAULT_TREE_SHOP_URL = PARTNER_ORIGIN;
 const OFF = new Set(["", "0", "off", "false", "none"]);
 const isOff = (v: string | undefined) => v !== undefined && OFF.has(v.trim().toLowerCase());
 
@@ -165,12 +167,16 @@ export function createApp(generate: Generate, model: string) {
   // Things the app reads at start so they can change without a new release. Read per request: no secrets here.
   app.get("/api/config", (_req, res) => {
     // shopLinks (app 1.0.4+): decor links per Christmas theme, both languages. Older apps ignore the field.
-    res.json({ christmas: !isOff(process.env.CHRISTMAS_MODE), treeShopUrl: treeShopUrl(), shopLinks: shopLinks() });
+    // treeCatalog (app 1.0.5+): the partner's trees with prices; product links carry TREE_SHOP_URL's affiliate parameters.
+    const shopUrl = treeShopUrl();
+    res.json({
+      christmas: !isOff(process.env.CHRISTMAS_MODE), treeShopUrl: shopUrl, shopLinks: shopLinks(), treeCatalog: treeCatalog(shopUrl),
+    });
   });
 
   app.post("/api/redesign", async (req, res) => {
     const installId = installIdOf(req);
-    const { image, styleId, ceilingCm, treeCm } = req.body ?? {};
+    const { image, styleId, ceilingCm, treeCm, place: rawPlace } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
@@ -180,12 +186,19 @@ export function createApp(generate: Generate, model: string) {
       return;
     }
     // Sizes only exist for Christmas styles; interior styles (and older app versions) never look at them.
-    const size = isTreeStyle(styleId) ? parseTreeSize(ceilingCm, treeCm) : {};
+    // The species named in the prompt comes from the catalogue, never from the request.
+    const size = isTreeStyle(styleId) ? parseTreeSize(ceilingCm, treeCm, treeCatalog("")) : {};
     if (!size) {
       res.status(400).json({ error: "BAD_SIZE" });
       return;
     }
-    const prompt = buildPrompt(styleId, size);
+    // Optional spot the user tapped for the tree (app 1.0.5+), Christmas styles only.
+    const place = isTreeStyle(styleId) ? parsePlace(rawPlace) : undefined;
+    if (place === null) {
+      res.status(400).json({ error: "BAD_PLACE" });
+      return;
+    }
+    const prompt = buildPrompt(styleId, size, !!place);
     if (!prompt) {
       res.status(400).json({ error: "BAD_STYLE" });
       return;
@@ -198,6 +211,8 @@ export function createApp(generate: Generate, model: string) {
     // Normalise whatever the phone sent before touching credits: check the type, fix rotation, cap size,
     // re-encode as JPEG.
     let input: Buffer;
+    // What the model gets: the photo itself, or a copy with the placement marker drawn on it.
+    let sentToModel: Buffer;
     try {
       const raw = Buffer.from(image, "base64");
       const meta = await sharp(raw, { limitInputPixels: 40_000_000 }).metadata();
@@ -207,6 +222,7 @@ export function createApp(generate: Generate, model: string) {
         .resize({ width: 1280, height: 1280, fit: "inside", withoutEnlargement: true })
         .jpeg({ quality: 85 })
         .toBuffer();
+      sentToModel = place ? await drawMarker(input, place) : input;
     } catch {
       res.status(400).json({ error: "BAD_IMAGE" });
       return;
@@ -263,8 +279,10 @@ export function createApp(generate: Generate, model: string) {
 
     let produced = false;
     try {
-      let output = await generate(input.toString("base64"), prompt);
+      let output = await generate(sentToModel.toString("base64"), prompt);
       produced = true;
+      // The marker may never reach the user: an image that still shows it counts as a failed design (credit refunded).
+      if (place && (await markerLeaked(input, output))) throw new Error("placement marker still visible in the result");
       if (!user.paid) output = await watermark(output);
       const jpeg = await sharp(output).jpeg({ quality: 86 }).toBuffer();
 
