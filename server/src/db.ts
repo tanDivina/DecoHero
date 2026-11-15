@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -7,6 +8,7 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
+const hadFreeGrants = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'free_grants'").get();
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -51,7 +53,34 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS designs_created ON designs (created_at);
+  -- Web app sign-ins: Firebase uid -> the random user id that owns the credits. No email or name is stored.
+  CREATE TABLE IF NOT EXISTS web_accounts (
+    firebase_uid TEXT PRIMARY KEY,
+    user_id TEXT UNIQUE NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  -- One row per new user (install or web account): what the per-IP new-user limit counts. Kept apart from
+  -- users so deleting an account does not hand the IP its free credits back. Rows go after 48 hours.
+  CREATE TABLE IF NOT EXISTS free_grants (
+    ip TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS free_grants_ip_created ON free_grants (ip, created_at);
+  -- User ids of deleted web accounts (random UUIDs, nothing personal). A late purchase webhook or a request
+  -- with such an id must not bring the user back.
+  CREATE TABLE IF NOT EXISTS deleted_users (
+    user_id TEXT PRIMARY KEY,
+    deleted_at INTEGER NOT NULL
+  );
+  -- Salted hash of the Firebase uid of an account deleted in the last 2 hours, so a token issued before the
+  -- delete cannot re-create the account.
+  CREATE TABLE IF NOT EXISTS web_tombstones (
+    uid_hash TEXT PRIMARY KEY,
+    deleted_at INTEGER NOT NULL
+  );
 `);
+// First start with free_grants: carry over the IPs the old check would have counted.
+if (!hadFreeGrants) db.exec("INSERT INTO free_grants (ip, created_at) SELECT ip, created_at FROM users WHERE ip IS NOT NULL");
 
 // Migrations for existing databases on the /data volume. Only additive: never drop or rewrite data.
 const columns = (table: string) =>
@@ -109,16 +138,79 @@ export const getOrCreateUser = db.transaction((id: string, ip: string): User => 
 
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const { n } = db
-    .prepare("SELECT COUNT(*) AS n FROM users WHERE ip = ? AND created_at > ?")
+    .prepare("SELECT COUNT(*) AS n FROM free_grants WHERE ip = ? AND created_at > ?")
     .get(ip, dayAgo) as { n: number };
   const denied = n >= MAX_NEW_PER_IP;
   const starting = denied ? 0 : FREE_CREDITS;
+  db.prepare("INSERT INTO free_grants (ip, created_at) VALUES (?, ?)").run(ip, Date.now());
 
   db.prepare("INSERT INTO users (id, credits, paid, ip, created_at, free_denied) VALUES (?, ?, 0, ?, ?, ?)").run(
     id, starting, ip, Date.now(), denied ? 1 : 0
   );
   return { id, credits: starting, paid: 0, free_denied: denied ? 1 : 0 };
 });
+
+/** Web app: the user id behind a Firebase uid, or null if that uid has no account. */
+export function getWebUserId(firebaseUid: string): string | null {
+  const row = db.prepare("SELECT user_id FROM web_accounts WHERE firebase_uid = ?").get(firebaseUid) as
+    | { user_id: string }
+    | undefined;
+  return row?.user_id ?? null;
+}
+
+/**
+ * Web app: creates the account for a Firebase uid the first time it is seen (GET /api/me only). It gets a
+ * fresh random user id, created through getOrCreateUser so the free credits and the per-IP new-user limit
+ * apply as for an install.
+ */
+export const getOrCreateWebUser = db.transaction((firebaseUid: string, ip: string): string => {
+  const existing = getWebUserId(firebaseUid);
+  if (existing) return existing;
+  const id = crypto.randomUUID();
+  getOrCreateUser(id, ip);
+  db.prepare("INSERT INTO web_accounts (firebase_uid, user_id, created_at) VALUES (?, ?, ?)").run(firebaseUid, id, Date.now());
+  return id;
+});
+
+/** True if the id belongs to a web account, now or before it was deleted. Such ids are never install ids. */
+export function isWebUserId(userId: string): boolean {
+  return !!db
+    .prepare("SELECT 1 FROM web_accounts WHERE user_id = ? UNION ALL SELECT 1 FROM deleted_users WHERE user_id = ?")
+    .get(userId, userId);
+}
+
+/** purchases.user_id of a deleted web account. Not a UUID, so it can never match a user again. */
+export const DELETED_USER = "deleted";
+/** How long a deleted account's uid hash is kept to refuse tokens issued before the delete. */
+export const TOMBSTONE_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Deletes a web account: the sign-in link, the user row (credits, paid flag, IP), its generation log and its
+ * reports. Purchase rows stay for accounting and so a retried webhook or a refund cannot credit twice, but
+ * they are cut loose from the user id. Leaves the bare user id in deleted_users and, for 2 hours, the salted
+ * uid hash in web_tombstones. Returns false if the uid has no account.
+ */
+export const deleteWebAccount = db.transaction((firebaseUid: string, uidHash: string): boolean => {
+  const userId = getWebUserId(firebaseUid);
+  if (!userId) return false;
+  const now = Date.now();
+  db.prepare("DELETE FROM generations WHERE user_id = ?").run(userId);
+  db.prepare("DELETE FROM reports WHERE user_id = ?").run(userId);
+  db.prepare("UPDATE purchases SET user_id = ? WHERE user_id = ?").run(DELETED_USER, userId);
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  db.prepare("DELETE FROM web_accounts WHERE firebase_uid = ?").run(firebaseUid);
+  db.prepare("INSERT OR REPLACE INTO deleted_users (user_id, deleted_at) VALUES (?, ?)").run(userId, now);
+  db.prepare("INSERT OR REPLACE INTO web_tombstones (uid_hash, deleted_at) VALUES (?, ?)").run(uidHash, now);
+  return true;
+});
+
+/** When the account behind this uid hash was deleted (ms), if that was within the last 2 hours. */
+export function deletedAt(uidHash: string): number | null {
+  const row = db
+    .prepare("SELECT deleted_at FROM web_tombstones WHERE uid_hash = ? AND deleted_at > ?")
+    .get(uidHash, Date.now() - TOMBSTONE_MS) as { deleted_at: number } | undefined;
+  return row?.deleted_at ?? null;
+}
 
 /** Atomically takes credits. Returns false if the balance is too low. */
 export function spendCredits(id: string, amount: number): boolean {
@@ -139,12 +231,22 @@ export function getCredits(id: string): number {
  * Idempotent: RevenueCat retries webhooks, so both the event id and the store transaction id
  * guard against double-crediting the same purchase.
  */
+export type GrantResult = "granted" | "duplicate" | "account_deleted";
+
 export const grantPurchase = db.transaction(
-  (eventId: string, userId: string, productId: string, credits: number, transactionId: string | null): boolean => {
+  (eventId: string, userId: string, productId: string, credits: number, transactionId: string | null): GrantResult => {
     const seen = db
       .prepare("SELECT 1 FROM purchases WHERE event_id = ? OR (? IS NOT NULL AND transaction_id = ?)")
       .get(eventId, transactionId, transactionId);
-    if (seen) return false;
+    if (seen) return "duplicate";
+    // The account was deleted before this purchase arrived: keep the record, credit nobody, and do not
+    // bring the user row back.
+    if (db.prepare("SELECT 1 FROM deleted_users WHERE user_id = ?").get(userId)) {
+      db.prepare(
+        "INSERT INTO purchases (event_id, user_id, product_id, credits, transaction_id, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+      ).run(eventId, DELETED_USER, productId, credits, transactionId, Date.now());
+      return "account_deleted";
+    }
     db.prepare(
       "INSERT INTO purchases (event_id, user_id, product_id, credits, transaction_id, created_at) VALUES (?, ?, ?, ?, ?, ?)"
     ).run(eventId, userId, productId, credits, transactionId, Date.now());
@@ -152,7 +254,7 @@ export const grantPurchase = db.transaction(
       `INSERT INTO users (id, credits, paid, ip, created_at) VALUES (?, ?, 1, NULL, ?)
        ON CONFLICT(id) DO UPDATE SET credits = credits + excluded.credits, paid = 1, free_denied = 0`
     ).run(userId, credits, Date.now());
-    return true;
+    return "granted";
   }
 );
 
@@ -180,9 +282,10 @@ export const refundPurchase = db.transaction((transactionIds: string[]): number 
 });
 
 export function logGeneration(userId: string, styleId: string, ok: boolean) {
-  db.prepare("INSERT INTO generations (user_id, style_id, ok, created_at) VALUES (?, ?, ?, ?)").run(
-    userId, styleId.slice(0, 64), ok ? 1 : 0, Date.now()
-  );
+  // No row for a user that is gone (account deleted while the redesign was running).
+  db.prepare(
+    "INSERT INTO generations (user_id, style_id, ok, created_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)"
+  ).run(userId, styleId.slice(0, 64), ok ? 1 : 0, Date.now(), userId);
 }
 
 /** Failed (or undelivered) generations for this install since 00:00 UTC. */
@@ -222,10 +325,13 @@ export function releaseGeneration(paid: boolean, day: string) {
 
 /**
  * Privacy retention: the IP is only needed for the free-credit check, which looks back 24 hours.
- * Blank it once the install is 48 hours old. Returns the number of rows cleared.
+ * Blank it once the install is 48 hours old, drop free_grants rows of the same age, and drop the uid hashes
+ * of accounts deleted more than 2 hours ago. Returns the number of user rows cleared.
  */
-export function purgeOldIps(): number {
-  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+export function purgeOldIps(now = Date.now()): number {
+  const cutoff = now - 48 * 60 * 60 * 1000;
+  db.prepare("DELETE FROM free_grants WHERE created_at < ?").run(cutoff);
+  db.prepare("DELETE FROM web_tombstones WHERE deleted_at < ?").run(now - TOMBSTONE_MS);
   return db.prepare("UPDATE users SET ip = NULL WHERE ip IS NOT NULL AND created_at < ?").run(cutoff).changes;
 }
 

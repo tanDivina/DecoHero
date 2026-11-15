@@ -1,11 +1,12 @@
 import { useState } from "react";
 import {
   ActivityIndicator, FlatList, Image, NativeScrollEvent, NativeSyntheticEvent,
-  Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions,
+  Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import type { ShopLinks } from "../api";
+import { canShareImages } from "../files";
 import { buyTreeLabel, lang, redesignErrorMessage, styleName, t, treeForCeiling } from "../i18n";
 import type { Place } from "../photoShape";
 import { isTreeStyle } from "../stylePresets";
@@ -57,6 +58,9 @@ const MAX_SCALE = 1.3;
 // Designs are shown whole at their own shape; only extreme panoramas or strips get letterboxed inside these limits.
 const MIN_ASPECT = 9 / 16;
 const MAX_ASPECT = 2;
+const WEB = Platform.OS === "web";
+// Web: from this window width up, designs sit side by side instead of one per row.
+const TWO_COLUMNS_FROM = 900;
 
 export function ResultsScreen({
   originalUri, aspect, results, tree, startAt, treeShopUrl, shopLinks, onOpenLink, onBack, onSave, onShare, onReport, onRetry,
@@ -67,10 +71,156 @@ export function ResultsScreen({
   const [comparing, setComparing] = useState<string | null>(null);
   // Real width ÷ height of each loaded design, by file uri. The model doesn't always keep the photo's shape.
   const [shapes, setShapes] = useState<Record<string, number>>({});
+  // Always true on the phone. In a browser Share is hidden unless it can share image files.
+  const [canShare] = useState(canShareImages);
 
   function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
     if (i !== index) setIndex(i);
+  }
+
+  /** One design: photo (hold to compare), style name, then its actions or its error. */
+  function renderCard(item: Result) {
+    const done = item.status === "done";
+    const showOriginal = done && comparing === item.styleId;
+    const designUri = done ? item.uri : undefined;
+    const shape = designUri ? shapes[designUri] : undefined;
+    const christmas = isTreeStyle(item.styleId);
+    const showTree = !!tree && christmas;
+    // "Shop this look": the real tree first, then this theme's decor. No links at all = no section.
+    const decor = christmas ? shopLinks[item.styleId] ?? [] : [];
+    const showShop = christmas && (!!treeShopUrl || decor.length > 0);
+    // The real tree to order for this ceiling; its link already carries the affiliate parameters.
+    const product = showTree && tree && treeShopUrl ? tree.product : null;
+    // Disclosures follow the links: the tree button carries its own, plain decor links carry none.
+    const partnerShown = decor.some((l) => l.kind === "partner");
+    const amazonShown = decor.some((l) => l.kind === "amazon");
+    return (
+      <>
+        <Pressable
+          // Real long press: a quick touch at the start of a swipe no longer flashes the original.
+          onLongPress={() => done && setComparing(item.styleId)}
+          delayLongPress={150}
+          onPressOut={() => setComparing(null)}
+          disabled={!done}
+          accessibilityHint={done ? t.holdToCompare : undefined}
+        >
+          <Image
+            source={{ uri: done && !showOriginal ? item.uri : originalUri }}
+            style={[styles.image, { aspectRatio: shape ?? aspect }]}
+            // A finished design is never cropped, so the DecoHero mark and the room's edges stay visible.
+            resizeMode={done ? "contain" : "cover"}
+            onLoad={(e) => {
+              // The phone reports the size as `source`; a browser only gives the loaded <img> itself.
+              const img = (e.nativeEvent as unknown as { target?: { naturalWidth?: number; naturalHeight?: number } }).target;
+              const { width: w, height: h } = e.nativeEvent.source ?? { width: img?.naturalWidth, height: img?.naturalHeight };
+              if (!designUri || showOriginal || !w || !h || shapes[designUri]) return;
+              const real = Math.min(MAX_ASPECT, Math.max(MIN_ASPECT, w / h));
+              setShapes((cur) => ({ ...cur, [designUri]: real }));
+            }}
+          />
+          {showOriginal && (
+            <View style={styles.badge} pointerEvents="none">
+              <Text style={styles.badgeText}>{t.original}</Text>
+            </View>
+          )}
+          {item.status === "loading" && (
+            <View style={styles.overlay}>
+              <ActivityIndicator color={color.white} size="large" />
+              <Text style={styles.overlayText}>{t.designing(styleName(item.styleId))}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        <Text style={styles.styleTitle}>{styleName(item.styleId)}</Text>
+
+        {done && (
+          <View style={styles.actions}>
+            <Text style={styles.hint}>{t.holdToCompare}</Text>
+            <View style={styles.row}>
+              <Button label={t.save} onPress={() => onSave(item)} style={styles.flex} maxFontSizeMultiplier={MAX_SCALE} />
+              {canShare && (
+              <Button
+                label={t.share}
+                variant="quiet"
+                onPress={() => onShare(item)}
+                style={styles.flex}
+                maxFontSizeMultiplier={MAX_SCALE}
+              />
+              )}
+            </View>
+            {christmas && (
+              <Button label={t.moveTree} variant="quiet" onPress={() => onMoveTree(item)} maxFontSizeMultiplier={MAX_SCALE} />
+            )}
+            {(showTree || showShop) && (
+              <View style={styles.treeCard}>
+                {showTree && tree && (
+                  <>
+                    <Text style={styles.treeTitle}>
+                      {treeForCeiling(tree, !!treeShopUrl)}
+                    </Text>
+                    <Text style={styles.treeText}>{t.treeEstimate}</Text>
+                  </>
+                )}
+                {showShop && (
+                  <>
+                    <Text style={styles.shopTitle} accessibilityRole="header">{t.shopLook}</Text>
+                    {!!treeShopUrl && (
+                      <>
+                        <Button
+                          label={product ? buyTreeLabel(product) : t.buyTree}
+                          onPress={() => onOpenLink(product ? product.url : treeShopUrl)}
+                          maxFontSizeMultiplier={MAX_SCALE}
+                        />
+                        {/* The picture shows a flocked tree; the shop sells the same fir without the snow. */}
+                        {product && item.styleId === "xmas-winter" && (
+                          <Text style={styles.flock}>{t.flockNote(t.species(product.species))}</Text>
+                        )}
+                        <Text style={styles.treeNote}>{t.buyTreeNote} {t.partnerDisclosure}{product ? ` ${t.pricesNote}` : ""}</Text>
+                      </>
+                    )}
+                    {decor.map((link, i) => (
+                      <Button
+                        key={`${i}-${link.url}`}
+                        label={link[lang]}
+                        variant="quiet"
+                        onPress={() => onOpenLink(link.url)}
+                        maxFontSizeMultiplier={MAX_SCALE}
+                      />
+                    ))}
+                    {/* One disclosure per kind of affiliate decor link that is actually on screen. */}
+                    {partnerShown && <Text style={styles.treeNote}>{t.partnerDisclosure}</Text>}
+                    {amazonShown && <Text style={styles.treeNote}>{t.amazonDisclosure}</Text>}
+                  </>
+                )}
+              </View>
+            )}
+            <View style={styles.footRow}>
+              <Text style={styles.notice}>{t.aiNotice}</Text>
+              <Pressable
+                onPress={() => onReport(item)}
+                disabled={item.reported}
+                style={styles.reportTarget}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !!item.reported }}
+              >
+                <Text style={[styles.report, item.reported && styles.reported]}>{t.report}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {item.status === "error" && (
+          <View style={styles.actions}>
+            <Text style={styles.error}>{redesignErrorMessage(item.errorCode, item.retryAfterSec)}</Text>
+            {NEEDS_CREDITS.includes(item.errorCode ?? "") && <Button label={t.getCredits} onPress={onOpenShop} />}
+            {!NO_RETRY.includes(item.errorCode ?? "") && (
+              <Button label={t.tryAgain} variant="quiet" onPress={() => onRetry(item)} />
+            )}
+          </View>
+        )}
+      </>
+    );
   }
 
   return (
@@ -79,7 +229,7 @@ export function ResultsScreen({
         <Pressable onPress={onBack} hitSlop={12} style={styles.target} accessibilityRole="button">
           <Text style={styles.link}>{t.back}</Text>
         </Pressable>
-        {results.length > 1 && (
+        {results.length > 1 && !WEB && (
           <View style={styles.pager} accessible accessibilityLabel={t.pageOf(index + 1, results.length)}>
             <View style={styles.dots}>
               {results.map((r, i) => (
@@ -93,6 +243,16 @@ export function ResultsScreen({
         )}
       </View>
 
+      {WEB ? (
+        // Web: every design on one scrolling page, two across on wide windows. No swiping needed.
+        <ScrollView style={styles.flex} contentContainerStyle={[styles.page, styles.grid]}>
+          {results.map((r) => (
+            <View key={r.styleId} style={width >= TWO_COLUMNS_FROM && results.length > 1 ? styles.cellHalf : styles.cellFull}>
+              {renderCard(r)}
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
       <FlatList
         style={styles.flex}
         data={results}
@@ -104,146 +264,14 @@ export function ResultsScreen({
         initialScrollIndex={index}
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScroll}
-        renderItem={({ item }) => {
-          const done = item.status === "done";
-          const showOriginal = done && comparing === item.styleId;
-          const designUri = done ? item.uri : undefined;
-          const shape = designUri ? shapes[designUri] : undefined;
-          const christmas = isTreeStyle(item.styleId);
-          const showTree = !!tree && christmas;
-          // "Shop this look": the real tree first, then this theme's decor. No links at all = no section.
-          const decor = christmas ? shopLinks[item.styleId] ?? [] : [];
-          const showShop = christmas && (!!treeShopUrl || decor.length > 0);
-          // The real tree to order for this ceiling; its link already carries the affiliate parameters.
-          const product = showTree && tree && treeShopUrl ? tree.product : null;
-          // Disclosures follow the links: the tree button carries its own, plain decor links carry none.
-          const partnerShown = decor.some((l) => l.kind === "partner");
-          const amazonShown = decor.some((l) => l.kind === "amazon");
-          return (
-            // Each page scrolls on its own so tall portrait photos never push the actions off small screens.
-            <ScrollView style={{ width }} contentContainerStyle={styles.page}>
-              <Pressable
-                // Real long press: a quick touch at the start of a swipe no longer flashes the original.
-                onLongPress={() => done && setComparing(item.styleId)}
-                delayLongPress={150}
-                onPressOut={() => setComparing(null)}
-                disabled={!done}
-                accessibilityHint={done ? t.holdToCompare : undefined}
-              >
-                <Image
-                  source={{ uri: done && !showOriginal ? item.uri : originalUri }}
-                  style={[styles.image, { aspectRatio: shape ?? aspect }]}
-                  // A finished design is never cropped, so the DecoHero mark and the room's edges stay visible.
-                  resizeMode={done ? "contain" : "cover"}
-                  onLoad={(e) => {
-                    const { width: w, height: h } = e.nativeEvent.source ?? {};
-                    if (!designUri || showOriginal || !w || !h || shapes[designUri]) return;
-                    const real = Math.min(MAX_ASPECT, Math.max(MIN_ASPECT, w / h));
-                    setShapes((cur) => ({ ...cur, [designUri]: real }));
-                  }}
-                />
-                {showOriginal && (
-                  <View style={styles.badge} pointerEvents="none">
-                    <Text style={styles.badgeText}>{t.original}</Text>
-                  </View>
-                )}
-                {item.status === "loading" && (
-                  <View style={styles.overlay}>
-                    <ActivityIndicator color={color.white} size="large" />
-                    <Text style={styles.overlayText}>{t.designing(styleName(item.styleId))}</Text>
-                  </View>
-                )}
-              </Pressable>
-
-              <Text style={styles.styleTitle}>{styleName(item.styleId)}</Text>
-
-              {done && (
-                <View style={styles.actions}>
-                  <Text style={styles.hint}>{t.holdToCompare}</Text>
-                  <View style={styles.row}>
-                    <Button label={t.save} onPress={() => onSave(item)} style={styles.flex} maxFontSizeMultiplier={MAX_SCALE} />
-                    <Button
-                      label={t.share}
-                      variant="quiet"
-                      onPress={() => onShare(item)}
-                      style={styles.flex}
-                      maxFontSizeMultiplier={MAX_SCALE}
-                    />
-                  </View>
-                  {christmas && (
-                    <Button label={t.moveTree} variant="quiet" onPress={() => onMoveTree(item)} maxFontSizeMultiplier={MAX_SCALE} />
-                  )}
-                  {(showTree || showShop) && (
-                    <View style={styles.treeCard}>
-                      {showTree && tree && (
-                        <>
-                          <Text style={styles.treeTitle}>
-                            {treeForCeiling(tree, !!treeShopUrl)}
-                          </Text>
-                          <Text style={styles.treeText}>{t.treeEstimate}</Text>
-                        </>
-                      )}
-                      {showShop && (
-                        <>
-                          <Text style={styles.shopTitle} accessibilityRole="header">{t.shopLook}</Text>
-                          {!!treeShopUrl && (
-                            <>
-                              <Button
-                                label={product ? buyTreeLabel(product) : t.buyTree}
-                                onPress={() => onOpenLink(product ? product.url : treeShopUrl)}
-                                maxFontSizeMultiplier={MAX_SCALE}
-                              />
-                              {/* The picture shows a flocked tree; the shop sells the same fir without the snow. */}
-                              {product && item.styleId === "xmas-winter" && (
-                                <Text style={styles.flock}>{t.flockNote(t.species(product.species))}</Text>
-                              )}
-                              <Text style={styles.treeNote}>{t.buyTreeNote} {t.partnerDisclosure}{product ? ` ${t.pricesNote}` : ""}</Text>
-                            </>
-                          )}
-                          {decor.map((link, i) => (
-                            <Button
-                              key={`${i}-${link.url}`}
-                              label={link[lang]}
-                              variant="quiet"
-                              onPress={() => onOpenLink(link.url)}
-                              maxFontSizeMultiplier={MAX_SCALE}
-                            />
-                          ))}
-                          {/* One disclosure per kind of affiliate decor link that is actually on screen. */}
-                          {partnerShown && <Text style={styles.treeNote}>{t.partnerDisclosure}</Text>}
-                          {amazonShown && <Text style={styles.treeNote}>{t.amazonDisclosure}</Text>}
-                        </>
-                      )}
-                    </View>
-                  )}
-                  <View style={styles.footRow}>
-                    <Text style={styles.notice}>{t.aiNotice}</Text>
-                    <Pressable
-                      onPress={() => onReport(item)}
-                      disabled={item.reported}
-                      style={styles.reportTarget}
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: !!item.reported }}
-                    >
-                      <Text style={[styles.report, item.reported && styles.reported]}>{t.report}</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
-
-              {item.status === "error" && (
-                <View style={styles.actions}>
-                  <Text style={styles.error}>{redesignErrorMessage(item.errorCode, item.retryAfterSec)}</Text>
-                  {NEEDS_CREDITS.includes(item.errorCode ?? "") && <Button label={t.getCredits} onPress={onOpenShop} />}
-                  {!NO_RETRY.includes(item.errorCode ?? "") && (
-                    <Button label={t.tryAgain} variant="quiet" onPress={() => onRetry(item)} />
-                  )}
-                </View>
-              )}
-            </ScrollView>
-          );
-        }}
+        renderItem={({ item }) => (
+          // Each page scrolls on its own so tall portrait photos never push the actions off small screens.
+          <ScrollView style={{ width }} contentContainerStyle={styles.page}>
+            {renderCard(item)}
+          </ScrollView>
+        )}
       />
+      )}
     </SafeAreaView>
   );
 }
@@ -304,6 +332,9 @@ const styles = StyleSheet.create({
   shopTitle: { fontFamily: font.display, fontSize: 22, color: color.ink },
   treeNote: { fontSize: 12, lineHeight: 16, color: color.stone },
   flock: { fontSize: 14, lineHeight: 20, color: color.ink },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: space(8) },
+  cellHalf: { width: "48.5%" },
+  cellFull: { width: "100%", maxWidth: 720, marginHorizontal: "auto" },
   footRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space(4) },
   notice: { flex: 1, color: color.stone, fontSize: 12, lineHeight: 16 },
   reportTarget: { minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "flex-end", paddingLeft: space(2) },

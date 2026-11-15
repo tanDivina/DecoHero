@@ -23,3 +23,8 @@ export async function shareImage(uri: string): Promise<boolean> {
   await Sharing.shareAsync(uri, { mimeType: "image/jpeg", dialogTitle: "DecoHero" });
   return true;
 }
+
+/** Whether to offer Share at all. Always on the phone; in a browser only where it can share image files. */
+export function canShareImages(): boolean {
+  return true;
+}

@@ -6,7 +6,8 @@ import { flagOn } from "./styles.js";
 
 const app = createApp(generateRedesign, IMAGE_MODEL, { askYesNo });
 
-// Retention: blank stored IPs older than 48 h and drop design rows older than 7 days, at startup and then hourly.
+// Retention, at startup and then hourly: blank stored IPs and drop per-IP new-user rows older than 48 h,
+// drop design rows older than 7 days, and drop the uid hashes of web accounts deleted more than 2 h ago.
 const runIpPurge = () => {
   try {
     const n = purgeOldIps();
@@ -21,6 +22,7 @@ runIpPurge();
 setInterval(runIpPurge, 60 * 60 * 1000).unref();
 
 if (!process.env.REVENUECAT_WEBHOOK_SECRET) console.warn("REVENUECAT_WEBHOOK_SECRET is not set: purchases will be rejected");
+if (!process.env.FIREBASE_PROJECT_ID) console.warn("FIREBASE_PROJECT_ID is not set: web app sign-in is off (Bearer requests get 503 WEB_DISABLED)");
 const port = Number(process.env.PORT || 8080);
 app.listen(port, () =>
   console.log(

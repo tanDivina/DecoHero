@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, BackHandler, Linking, StatusBar, StyleSheet, Text, View } from "react-native";
+import { AppState, BackHandler, Linking, Platform, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { InstrumentSerif_400Regular, useFonts } from "@expo-google-fonts/instrument-serif";
 import * as SplashScreen from "expo-splash-screen";
-import * as SecureStore from "expo-secure-store";
 import { randomUUID } from "expo-crypto";
 import { api, ApiError, parseShopLinks, type ShopLinks } from "./src/api";
+import type { Account } from "./src/auth";
+import { AuthGate } from "./src/AuthGate";
 import { getInstallId } from "./src/identity";
 import { initPurchases } from "./src/purchases";
 import { saveToGallery, shareImage, writeTempJpeg } from "./src/files";
 import { errorMessage, followPhoneLang, lang, langPref, loadLangPref, setLang, syncDeviceLang, t, type Lang } from "./src/i18n";
 import type { Photo, Place } from "./src/photo";
+import { getPref, setPref } from "./src/prefs";
+import { useScreenHistory } from "./src/screenHistory";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { LooksScreen } from "./src/screens/LooksScreen";
 import { Result, ResultsScreen } from "./src/screens/ResultsScreen";
@@ -22,7 +25,7 @@ import {
   ceilingCm, DEFAULT_CEILING, defaultUnit, FALLBACK_CATALOG, parseTreeCatalog, treeFit, withAffiliate,
   type Ceiling, type TreeFit, type TreeProduct,
 } from "./src/treeSize";
-import { color, space } from "./src/theme";
+import { color, font, space } from "./src/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -36,7 +39,19 @@ export type Mode = "rooms" | "christmas";
 // Used until the server's /api/config answers, and when it can't be reached.
 const DEFAULT_TREE_SHOP_URL = "https://christmastreesinthemail.com";
 
+// Web-only behaviour lives in *.web.ts(x) files and behind this flag; the Android app is unchanged.
+const WEB = Platform.OS === "web";
+// Web layout: a centred column, wider on Results so designs can sit side by side.
+const COLUMN_WIDTH = 560;
+const RESULTS_WIDTH = 1180;
+
+/** Android: AuthGate renders the app at once. Web: it asks for a Google sign-in first (AuthGate.web.tsx). */
 export default function App() {
+  // The key gives each web account its own fresh state (photo, results, credits).
+  return <AuthGate>{(account) => <Main key={account?.uid ?? "app"} account={account} />}</AuthGate>;
+}
+
+function Main({ account }: { account: Account | null }) {
   const [fontsLoaded] = useFonts({ InstrumentSerif_400Regular });
   const [langReady, setLangReady] = useState(false);
   const [uiLang, setUiLang] = useState<Lang>(lang);
@@ -64,10 +79,10 @@ export default function App() {
   // Remember the last mode on this device, so a holiday user lands back in Christmas mode.
   const setMode = useCallback((m: Mode) => {
     setModeState(m);
-    SecureStore.setItemAsync(MODE_KEY, m).catch(() => {});
+    setPref(MODE_KEY, m).catch(() => {});
   }, []);
   useEffect(() => {
-    SecureStore.getItemAsync(MODE_KEY)
+    getPref(MODE_KEY)
       // Ignore a saved "christmas" if the server already switched Christmas mode off.
       .then((m) => { if ((m === "christmas" && !christmasOffRef.current) || m === "rooms") setModeState((cur) => (cur === "rooms" ? m : cur)); })
       .catch(() => {});
@@ -96,6 +111,8 @@ export default function App() {
   const [resultPhoto, setResultPhoto] = useState<Photo | null>(null);
   const [results, setResults] = useState<Result[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  // Web only: the server has the web app switched off (503 WEB_DISABLED).
+  const [webClosed, setWebClosed] = useState(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showNotice = useCallback((msg: string) => {
@@ -129,6 +146,8 @@ export default function App() {
 
   const refreshMe = useCallback(async (id: string) => {
     const me = await api.me(id);
+    // Web: RevenueCat Web Billing must use the server's userId, so it is set up once /api/me answers.
+    if (WEB && me.userId) initPurchases(me.userId);
     setCredits(me.credits);
     setFreeDenied(!!me.freeDenied);
     return me;
@@ -138,10 +157,11 @@ export default function App() {
     (async () => {
       const id = await getInstallId();
       setInstallId(id);
-      initPurchases(id);
+      if (!WEB) initPurchases(id);
       try {
         await refreshMe(id);
       } catch (e) {
+        if (WEB && e instanceof ApiError && e.code === "WEB_DISABLED") setWebClosed(true);
         showNotice(errorMessage(e instanceof ApiError ? e.code : undefined, t.network));
       }
     })();
@@ -184,6 +204,16 @@ export default function App() {
     });
     return () => sub.remove();
   }, [screen, returnTo]);
+
+  // Web: the browser's back and forward buttons move between screens (no-op on the phone).
+  useScreenHistory<Screen>(screen, (to, cameFrom) => {
+    // Results that no longer exist (the page was reloaded) fall back to Home.
+    if ((to === "results" || to === "move") && !(results.length && resultPhoto)) return setScreen("home");
+    // "Move tree" was already confirmed or left: show the results it belongs to.
+    if (to === "move" && !moving) return setScreen("results");
+    if (to === "shop") setReturnTo(cameFrom === "shop" ? "home" : cameFrom);
+    setScreen(to);
+  });
 
   const openShop = useCallback(() => {
     setReturnTo(screen === "shop" ? "home" : screen);
@@ -249,8 +279,11 @@ export default function App() {
 
   async function waitForCredits(before: number): Promise<boolean> {
     if (!installId) return false;
-    for (let i = 0; i < 12; i++) {
-      await new Promise((r) => setTimeout(r, 1500));
+    // Credits arrive via the server webhook. Phone: 12 tries, 1.5 s apart. Web: every 2 s for up to 60 s.
+    const tries = WEB ? 30 : 12;
+    const everyMs = WEB ? 2000 : 1500;
+    for (let i = 0; i < tries; i++) {
+      await new Promise((r) => setTimeout(r, everyMs));
       try {
         const me = await refreshMe(installId);
         if (me.credits > before) return true;
@@ -274,7 +307,14 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor={color.limewash} />
       <View style={styles.root} key={uiLang}>
-        {screen === "home" && (
+        <View style={[styles.column, WEB && styles.columnWeb, WEB && { maxWidth: screen === "results" ? RESULTS_WIDTH : COLUMN_WIDTH }]}>
+        {webClosed && (
+          <View style={styles.closed}>
+            <Text style={styles.closedBrand}>DecoHero</Text>
+            <Text style={styles.closedText}>{t.webDisabled}</Text>
+          </View>
+        )}
+        {!webClosed && screen === "home" && (
           <HomeScreen
             credits={credits}
             freeDenied={freeDenied}
@@ -300,7 +340,7 @@ export default function App() {
             onNotice={showNotice}
           />
         )}
-        {screen === "looks" && (
+        {!webClosed && screen === "looks" && (
           <LooksScreen
             treeShopUrl={treeShopUrl}
             tree={looksTree}
@@ -309,10 +349,10 @@ export default function App() {
             onBack={() => setScreen("home")}
           />
         )}
-        {screen === "about" && (
-          <AboutScreen installId={installId} langChoice={langChoice} onChangeLang={changeLang} onBack={() => setScreen("home")} />
+        {!webClosed && screen === "about" && (
+          <AboutScreen installId={installId} account={account} onNotice={showNotice} langChoice={langChoice} onChangeLang={changeLang} onBack={() => setScreen("home")} />
         )}
-        {screen === "results" && resultPhoto && (
+        {!webClosed && screen === "results" && resultPhoto && (
           <ResultsScreen
             originalUri={resultPhoto.uri}
             aspect={resultPhoto.aspect}
@@ -334,7 +374,7 @@ export default function App() {
               if (!r.uri) return;
               try {
                 const ok = await saveToGallery(r.uri);
-                showNotice(ok ? t.saved : t.mediaDenied);
+                showNotice(ok ? (WEB ? t.downloaded : t.saved) : t.mediaDenied);
               } catch {
                 showNotice(t.saveFailed);
               }
@@ -355,7 +395,7 @@ export default function App() {
             }}
           />
         )}
-        {screen === "move" && resultPhoto && moving && (
+        {!webClosed && screen === "move" && resultPhoto && moving && (
           <MoveTreeScreen
             photo={resultPhoto}
             styleId={moving.styleId}
@@ -366,7 +406,7 @@ export default function App() {
             onBack={() => setScreen("results")}
           />
         )}
-        {screen === "shop" && (
+        {!webClosed && screen === "shop" && (
           <ShopScreen
             credits={credits}
             onBack={() => setScreen(returnTo)}
@@ -376,6 +416,7 @@ export default function App() {
         )}
 
         {notice && <Notice text={notice} atTop={screen === "results"} />}
+        </View>
       </View>
     </SafeAreaProvider>
   );
@@ -397,6 +438,11 @@ function Notice({ text, atTop }: { text: string; atTop: boolean }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.limewash },
+  column: { flex: 1 },
+  columnWeb: { width: "100%", alignSelf: "center" },
+  closed: { flex: 1, justifyContent: "center", paddingHorizontal: space(5), gap: space(3) },
+  closedBrand: { fontFamily: font.display, fontSize: 48, color: color.ink },
+  closedText: { fontSize: 16, lineHeight: 23, color: color.ink },
   notice: {
     position: "absolute",
     left: space(5),

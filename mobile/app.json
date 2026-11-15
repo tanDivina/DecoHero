@@ -30,6 +30,17 @@
         "com.google.android.gms.permission.AD_ID"
       ]
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "DecoHero",
+      "shortName": "DecoHero",
+      "description": "See your room in a new style before you buy a thing.",
+      "lang": "en",
+      "themeColor": "#E8EBE6",
+      "backgroundColor": "#E8EBE6"
+    },
     "plugins": [
       [
         "expo-image-picker",

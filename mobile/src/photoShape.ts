@@ -4,7 +4,8 @@ export type Photo = { uri: string; base64: string; aspect: number; width: number
 /** A spot on the photo as fractions of its width and height (0,0 = top left). Sent to the server as `place`. */
 export type Place = { x: number; y: number };
 type Size = { width: number; height: number };
-export type PickResult = { photo?: Photo; denied?: boolean };
+/** failed: the file could not be read as an image (web only). */
+export type PickResult = { photo?: Photo; denied?: boolean; failed?: boolean };
 
 /** Width ÷ height, kept between portrait 3:4 and landscape 4:3 so the photo never dominates the screen. */
 export function photoAspect(width: number, height: number): number {

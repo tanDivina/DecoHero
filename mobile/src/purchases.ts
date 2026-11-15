@@ -1,6 +1,12 @@
 import Purchases, { PURCHASES_ERROR_CODE, PurchasesPackage } from "react-native-purchases";
 
+import type { BuyResult, CreditPack } from "./packs";
+
+export type { BuyResult, CreditPack } from "./packs";
+
 let configured = false;
+// The Play packages behind the packs last handed to the shop, by package id.
+const packages = new Map<string, PurchasesPackage>();
 
 export function initPurchases(installId: string) {
   const apiKey = process.env.EXPO_PUBLIC_RC_ANDROID_KEY;
@@ -10,21 +16,21 @@ export function initPurchases(installId: string) {
 }
 
 /** Packs come from the "default" offering you set up in RevenueCat (products credits_15 / credits_50 / credits_150). */
-export async function getCreditPacks(): Promise<PurchasesPackage[]> {
+export async function getCreditPacks(): Promise<CreditPack[]> {
   if (!configured) return [];
   const offerings = await Purchases.getOfferings();
   const offering = offerings.all["default"] ?? offerings.current;
-  return offering?.availablePackages ?? [];
+  packages.clear();
+  return (offering?.availablePackages ?? []).map((pkg) => {
+    packages.set(pkg.identifier, pkg);
+    const { identifier, title, price, currencyCode, priceString } = pkg.product;
+    return { id: pkg.identifier, productId: identifier, title, price, currencyCode, priceString };
+  });
 }
 
-/**
- * "done": paid, credits arrive via the server webhook. "pending": Google Play is still waiting for the
- * payment (cash/bank methods common in Latin America), credits arrive once it clears.
- * Other failures come back as "notAllowed" | "store" | "network" | "error".
- */
-export type BuyResult = "done" | "cancelled" | "pending" | "notAllowed" | "store" | "network" | "error";
-
-export async function buyPack(pkg: PurchasesPackage): Promise<BuyResult> {
+export async function buyPack(pack: CreditPack): Promise<BuyResult> {
+  const pkg = packages.get(pack.id);
+  if (!pkg) return "error";
   try {
     await Purchases.purchasePackage(pkg);
     return "done";

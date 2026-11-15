@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View, type GestureResponderEvent } from "react-native";
 import { t } from "../i18n";
 import { Photo, Place, placeToView, viewToPlace } from "../photoShape";
 import { color, radius } from "../theme";
@@ -14,6 +14,18 @@ type Props = {
 
 const MARK = 34;
 
+/**
+ * Where a press landed inside the photo. The phone reports locationX / locationY. A browser click does not,
+ * so there it is worked out from the pointer position; a keyboard "click" has no position and sets no spot.
+ */
+function pressPoint(e: GestureResponderEvent): { x: number; y: number } | null {
+  const ne = e.nativeEvent as unknown as { locationX?: number; locationY?: number; clientX?: number; clientY?: number; detail?: number };
+  if (typeof ne.locationX === "number" && typeof ne.locationY === "number") return { x: ne.locationX, y: ne.locationY };
+  const box = (e.currentTarget as unknown as { getBoundingClientRect?: () => { left: number; top: number } } | null)?.getBoundingClientRect?.();
+  if (!box || typeof ne.clientX !== "number" || typeof ne.clientY !== "number" || ne.detail === 0) return null;
+  return { x: ne.clientX - box.left, y: ne.clientY - box.top };
+}
+
 /** The room photo. A tap sets (or moves) the spot where the tree's base should stand. */
 export function TreeSpotPhoto({ photo, place, onPlace }: Props) {
   const [view, setView] = useState({ width: 0, height: 0 });
@@ -24,7 +36,8 @@ export function TreeSpotPhoto({ photo, place, onPlace }: Props) {
       onLayout={(e) => setView({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
       onPress={(e) => {
         if (!onPlace || !view.width) return;
-        onPlace(viewToPlace(e.nativeEvent.locationX, e.nativeEvent.locationY, view, photo));
+        const at = pressPoint(e);
+        if (at) onPlace(viewToPlace(at.x, at.y, view, photo));
       }}
       accessibilityLabel={onPlace ? t.placeHint : undefined}
       style={styles.frame}

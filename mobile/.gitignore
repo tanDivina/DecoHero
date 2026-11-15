@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-web/
 web-build/
 expo-env.d.ts
 
@@ -32,6 +33,10 @@ yarn-error.*
 
 # local env files
 .env*.local
+# web build settings: real values stay untracked (.env.web / .env.production), the example is tracked
+.env.web
+.env.production
+!.env.web.example
 
 # typescript
 *.tsbuildinfo

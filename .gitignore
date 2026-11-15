@@ -16,3 +16,8 @@ server/data/
 *.aab
 *.apk
 mobile/android/
+
+# web deploy folder (scripts/build-web.sh) and its Vercel link
+web-dist/
+.vercel-web/
+.vercel/

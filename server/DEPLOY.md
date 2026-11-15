@@ -8,6 +8,9 @@ The API is one small Node container. Credits live in a SQLite file, so it needs 
 |---|---|---|
 | `GEMINI_API_KEY` | yes | Gemini key. Server refuses to start without it. |
 | `REVENUECAT_WEBHOOK_SECRET` | yes | Long random string; same value goes in RevenueCat's webhook Authorization header. Without it every purchase webhook gets 401. |
+| `FIREBASE_PROJECT_ID` | for the web app | Project ID of the Firebase project the web app signs in with (Firebase console > Project settings). Public value, not a secret. Without it web requests get 503 `WEB_DISABLED`; Android is not affected. **No service-account key is needed and none may be added**: tokens are checked against Google's public certificates. |
+| `WEB_ORIGINS` | no | Browser origins allowed to call `/api`, comma-separated, default `https://deco.hero-apps.com`. Origin only: no path, no trailing slash. |
+| `TOMBSTONE_SALT` | no | Secret salt for the hash of a deleted web account's Firebase uid (kept 2 hours). Without it the salt is derived from `FIREBASE_PROJECT_ID`, which is public, so set it: `openssl rand -hex 24`. Changing it only means deletes from the last 2 hours are no longer recognised. |
 | `IMAGE_MODEL` | no | Default `gemini-3.1-flash-image`. `gemini-3.1-flash-lite-image` is about half the cost (check quality first). |
 | `MAX_GENERATIONS_PER_DAY` | no | Hard global cap per UTC day, default `300` (~$20/day). Once hit, generation returns 503 `DAILY_LIMIT` until 00:00 UTC. `0` switches generation off (kill switch). |
 | `MAX_FREE_GENERATIONS_PER_DAY` | no | Cap for unpaid users, default `100`. Returns 503 `FREE_DAILY_LIMIT`. Paying users keep working. |
@@ -101,7 +104,7 @@ After changing either variable: `curl https://API/api/config` and check that eve
 
 1. railway.com > New Project > Deploy from GitHub repo > pick the DecoHero repo. (Or, from `server/`, run `railway init` then `railway up`; `.env` and `data/` are excluded via `.gitignore`/`.dockerignore`.)
 2. Service > Settings > **Root Directory: `server`**. Railway finds the `Dockerfile` and builds it.
-3. Service > Variables: add `GEMINI_API_KEY`, `REVENUECAT_WEBHOOK_SECRET`, and `MAX_GENERATIONS_PER_DAY` / `MAX_FREE_GENERATIONS_PER_DAY` if you want values other than the defaults.
+3. Service > Variables: add `GEMINI_API_KEY`, `REVENUECAT_WEBHOOK_SECRET`, `FIREBASE_PROJECT_ID` (for the web app; `WEB_ORIGINS` only if the web app is not on `https://deco.hero-apps.com`), and `MAX_GENERATIONS_PER_DAY` / `MAX_FREE_GENERATIONS_PER_DAY` if you want values other than the defaults.
 4. Right-click the service on the canvas > **Attach Volume**, mount path **`/data`**.
 5. Settings > Deploy > **Healthcheck Path: `/health`**. Keep Replicas at **1**.
 6. Settings > Networking > **Generate Domain**. That `https://...up.railway.app` URL is the API URL.
@@ -125,6 +128,14 @@ curl https://API/health                               # {"ok":true,"model":"gemi
 curl -i -X POST https://API/webhooks/revenuecat       # 401
 curl -i https://API/.env                              # 404 JSON, nothing leaked
 curl -i -X OPTIONS https://API/api/redesign -H 'Origin: https://example.com' -H 'Access-Control-Request-Method: POST'
+                                                      # no Access-Control-* headers
+curl -i -X OPTIONS https://API/api/redesign -H 'Origin: https://deco.hero-apps.com' -H 'Access-Control-Request-Method: POST'
+                                                      # 204 with Access-Control-Allow-Origin: https://deco.hero-apps.com
+curl -i https://API/api/me -H 'Origin: https://deco.hero-apps.com'
+                                                      # 401 {"error":"AUTH_REQUIRED"}
+curl -i https://API/api/me -H 'Authorization: Bearer x'
+                                                      # 401 {"error":"AUTH_INVALID"} (503 WEB_DISABLED = FIREBASE_PROJECT_ID missing)
+curl -i -X OPTIONS https://API/webhooks/revenuecat -H 'Origin: https://deco.hero-apps.com' -H 'Access-Control-Request-Method: POST'
                                                       # no Access-Control-* headers
 ```
 
@@ -151,17 +162,34 @@ Then:
 
 ## Local checks
 
-- `npm test`: end-to-end checks (webhook purchase, duplicate, suffixed product id, refund; new-install cap and `freeDenied`; reports; disconnect refund; rate limits; shop links and the Amazon gate; tree catalogue, recommendation and affiliate links; the tree spot marker, its prompt and the leak check) against a temp SQLite file with a fake Gemini. No network, no keys.
+- `npm test`: end-to-end checks (webhook purchase, duplicate, suffixed product id, refund; new-install cap and `freeDenied`; reports; disconnect refund; rate limits; web sign-in, CORS, account delete and its abuse cases) against a temp SQLite file with a fake Gemini and a fake token check. No network, no keys.
 - `npm run marker-sample [x] [y] [input.jpg] [output.jpg]`: draws the "tree goes here" marker on a photo exactly as the model receives it and prints the output path. `x` and `y` are fractions of the width and height (default `0.5 0.8`); without an input it uses `test-image2.jpeg` from the repo root.
 - `npm run watermark-sample [input.jpg] [output.jpg]`: renders the free-design watermark and prints the output path. To check the production font, run it inside the built image, e.g. `docker build -t decohero-api . && docker run --rm -v "$PWD/scripts:/app/scripts" -v "$PWD/src:/app/src" -v /tmp:/out decohero-api npx --yes tsx scripts/watermark-sample.ts "" /out/wm.jpg`.
 
 ## API notes
 
 - The app sends its install id in the `X-Install-Id` header. Version 1.0.0 of the app sends `?installId=` (GET `/api/me`) or `installId` in the JSON body instead; both still work. Ids must be UUIDs and are stored lowercase.
-- `GET /api/me` returns `{ credits, paid, freeDenied }`.
+- `GET /api/me` returns `{ userId, credits, paid, freeDenied }`. `userId` is the install id on Android and the account's random user id on web.
 - `GET /api/config` (app 1.0.3+, no install id needed) returns `{ christmas, treeShopUrl, shopLinks, treeCatalog }`. `treeCatalog` (read by app 1.0.5+, ignored by older apps) is a list of `{ id, name, species, minFt, maxFt, price, url }`; each `url` already carries the query string of `TREE_SHOP_URL`. The app reads it at start; an empty `treeShopUrl` hides the tree button. `shopLinks` (read by app 1.0.4+, ignored by 1.0.3) is `{ [themeId]: [{ en, es, url, kind }] }`, `{}` when there are none; themes without links are left out.
 - `POST /api/redesign` takes the 12 interior style ids and, from app 1.0.3, six Christmas ids (`xmas-classic`, `xmas-winter`, `xmas-nordic`, `xmas-coquette`, `xmas-tartan`, `xmas-tropical`) that add one tree and keep the room. Christmas requests may carry `ceilingCm` (180 to 620) and `treeCm` as numbers. `treeCm` must be below the ceiling and either the largest size of a catalogue product (what app 1.0.5 sends; this also names the product's species in the prompt) or anything from 120 to 370 (what apps up to 1.0.4 send). With a ceiling and no `treeCm`, the server picks the tree by the catalogue rule. A present but invalid value answers 400 `BAD_SIZE` before any credit is spent. Interior styles ignore both fields.
 - `POST /api/redesign`, app 1.0.5+: Christmas requests may also carry `place: { "x": 0.31, "y": 0.78 }`, the spot the user tapped for the tree as fractions of the photo's width and height (both numbers from 0 to 1, no other keys; anything else answers 400 `BAD_PLACE` before any credit is spent). The server draws a magenta ring with a dot (6% of the image width) on a copy of the photo, tells the model to stand the tree on it and to remove it, and checks the result: if clearly more strong magenta is left than the user's own photo had, the design counts as failed (502 `GENERATION_FAILED`, credit refunded, counted toward `MAX_FAILURES_PER_INSTALL_PER_DAY`; the daily slot stays used because an image was paid for). Interior styles ignore the field. "Move tree" in the app is a normal request with a new `place` and costs 1 credit. Deploy the server before releasing app 1.0.3, or Christmas styles answer `BAD_STYLE`.
+
+### Web app
+
+- The web app (Expo web build on `https://deco.hero-apps.com/app`) signs in with Google through Firebase Auth and sends `Authorization: Bearer <Firebase ID token>` on every `/api` call. Any install id on such a request is ignored.
+- Only Google sign-ins are accepted (`firebase.sign_in_provider` must be `google.com`), whatever else is switched on in the Firebase project.
+- `GET /api/me` is the only call that creates an account: the first time a Firebase uid is seen it gets a random user id (table `web_accounts`: Firebase uid, user id, created date; no email or name), the same free credits as an install, and it counts toward the same per-IP new-user limit. Every other `/api` call from a uid without an account answers 401 `ACCOUNT_NOT_FOUND`, so the web app calls `/api/me` first. Rate limits and credits key on that user id.
+- The web app logs in to RevenueCat (Web Billing) with the `userId` from `/api/me`, so the same webhook credits it. Nothing web-specific is configured on the webhook.
+- A web account's `userId` is not an install id: a request that sends it as `X-Install-Id` (or `installId`) without a token gets 401 `AUTH_REQUIRED`.
+- Errors: 401 `AUTH_INVALID` (bad or expired token, not a Google sign-in, or a sign-in older than the account's delete: sign in again), 401 `AUTH_REQUIRED` (request from a web origin without a token), 401 `ACCOUNT_NOT_FOUND` (valid token, no account yet: call `GET /api/me`), 503 `WEB_DISABLED` (`FIREBASE_PROJECT_ID` not set), 503 `AUTH_UNAVAILABLE` (Google's signing keys could not be fetched: retry, do not sign the user out).
+- CORS headers are sent only on `/api`, only to the origins in `WEB_ORIGINS`. Preflights are answered with 204 before the rate limiters. Outside production (`NODE_ENV` other than `production`; the Dockerfile sets `production`) the Expo dev origins `http://localhost:8081` and `http://localhost:19006` are allowed as well.
+- `POST /api/account/delete` (Bearer only) deletes the signed-in web account: the `web_accounts` row, the user row (credits, paid flag, IP), its generation log and its reports. Unused credits are lost. What stays:
+  - purchase rows, for accounting and so a retried webhook or a refund cannot credit twice, with their user id replaced by `deleted`;
+  - the bare random user id in `deleted_users`, so a purchase webhook that arrives later credits nobody (logged as `NOT CREDITED (account deleted)`, answered 200; refund it in RevenueCat if the buyer asks) and the id cannot be reused;
+  - for 2 hours, a salted SHA-256 hash of the Firebase uid in `web_tombstones`. While it is there, tokens from a sign-in made before the delete get 401 `AUTH_INVALID`, so a token that was still valid cannot re-create the account. A new sign-in after the delete works at once and starts a new account;
+  - for up to 48 hours from when the account was created, the IP it was created from in `free_grants` (IP and time only, no id), so deleting does not hand the free credits back.
+- It does not delete the Firebase Auth user or the RevenueCat/Stripe customer; the web app deletes the Firebase user itself, and RevenueCat/Stripe records are removed from their dashboards on request.
+- The server refuses to start in production when `FIREBASE_AUTH_EMULATOR_HOST` is set (it would switch off token signature checks).
 - `/api/redesign` refunds the credit if the phone disconnects before the response is fully written, and gives the daily slot back if the model returned no image. Both count toward `MAX_FAILURES_PER_INSTALL_PER_DAY`.
 - Webhook purchases that cannot be credited (unknown product id, no install id) answer 500 so RevenueCat retries them; look for `NOT CREDITED` in the logs. Product ids are matched on the part before `:`.
 
@@ -169,7 +197,9 @@ Then:
 
 - Install ids are generated by the app, so a determined abuser on many IPs can still farm free credits. The free daily cap bounds the cost; Play Integrity checks are the real fix if the `users` table shows it.
 - Refunds: a RevenueCat `CANCELLATION` for a credit pack removes that pack's credits (never below 0), once per store transaction, and an install whose purchases are all refunded counts as unpaid again (watermark, free limits). Credits already spent before the refund are not clawed back.
-- Retention: `users.ip` is blanked once an install is 48 hours old (at startup and hourly). The free-credit check only needs the last 24 hours.
+- Retention: `users.ip` is blanked once an install is 48 hours old, and `free_grants` rows (IP and time of each new user) are dropped at the same age (at startup and hourly). The free-credit check only needs the last 24 hours. The uid hashes of deleted web accounts are dropped after 2 hours (checked hourly).
 - Purchases are credited only to an install id (the app logs in to RevenueCat with it). An event without one is logged as `NOT CREDITED`, answered with 500 (RevenueCat retries a few times) and needs a manual fix if it never resolves.
 - Request logs: Railway's HTTP logs record each request's path, so `/api/me?installId=...` calls from app version 1.0.0 put the install id next to the client IP there. Newer app versions send it in a header, which is not logged.
+- Web sign-in accepts Google accounts only. Still keep the other sign-in methods off in the Firebase project (Firebase console > Authentication > Sign-in method).
+- A deleted web account that signs in again is a new user, like a reinstall on Android: it gets free credits only while its IP is under `MAX_NEW_INSTALLS_PER_IP_PER_DAY`. New users are counted per IP in `free_grants`, which a delete does not touch, so a delete and sign-in loop from one IP stops getting credits at the limit. Someone who changes IP for every new account can still collect free credits; the free daily cap bounds the cost.
 - Sandbox purchases (licence testers) grant real credits on this server. Fine for internal testing.

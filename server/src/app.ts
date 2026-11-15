@@ -9,10 +9,12 @@ import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
 import { drawMarker, markerLeaked, parsePlace } from "./marker.js";
+import { firebaseVerifier, isKeyFetchFailure, type VerifiedToken, type VerifyIdToken } from "./auth.js";
 import {
-  addDesign, addReport, claimFreeMove, failuresToday, getCredits, getOrCreateUser, getUser, grantPurchase, logGeneration,
-  MAX_FAILURES_PER_INSTALL_PER_DAY, ownsDesign, refundCredits, refundPurchase, releaseFreeMove, releaseGeneration,
-  removeDesign, reserveGeneration, spendCredits, utcDay,
+  addDesign, addReport, claimFreeMove, deletedAt, deleteWebAccount, failuresToday, getCredits, getOrCreateUser,
+  getOrCreateWebUser, getUser, getWebUserId, grantPurchase, isWebUserId, logGeneration, MAX_FAILURES_PER_INSTALL_PER_DAY,
+  ownsDesign, refundCredits, refundPurchase, releaseFreeMove, releaseGeneration, removeDesign, reserveGeneration,
+  spendCredits, utcDay,
 } from "./db.js";
 
 // Map your Google Play product ids (Play Console + RevenueCat) to credit amounts.
@@ -47,6 +49,24 @@ const installIdOf = (req: express.Request): string | null => {
   const body = req.body?.installId;
   if (body !== undefined) return normaliseInstallId(body);
   return normaliseInstallId(req.query.installId);
+};
+
+/**
+ * Who is calling, resolved once per /api request before the per-user limiters. Android: the install id.
+ * Web: the user id mapped to the signed-in Firebase uid. Both are UUIDs that key the same users table.
+ */
+type Identity = { userId: string | null; firebaseUid?: string };
+const identities = new WeakMap<express.Request, Identity>();
+const userIdOf = (req: express.Request): string | null => identities.get(req)?.userId ?? null;
+
+/** Origins allowed to call /api from a browser: WEB_ORIGINS, plus the Expo dev servers outside production. */
+const webOrigins = () => {
+  const list = (process.env.WEB_ORIGINS || "https://deco.hero-apps.com")
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+  if (process.env.NODE_ENV !== "production") list.push("http://localhost:8081", "http://localhost:19006");
+  return new Set(list);
 };
 
 /** Expands an IPv6 address (including "::" and an embedded IPv4 tail) to 8 hextets. */
@@ -91,7 +111,7 @@ const limiter = (
     },
   });
 const byInstall = (req: express.Request) => {
-  const id = installIdOf(req);
+  const id = userIdOf(req);
   return id ? `i:${id}` : `ip:${clientIp(req)}`;
 };
 
@@ -138,7 +158,27 @@ const DOOR_QUESTION_MARKED =
   "Answer only yes or no.";
 const DOOR_CHECK_TIMEOUT_MS = 30_000;
 
-export function createApp(generate: Generate, model: string, extras: { askYesNo?: AskYesNo } = {}) {
+export type AppOptions = {
+  /** Yes/no vision check used by the door check (DOOR_CHECK=on). */
+  askYesNo?: AskYesNo;
+  /** Firebase ID token check for the web app. Defaults to firebase-admin when FIREBASE_PROJECT_ID is set. */
+  verifyIdToken?: VerifyIdToken;
+};
+
+export function createApp(generate: Generate, model: string, options: AppOptions = {}) {
+  const extras = options;
+  const verifyIdToken = options.verifyIdToken ?? firebaseVerifier();
+  const allowedOrigins = webOrigins();
+  // Salt for the short-lived uid hash kept after an account delete (web_tombstones).
+  const tombstoneSalt =
+    process.env.TOMBSTONE_SALT?.trim() ||
+    crypto.createHash("sha256").update(`decohero-tombstone:${process.env.FIREBASE_PROJECT_ID?.trim() ?? ""}`).digest("hex");
+  const uidHashOf = (uid: string) => crypto.createHash("sha256").update(`${uid}:${tombstoneSalt}`).digest("hex");
+  const allowedOrigin = (req: express.Request) => {
+    const origin = req.get("origin");
+    return origin !== undefined && allowedOrigins.has(origin) ? origin : null;
+  };
+
   const app = express();
   // Since the last restart; printed with every flagged or failed door check. No install ids, no IPs.
   const doorStats = { checked: 0, flagged: 0, retried: 0, fixed: 0, errors: 0 };
@@ -166,20 +206,112 @@ export function createApp(generate: Generate, model: string, extras: { askYesNo?
   // Number of reverse proxies in front of the app (Railway/Render: 1). Wrong values either let clients
   // spoof their IP (too high) or make every user share the proxy's IP (too low). See DEPLOY.md.
   app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
-  // The phone sends a JPEG capped at 1280px (~1-2 MB as base64). Anything bigger is refused with 413.
+
+  // CORS for the web app only: /api, and only for the origins in WEB_ORIGINS. Every other origin (and the
+  // Android app, which sends no Origin) gets no CORS headers at all, so random websites cannot call the API
+  // from a visitor's browser. /webhooks never gets them. Runs first so error replies carry the headers too,
+  // and so preflights are answered before the rate limiters.
+  app.use("/api", (req, res, next) => {
+    const origin = allowedOrigin(req);
+    if (!origin) {
+      next();
+      return;
+    }
+    res.set("Access-Control-Allow-Origin", origin);
+    res.vary("Origin");
+    res.set("Access-Control-Expose-Headers", "Retry-After");
+    if (req.method !== "OPTIONS") {
+      next();
+      return;
+    }
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    res.set("Access-Control-Max-Age", "600");
+    res.status(204).end();
+  });
+
+  // The client sends a JPEG capped at 1280px (~1-2 MB as base64). Anything bigger is refused with 413.
   app.use(express.json({ limit: "4mb" }));
-  // No CORS headers on purpose: the only client is the Android app, which doesn't need them,
-  // and leaving them out stops random websites from calling the API from a visitor's browser.
 
   // Per-IP limits are generous because carrier-grade NAT puts many phones behind one IP.
+  // This one needs no identity and runs before token checks, so it also bounds bad-token floods.
   app.use("/api", limiter(60_000, API_PER_IP_PER_MIN, clientIp));
+
+  // Identity, resolved before the per-user limiters and the routes.
+  // Web: "Authorization: Bearer <Firebase ID token>"; any X-Install-Id is ignored. Android: the install id.
+  app.use("/api", async (req, res, next) => {
+    try {
+      const authorization = req.get("authorization");
+      if (authorization === undefined) {
+        // A browser on the web app's origin must sign in; it cannot fall back to an anonymous install id.
+        if (allowedOrigin(req)) {
+          res.status(401).json({ error: "AUTH_REQUIRED" });
+          return;
+        }
+        const installId = installIdOf(req);
+        // A web account's user id is not an install id: its credits are only reachable with a sign-in.
+        if (installId && isWebUserId(installId)) {
+          res.status(401).json({ error: "AUTH_REQUIRED" });
+          return;
+        }
+        identities.set(req, { userId: installId });
+        next();
+        return;
+      }
+      if (!verifyIdToken) {
+        res.status(503).json({ error: "WEB_DISABLED" });
+        return;
+      }
+      const token = authorization.match(/^Bearer\s+(\S+)$/i)?.[1];
+      let decoded: VerifiedToken | null = null;
+      if (token) {
+        try {
+          decoded = await verifyIdToken(token);
+        } catch (err) {
+          // Google's signing keys could not be fetched: our problem, not the token's. The client should
+          // retry instead of signing the user out.
+          if (isKeyFetchFailure(err)) {
+            console.error(`token check unavailable: ${describeError(err)}`);
+            res.status(503).json({ error: "AUTH_UNAVAILABLE" });
+            return;
+          }
+        }
+      }
+      const firebaseUid = typeof decoded?.uid === "string" && decoded.uid ? decoded.uid : null;
+      // Google sign-in only, whatever else gets switched on in the Firebase project.
+      if (!firebaseUid || decoded?.firebase?.sign_in_provider !== "google.com") {
+        res.status(401).json({ error: "AUTH_INVALID" });
+        return;
+      }
+      const userId = getWebUserId(firebaseUid);
+      if (!userId) {
+        // Deleted in the last 2 hours: only a sign-in made after the delete may start a new account.
+        const deleted = deletedAt(uidHashOf(firebaseUid));
+        const authTimeMs = typeof decoded?.auth_time === "number" ? decoded.auth_time * 1000 : 0;
+        if (deleted !== null && authTimeMs <= deleted) {
+          res.status(401).json({ error: "AUTH_INVALID" });
+          return;
+        }
+        // Accounts are created by GET /api/me only.
+        if (!(req.method === "GET" && req.path === "/me")) {
+          res.status(401).json({ error: "ACCOUNT_NOT_FOUND" });
+          return;
+        }
+      }
+      identities.set(req, { userId, firebaseUid });
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // Image generation is the only route that costs money: tighter per-IP and per-install limits.
   // Paying installs get a higher per-install limit.
   app.use(
     "/api/redesign",
     limiter(10 * 60_000, REDESIGN_PER_IP, clientIp),
     limiter(10 * 60_000, (req) => {
-      const id = installIdOf(req);
+      const id = userIdOf(req);
       return id && getUser(id)?.paid ? REDESIGN_PER_INSTALL_PAID : REDESIGN_PER_INSTALL_FREE;
     }, byInstall)
   );
@@ -189,13 +321,26 @@ export function createApp(generate: Generate, model: string, extras: { askYesNo?
   });
 
   app.get("/api/me", (req, res) => {
-    const id = installIdOf(req);
+    const firebaseUid = identities.get(req)?.firebaseUid;
+    const id = firebaseUid ? getOrCreateWebUser(firebaseUid, clientIp(req)) : userIdOf(req);
     if (!id) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
     }
     const user = getOrCreateUser(id, clientIp(req));
-    res.json({ credits: user.credits, paid: !!user.paid, freeDenied: !!user.free_denied && !user.paid });
+    // userId is what the web app logs in to RevenueCat with, so the webhook below credits it.
+    res.json({ userId: user.id, credits: user.credits, paid: !!user.paid, freeDenied: !!user.free_denied && !user.paid });
+  });
+
+  // Web accounts only: deletes the signed-in account and its records. See deleteWebAccount for what goes.
+  app.post("/api/account/delete", (req, res) => {
+    const firebaseUid = identities.get(req)?.firebaseUid;
+    if (!firebaseUid) {
+      res.status(401).json({ error: "AUTH_REQUIRED" });
+      return;
+    }
+    deleteWebAccount(firebaseUid, uidHashOf(firebaseUid));
+    res.json({ ok: true });
   });
 
   // Things the app reads at start so they can change without a new release. Read per request: no secrets here.
@@ -211,7 +356,7 @@ export function createApp(generate: Generate, model: string, extras: { askYesNo?
   });
 
   app.post("/api/redesign", async (req, res) => {
-    const installId = installIdOf(req);
+    const installId = userIdOf(req);
     const { image, styleId, ceilingCm, treeCm, place: rawPlace, moveOf } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
@@ -267,7 +412,13 @@ export function createApp(generate: Generate, model: string, extras: { askYesNo?
       return;
     }
 
-    const user = getOrCreateUser(installId, clientIp(req));
+    // A web account deleted while the photo was being prepared must not come back as a new user.
+    const isWeb = !!identities.get(req)?.firebaseUid;
+    const user = isWeb ? getUser(installId) : getOrCreateUser(installId, clientIp(req));
+    if (!user) {
+      res.status(401).json({ error: "ACCOUNT_NOT_FOUND" });
+      return;
+    }
     // Stops one install from burning daily slots and our money through endless failures or dropped connections.
     if (failuresToday(installId) >= MAX_FAILURES_PER_INSTALL_PER_DAY) {
       res.status(429).json({ error: "TOO_MANY_FAILURES", credits: getCredits(installId) });
@@ -396,7 +547,7 @@ export function createApp(generate: Generate, model: string, extras: { askYesNo?
 
   // Google Play's AI-generated content policy requires a way for users to flag outputs.
   app.post("/api/report", (req, res) => {
-    const installId = installIdOf(req);
+    const installId = userIdOf(req);
     const { styleId } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
@@ -450,8 +601,13 @@ export function createApp(generate: Generate, model: string, extras: { askYesNo?
         res.status(500).json({ error: "NO_INSTALL_ID" });
         return;
       }
-      const granted = grantPurchase(event.id, userId, pack.id, pack.credits, transactionIds[0] ?? null);
-      console.log(`purchase ${event.id}: ${pack.id} -> ${userId} (granted=${granted}, ${event.environment ?? "?"})`);
+      const result = grantPurchase(event.id, userId, pack.id, pack.credits, transactionIds[0] ?? null);
+      if (result === "account_deleted") {
+        // Answered 200: a retry cannot fix it. Refund it by hand in RevenueCat if the buyer asks.
+        console.error(`purchase ${event.id}: ${pack.id} NOT CREDITED (account deleted), ${event.environment ?? "?"}`);
+      } else {
+        console.log(`purchase ${event.id}: ${pack.id} -> ${userId} (granted=${result === "granted"}, ${event.environment ?? "?"})`);
+      }
     } else if (event.type === "CANCELLATION" && transactionIds.length) {
       // For one-time purchases RevenueCat sends CANCELLATION when Google refunds the order.
       const removed = refundPurchase(transactionIds);

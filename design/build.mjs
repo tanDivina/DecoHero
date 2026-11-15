@@ -1,4 +1,6 @@
 // Regenerates every DecoHero icon and Play Store graphic.
+// NOTE (Nov 13 2026): the app icon is now the diorama room (mobile/assets/icon.png, store/play-icon-512.png).
+// Running this script would overwrite it with the old arch. Feature graphics + share images: tools/screenshots/brand.mjs.
 //   node design/build.mjs
 // Needs rsvg-convert (brew install librsvg) and Google Chrome.
 // Real screenshots: drop device captures into store/raw/01.png … 05.png and re-run.
