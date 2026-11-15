@@ -2,7 +2,10 @@
 // can change without an app release. Bad config never crashes the server: invalid entries are skipped and logged.
 import { isTreeStyle } from "./styles.js";
 
-export type ShopLinkKind = "amazon" | "partner";
+// Three kinds (server 1.0.6): "partner" and "amazon" are affiliate links and are shown with their disclosure;
+// "plain" is an ordinary link that earns us nothing and is shown without one (app 1.0.6+, older apps skip it).
+// Switching a plain link to an affiliate link later is a SHOP_LINKS edit: new url, kind "amazon" or "partner".
+export type ShopLinkKind = "amazon" | "partner" | "plain";
 export type ShopLink = { en: string; es: string; url: string; kind: ShopLinkKind };
 export type ShopLinks = Record<string, ShopLink[]>;
 
@@ -26,6 +29,18 @@ export const looksLikeAmazon = (host: string) =>
  */
 export const amazonApproved = () => process.env.AMAZON_APP_APPROVED?.trim().toLowerCase() === "true";
 
+/**
+ * Query parameters that mark a link as an affiliate or referral link. A "plain" link is shown without a
+ * commission disclosure, so it may not carry any of them.
+ */
+const AFFILIATE_PARAMS = new Set([
+  "tag", "linkcode", "linkid", "ascsubtag", "camp", "creative", "creativeasin", // Amazon Associates
+  "sca_ref", "ref", "aff", "affid", "aff_id", "affiliate", "affiliate_id", "partnerid",
+  "irclickid", "irgwc", "clickid", "awc", "cjevent", "subid", "sharedid", "rfsn", "ranmid", "raneaid", "ransiteid",
+]);
+/** Shorteners hide where a link ends up and what it carries, so a "plain" link has to be written out in full. */
+const SHORTENERS = new Set(["amzn.to", "a.co", "bit.ly", "tinyurl.com", "t.co", "geni.us", "rstyle.me", "shopstyle.it", "howl.me", "go.magik.ly"]);
+
 function cleanLabel(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const label = v.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
@@ -36,7 +51,7 @@ function cleanLabel(v: unknown): string | null {
 function parseLink(entry: unknown): ShopLink | string {
   if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return "not an object";
   const { label_en, label_es, url: rawUrl, kind } = entry as Record<string, unknown>;
-  if (kind !== "amazon" && kind !== "partner") return 'kind must be "amazon" or "partner"';
+  if (kind !== "amazon" && kind !== "partner" && kind !== "plain") return 'kind must be "amazon", "partner" or "plain"';
   const en = cleanLabel(label_en);
   if (!en) return "label_en is missing";
   const es = label_es === undefined ? en : cleanLabel(label_es);
@@ -54,6 +69,10 @@ function parseLink(entry: unknown): ShopLink | string {
   if (kind === "amazon" && !isAmazonHost(host)) return "amazon link does not point to an Amazon store";
   if (kind === "partner" && looksLikeAmazon(host)) return "partner link points to Amazon";
   if (kind === "partner" && /amazon/i.test(`${en} ${es}`)) return "partner label mentions Amazon";
+  if (kind === "plain") {
+    if (SHORTENERS.has(host)) return "plain link uses a link shortener";
+    if ([...url.searchParams.keys()].some((k) => AFFILIATE_PARAMS.has(k.toLowerCase()))) return "plain link carries an affiliate parameter";
+  }
   return { en, es, url: url.toString(), kind };
 }
 
@@ -102,7 +121,10 @@ export function parseShopLinks(raw: string | undefined, warn: (msg: string) => v
 // Parsed once per distinct value, so a bad entry is logged once and not on every /api/config call.
 let cache: { raw: string | undefined; links: ShopLinks } | undefined;
 
-/** The links the app may show right now: valid entries of SHOP_LINKS, minus Amazon links while the gate is closed. */
+/**
+ * The links the app may show right now: valid entries of SHOP_LINKS, minus links of kind "amazon" (the
+ * Associates links) while the gate is closed. Plain links are not part of any programme and always pass.
+ */
 export function shopLinks(): ShopLinks {
   const raw = process.env.SHOP_LINKS;
   if (!cache || cache.raw !== raw) cache = { raw, links: parseShopLinks(raw, (msg) => console.warn(msg)) };

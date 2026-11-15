@@ -47,7 +47,21 @@ const fakeGenerate = async (img: string, prompt: string): Promise<Buffer> => {
   return sharp({ create: { width: 640, height: 480, channels: 3, background: "#a08060" } }).png().toBuffer();
 };
 
-const server = createApp(fakeGenerate, "fake-model").listen(0);
+// Fake door check: answers are taken from this queue ("yes" = a door was hidden or changed); empty queue = "no".
+let doorAnswers: (boolean | Error)[] = [];
+let doorCalls = 0;
+let lastDoorQuestion = "";
+let doorImages: [string, string] = ["", ""];
+const fakeAskYesNo = async (first: string, second: string, question: string): Promise<boolean> => {
+  doorCalls++;
+  lastDoorQuestion = question;
+  doorImages = [first, second];
+  const next = doorAnswers.shift() ?? false;
+  if (next instanceof Error) throw next;
+  return next;
+};
+
+const server = createApp(fakeGenerate, "fake-model", { askYesNo: fakeAskYesNo }).listen(0);
 await new Promise((r) => server.once("listening", r));
 const port = (server.address() as AddressInfo).port;
 const base = `http://127.0.0.1:${port}`;
@@ -102,7 +116,7 @@ await test("install id: header, v1 query, case-insensitive, bad shapes rejected"
   const ip = freshIp();
   const a = await req("GET", "/api/me", { headers: { "x-install-id": id.toUpperCase() }, ip });
   assert.equal(a.status, 200);
-  assert.deepEqual(a.json, { credits: 3, paid: false, freeDenied: false });
+  assert.deepEqual(a.json, { credits: 1, paid: false, freeDenied: false }); // FREE_CREDITS defaults to 1 since 1.0.6
   const b = await req("GET", `/api/me?installId=${id}`, { ip }); // v1 client
   assert.deepEqual(b.json, a.json);
   assert.equal((peek.prepare("SELECT COUNT(*) n FROM users WHERE lower(id) = ?").get(id) as any).n, 1);
@@ -119,8 +133,8 @@ await test("new-install cap per IP sets freeDenied", async () => {
   const r2 = await req("GET", "/api/me", { headers: { "x-install-id": uuid() }, ip });
   const deniedId = uuid();
   const r3 = await req("GET", "/api/me", { headers: { "x-install-id": deniedId }, ip });
-  assert.equal(r1.json.credits, 3);
-  assert.equal(r2.json.credits, 3);
+  assert.equal(r1.json.credits, 1);
+  assert.equal(r2.json.credits, 1);
   assert.deepEqual(r3.json, { credits: 0, paid: false, freeDenied: true });
   // Buying credits clears freeDenied.
   const w = await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_15", app_user_id: deniedId, transaction_id: "GPA.deny-1" });
@@ -184,18 +198,26 @@ await test("redesign: success (header and v1 body), styles and image types valid
   mode = "ok";
   const r = await req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId: "japandi", requestId: uuid() }, ip });
   assert.equal(r.status, 200);
-  assert.equal(r.json.credits, 2);
+  assert.equal(r.json.credits, 0);
   assert.ok(r.json.image.length > 1000);
+  // Room designs carry no designId: only Christmas designs can be moved.
+  assert.ok(!("designId" in r.json) && !("freeMove" in r.json));
+  // The one free credit is gone: the next design is refused without calling the model.
+  const beforeBroke = calls;
+  const broke = await req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId: "boho" }, ip });
+  assert.deepEqual([broke.status, broke.json], [402, { error: "NO_CREDITS", credits: 0 }]);
+  assert.equal(calls, beforeBroke);
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_15", app_user_id: id, transaction_id: "GPA.success" });
   const v1 = await req("POST", "/api/redesign", { body: { installId: id, image: jpeg, styleId: "boho" }, ip });
   assert.equal(v1.status, 200);
-  assert.equal(v1.json.credits, 1);
+  assert.equal(v1.json.credits, 14);
   for (const styleId of ["constructor", "__proto__", "toString", "nope"]) {
     assert.equal((await req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId }, ip })).json.error, "BAD_STYLE");
   }
   for (const image of [gif, tiff, "x".repeat(2000)]) {
     assert.equal((await req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image, styleId: "boho" }, ip })).json.error, "BAD_IMAGE");
   }
-  assert.equal(await credits(id), 1);
+  assert.equal(await credits(id), 14);
   await new Promise((r) => setTimeout(r, 50));
   assert.equal((peek2.prepare("SELECT COUNT(*) n FROM generations WHERE user_id = ? AND ok = 1").get(id) as any).n, 2);
 });
@@ -267,7 +289,7 @@ await test("config: tree shop link defaults to the store, can be replaced or swi
   delete process.env.AMAZON_APP_APPROVED;
   delete process.env.TREE_CATALOG;
   const { treeCatalog: trees, ...rest } = await get();
-  assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {} });
+  assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false });
   assert.equal(trees.length, 10);
   process.env.TREE_SHOP_URL = "https://christmastreesinthemail.com/?ref=decohero";
   assert.equal((await get()).treeShopUrl, "https://christmastreesinthemail.com/?ref=decohero");
@@ -355,7 +377,7 @@ await test("shop links: mixed config, Amazon gate off and on, invalid entries ig
     const r = await req("GET", "/api/config");
     assert.equal(r.status, 200, broken.slice(0, 20));
     const { treeCatalog: _trees, ...rest } = r.json;
-    assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {} }, broken.slice(0, 20));
+    assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false }, broken.slice(0, 20));
   }
   delete process.env.SHOP_LINKS;
   delete process.env.AMAZON_APP_APPROVED;
@@ -531,7 +553,9 @@ await test("tree spot: marker drawn on a copy, prompt follows the marker, strict
 
   // Prompt: base on the marker, marker removed, doors untouched, our own corner / door-distance rules gone, sizes kept.
   assert.ok(lastPrompt.includes("adding ONE Christmas tree"));
-  assert.ok(/centre of its\s+base exactly on the magenta marker/.test(lastPrompt));
+  // 1.0.6 wording: the trunk on the centre dot, the skirt centred on it, the marker hidden under the tree.
+  assert.ok(/trunk meets\s+the floor exactly on the centre dot of the magenta marker/.test(lastPrompt));
+  assert.ok(/skirt is centred on that dot/.test(lastPrompt) && /hidden under\s+the middle of the tree/.test(lastPrompt));
   assert.ok(/Remove the marker\s+completely/.test(lastPrompt) && /no magenta circle, no magenta dot and no magenta tint/.test(lastPrompt));
   assert.ok(/never remove, hide or redraw a door/.test(lastPrompt));
   assert.ok(!lastPrompt.includes("empty corner") && !lastPrompt.includes("an arm's length"));
@@ -612,13 +636,13 @@ await test("redesign: failure refunds the credit and gives the daily slot back; 
   for (let i = 0; i < 4; i++) {
     const r = await req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId: "boho" }, ip });
     assert.equal(r.status, 502);
-    assert.deepEqual(r.json, { error: "GENERATION_FAILED", credits: 3 });
+    assert.deepEqual(r.json, { error: "GENERATION_FAILED", credits: 1 });
   }
   assert.equal(today()?.total ?? 0, before);
   const capped = await req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId: "boho" }, ip });
   assert.equal(capped.status, 429);
   assert.equal(capped.json.error, "TOO_MANY_FAILURES");
-  assert.equal(await credits(id), 3);
+  assert.equal(await credits(id), 1);
   mode = "ok";
 });
 
@@ -638,14 +662,14 @@ await test("redesign: client disconnect refunds once; finished response keeps th
     setTimeout(() => { r.destroy(); resolve(); }, 150);
   });
   await new Promise((r) => setTimeout(r, 700)); // let the fake generation finish and try to respond
-  assert.equal(await credits(id), 3, "credit refunded after disconnect");
+  assert.equal(await credits(id), 1, "credit refunded after disconnect");
   const rows = peek2.prepare("SELECT ok FROM generations WHERE user_id = ?").all(id) as { ok: number }[];
   assert.deepEqual(rows.map((x) => x.ok), [0], "logged once, as not delivered");
   mode = "ok";
   const r = await req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId: "coastal" }, ip });
   assert.equal(r.status, 200);
   await new Promise((r) => setTimeout(r, 50));
-  assert.equal(await credits(id), 2, "no refund when the response finished");
+  assert.equal(await credits(id), 0, "no refund when the response finished");
 });
 
 await test("report: validated, needs an existing install, deduped, reason fixed", async () => {
@@ -696,6 +720,152 @@ await test("IPv6 /64 grouping expands compressed addresses", async () => {
   assert.equal(g("::ffff:203.0.113.5"), "203.0.113.5");
   assert.equal(g("64:ff9b::203.0.113.5"), "64:ff9b:0:0::/64");
   assert.equal(g("198.51.100.7"), "198.51.100.7");
+});
+
+await test("prompts 1.0.6: full fir in every theme, height as a share of the room, furniture rulers, sloped ceilings", async () => {
+  const { buildPrompt, TREE_PROMPTS } = await import("../src/styles.js");
+  const ids = Object.keys(TREE_PROMPTS);
+  assert.equal(ids.length, 6);
+  for (const styleId of ids) {
+    const prompt = buildPrompt(styleId, { ceilingCm: 305, treeCm: 213, species: "Fraser fir" })!;
+    // Shape: the tree the partner ships, whatever hangs on it.
+    assert.ok(/full, dense, wide silhouette/.test(prompt) && /never a slim, pencil, narrow or sparse-branched tree/.test(prompt), styleId);
+    assert.ok(/Tree: a full/.test(TREE_PROMPTS[styleId]), styleId);
+    // Height: 213 of 305 cm = 70%, the door, the furniture and the baseboard as rulers.
+    assert.ok(prompt.includes("7 ft (213 cm) tall from the floor to its very top, stand and topper included"), styleId);
+    assert.ok(prompt.includes("That is 70% of the floor-to-ceiling height") && prompt.includes("gap of about 92 cm"), styleId);
+    assert.ok(prompt.includes("203 cm (6 ft 8 in)"), styleId);
+    for (const ruler of ["sofa is about 85 cm", "seat about 45 cm", "side table is about 60 cm", "dining table about 75 cm", "baseboard about 10 to 15 cm"]) {
+      assert.ok(prompt.includes(ruler), `${styleId}: ${ruler}`);
+    }
+    // Attics: the typed height is the tall part of the room, and the tree never pokes into the slope.
+    assert.ok(/sloped or vaulted ceiling[^.]*the ceiling height given here is that of the full-height part of the room/.test(prompt), styleId);
+    assert.ok(/no branch, tip or topper may touch, cross or disappear into a sloped ceiling/.test(prompt), styleId);
+    assert.ok(!/undefined|NaN|null/.test(prompt), styleId);
+  }
+  // Nordic: only the decoration is minimal.
+  const nordic = TREE_PROMPTS["xmas-nordic"];
+  assert.ok(/full, dense, wide Fraser fir with the classic pyramidal silhouette/.test(nordic));
+  assert.ok(/not a slim, pencil or sparse-branched tree/.test(nordic) && /Only the ornaments and lights are minimal/.test(nordic));
+  assert.ok(!/\bairy\b|cone shape|sparingly/.test(nordic));
+  // The species swap still reaches the theme text.
+  assert.ok(buildPrompt("xmas-nordic", { treeCm: 213, species: "Balsam fir" })!.includes("full, dense, wide Balsam fir"));
+
+  // Share of the room for other sizes; with only a ceiling the share follows from the 12 in gap.
+  assert.ok(buildPrompt("xmas-classic", { ceilingCm: 244, treeCm: 213 })!.includes("That is 87% of the floor-to-ceiling height"));
+  assert.ok(buildPrompt("xmas-classic", { ceilingCm: 305, treeCm: 274 })!.includes("That is 90% of the floor-to-ceiling height"));
+  const ceilingOnly = buildPrompt("xmas-classic", { ceilingCm: 244 })!;
+  assert.ok(ceilingOnly.includes("about 30 cm (12 in) below the ceiling: about 88% of the floor-to-ceiling height") && ceilingOnly.includes("side table is about 60 cm"));
+  const treeOnly = buildPrompt("xmas-classic", { treeCm: 183 })!;
+  assert.ok(!treeOnly.includes("% of the floor-to-ceiling") && treeOnly.includes("sloped or vaulted ceiling") && !treeOnly.includes("height given here"));
+  assert.ok(buildPrompt("xmas-classic")!.includes("sofa is about 85 cm"));
+  // Interior styles know nothing of all this.
+  assert.ok(!/sofa is about|sloped|pyramid/.test(buildPrompt("japandi", { ceilingCm: 244, treeCm: 213 })!));
+});
+
+await test("move tree 1.0.6: the tapped spot is in the prompt in words, beats composition, and a new spot gives a new prompt and marker", async () => {
+  const { buildPrompt } = await import("../src/styles.js");
+  const size = { ceilingCm: 244, treeCm: 213 };
+  const first = buildPrompt("xmas-nordic", size, { x: 0.6, y: 0.72 })!;
+  const moved = buildPrompt("xmas-nordic", size, { x: 0.43, y: 0.72 })!;
+  assert.ok(first.includes("about 60% of the image width from the left edge and about 72% of the image height from the top"));
+  assert.ok(moved.includes("about 43% of the image width from the left edge"));
+  assert.notEqual(first, moved);
+  for (const prompt of [first, moved]) {
+    assert.ok(/The marked spot decides where the tree stands, not the composition/.test(prompt));
+    assert.ok(/do not slide the tree toward open floor, a rug, a corner/.test(prompt));
+    // Clearing off: furniture stays, but it no longer pushes the tree off the spot.
+    assert.ok(/the tree still stands on the spot/.test(prompt) && /do not move the tree sideways to avoid it/.test(prompt));
+    // Under a slope the height wins, by as little as possible.
+    assert.ok(/as close to the marked spot as its height\s+allows, moved only toward the higher part of the room/.test(prompt));
+    assert.ok(!/Clearing rule/.test(prompt) && !/empty corner/.test(prompt));
+  }
+  // Clearing on: the small thing on the spot is taken out instead.
+  const cleared = buildPrompt("xmas-nordic", size, { x: 0.43, y: 0.72 }, { clear: true })!;
+  assert.ok(/circle of the clearing rule below is centred on the marked spot/.test(cleared) && /Clearing rule:/.test(cleared));
+  assert.ok(!/the tree still stands on the spot/.test(cleared));
+  // A bare "marked" flag (no coordinates) still gives the marker text; no spot gives none of it.
+  const flag = buildPrompt("xmas-nordic", size, true)!;
+  assert.ok(/centre dot of the magenta marker/.test(flag) && !/of the image width/.test(flag));
+  const auto = buildPrompt("xmas-nordic", size)!;
+  assert.ok(!/magenta|marked spot/.test(auto));
+
+  // End to end: the same photo twice, as "Move tree" sends it. Each request carries its own spot into the prompt
+  // and its own marker onto a fresh copy of the photo; nothing of the first spot is left in the second.
+  const id = uuid();
+  const ip = freshIp();
+  await req("GET", "/api/me", { headers: { "x-install-id": id }, ip });
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_15", app_user_id: id, transaction_id: "GPA.move106" });
+  const post = (place: { x: number; y: number }) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId: "xmas-nordic", ceilingCm: 243.84, treeCm: 213.36, place }, ip });
+  const magentaAt = async (b64: string, x: number, y: number) => {
+    const { data, info } = await sharp(Buffer.from(b64, "base64")).raw().toBuffer({ resolveWithObject: true });
+    const i = (Math.round(y * info.height) * info.width + Math.round(x * info.width)) * info.channels;
+    return data[i] > 200 && data[i + 1] < 90 && data[i + 2] > 200;
+  };
+  mode = "ok";
+  assert.equal((await post({ x: 0.6, y: 0.72 })).status, 200);
+  assert.ok(lastPrompt.includes("about 60% of the image width") && (await magentaAt(lastImage, 0.6, 0.72)));
+  assert.equal((await post({ x: 0.43, y: 0.72 })).status, 200);
+  assert.ok(lastPrompt.includes("about 43% of the image width") && !lastPrompt.includes("60% of the image width"));
+  assert.ok((await magentaAt(lastImage, 0.43, 0.72)) && !(await magentaAt(lastImage, 0.6, 0.72)));
+});
+
+await test("shop links 1.0.6: plain links need no approval and no disclosure, and may not hide an affiliate tag", async () => {
+  const { parseShopLinks } = await import("../src/shopLinks.js");
+  const ip = freshIp();
+  const get = async () => (await req("GET", "/api/config", { ip })).json;
+  const set = (v: unknown) => { process.env.SHOP_LINKS = JSON.stringify(v); };
+  delete process.env.AMAZON_APP_APPROVED;
+  const search = { label_en: "Wooden ornaments", label_es: "Adornos de madera", url: "https://www.amazon.com/s?k=natural+wood+christmas+ornaments", kind: "plain" };
+  const shop = { label_en: "Seagrass tree collar", url: "https://decor.example.org/collars/seagrass", kind: "plain" };
+  const tagged = { label_en: "Wooden ornaments", label_es: "Adornos de madera", url: "https://www.amazon.com/s?k=natural+wood+christmas+ornaments&tag=example-20", kind: "amazon" };
+  const partner = { label_en: "Velvet ribbon", url: "https://shop.example.com/ribbon?ref=decohero", kind: "partner" };
+
+  // Gate closed: plain links (to Amazon or anywhere) and partner links go out, the tagged Amazon link does not.
+  set({ "xmas-nordic": [search, shop, tagged, partner] });
+  const closed = (await get()).shopLinks;
+  assert.deepEqual(closed, {
+    "xmas-nordic": [
+      { en: "Wooden ornaments", es: "Adornos de madera", url: "https://www.amazon.com/s?k=natural+wood+christmas+ornaments", kind: "plain" },
+      { en: "Seagrass tree collar", es: "Seagrass tree collar", url: "https://decor.example.org/collars/seagrass", kind: "plain" },
+      { en: "Velvet ribbon", es: "Velvet ribbon", url: "https://shop.example.com/ribbon?ref=decohero", kind: "partner" },
+    ],
+  });
+  // The tree link is untouched by all this: still the partner's store, still an affiliate link when TREE_SHOP_URL has one.
+  process.env.TREE_SHOP_URL = "https://christmastreesinthemail.com/?sca_ref=EXAMPLE";
+  const cfg = await get();
+  assert.equal(cfg.treeShopUrl, "https://christmastreesinthemail.com/?sca_ref=EXAMPLE");
+  assert.ok(cfg.treeCatalog.every((t: any) => t.url.includes("sca_ref=EXAMPLE")));
+  delete process.env.TREE_SHOP_URL;
+
+  // The later switch is config only: same theme, same label, now a tagged link of kind "amazon" behind the gate.
+  set({ "xmas-nordic": [tagged] });
+  assert.deepEqual((await get()).shopLinks, {});
+  process.env.AMAZON_APP_APPROVED = "true";
+  assert.deepEqual((await get()).shopLinks["xmas-nordic"].map((l: any) => [l.kind, l.url.includes("tag=example-20")]), [["amazon", true]]);
+  delete process.env.AMAZON_APP_APPROVED;
+
+  // A plain link is shown without a disclosure, so it may not be an affiliate link in disguise.
+  const reasons: string[] = [];
+  const bad = [
+    { ...search, url: "https://www.amazon.com/dp/EXAMPLE?tag=example-20" }, { ...search, url: "https://www.amazon.com/dp/EXAMPLE?TAG=example-20" },
+    { ...search, url: "https://www.amazon.com/dp/EXAMPLE?linkCode=ll1&th=1" }, { ...search, url: "https://amzn.to/example" },
+    { ...search, url: "https://a.co/d/example" }, { ...search, url: "https://bit.ly/example" },
+    { ...shop, url: "https://christmastreesinthemail.com/?sca_ref=EXAMPLE" }, { ...shop, url: "https://decor.example.org/collars?ref=decohero" },
+    { ...shop, url: "https://decor.example.org/collars?aff=7" }, { ...shop, url: "https://decor.example.org/collars?irclickid=abc" },
+    { ...shop, url: "http://decor.example.org/collars" }, { ...shop, url: "https://user:pw@decor.example.org/" }, { ...shop, label_en: "" },
+  ];
+  for (const entry of bad) {
+    assert.deepEqual(parseShopLinks(JSON.stringify({ "xmas-winter": [entry, shop] }), (m) => reasons.push(m))["xmas-winter"].map((l) => l.url),
+      ["https://decor.example.org/collars/seagrass"], JSON.stringify(entry));
+  }
+  assert.equal(reasons.length, bad.length);
+  assert.ok(reasons.some((m) => m.includes("plain link carries an affiliate parameter")) && reasons.some((m) => m.includes("plain link uses a link shortener")));
+  // Harmless query strings stay.
+  const fine = parseShopLinks(JSON.stringify({ "xmas-winter": [{ ...search, url: "https://www.amazon.com/s?k=white+faux+fur+tree+skirt&i=garden&s=review-rank" }] }));
+  assert.equal(fine["xmas-winter"][0].kind, "plain");
+  delete process.env.SHOP_LINKS;
 });
 
 server.close();

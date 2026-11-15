@@ -116,7 +116,8 @@ export function ResultsScreen({
           const showShop = christmas && (!!treeShopUrl || decor.length > 0);
           // The real tree to order for this ceiling; its link already carries the affiliate parameters.
           const product = showTree && tree && treeShopUrl ? tree.product : null;
-          const partnerShown = !!treeShopUrl || decor.some((l) => l.kind === "partner");
+          // Disclosures follow the links: the tree button carries its own, plain decor links carry none.
+          const partnerShown = decor.some((l) => l.kind === "partner");
           const amazonShown = decor.some((l) => l.kind === "amazon");
           return (
             // Each page scrolls on its own so tall portrait photos never push the actions off small screens.
@@ -196,7 +197,7 @@ export function ResultsScreen({
                               {product && item.styleId === "xmas-winter" && (
                                 <Text style={styles.flock}>{t.flockNote(t.species(product.species))}</Text>
                               )}
-                              <Text style={styles.treeNote}>{t.buyTreeNote}{product ? ` ${t.pricesNote}` : ""}</Text>
+                              <Text style={styles.treeNote}>{t.buyTreeNote} {t.partnerDisclosure}{product ? ` ${t.pricesNote}` : ""}</Text>
                             </>
                           )}
                           {decor.map((link, i) => (
@@ -208,7 +209,7 @@ export function ResultsScreen({
                               maxFontSizeMultiplier={MAX_SCALE}
                             />
                           ))}
-                          {/* One disclosure per kind of link that is actually on screen. */}
+                          {/* One disclosure per kind of affiliate decor link that is actually on screen. */}
                           {partnerShown && <Text style={styles.treeNote}>{t.partnerDisclosure}</Text>}
                           {amazonShown && <Text style={styles.treeNote}>{t.amazonDisclosure}</Text>}
                         </>

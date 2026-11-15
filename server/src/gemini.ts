@@ -36,3 +36,32 @@ export async function generateRedesign(imageJpegBase64: string, prompt: string):
   }
   return Buffer.from(imagePart.inlineData.data, "base64");
 }
+
+// Cheap text model for the yes/no door check after Christmas designs (DOOR_CHECK, see app.ts).
+export const DOOR_CHECK_MODEL = process.env.DOOR_CHECK_MODEL || "gemini-3.5-flash-lite";
+
+/**
+ * Shows the model the user's photo and the generated design and asks one yes/no question.
+ * true = "yes", false = "no". Anything else (other text, no text, API error, timeout) throws,
+ * and the caller treats that as "not checked".
+ */
+export async function askYesNo(firstJpegBase64: string, secondJpegBase64: string, question: string): Promise<boolean> {
+  const response = await ai.models.generateContent({
+    model: DOOR_CHECK_MODEL,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: firstJpegBase64 } },
+          { inlineData: { mimeType: "image/jpeg", data: secondJpegBase64 } },
+          { text: question },
+        ],
+      },
+    ],
+    config: { temperature: 0, httpOptions: { timeout: 25_000 } },
+  });
+  const answer = (response.text ?? "").trim().toLowerCase();
+  if (/^yes\b/.test(answer)) return true;
+  if (/^no\b/.test(answer)) return false;
+  throw new Error(`door check gave no yes/no answer (${answer.slice(0, 40) || "empty"})`);
+}

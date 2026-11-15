@@ -30,7 +30,8 @@ export function LooksScreen({ treeShopUrl, tree, shopLinks, onOpenLink, onBack }
   const themes = TREE_PRESETS.map((p) => ({ ...p, links: shopLinks[p.id] ?? [], flocked: p.id === "xmas-winter" && !!product }))
     .filter((p) => p.links.length > 0 || p.flocked);
   const all = themes.flatMap((p) => p.links);
-  const partnerShown = !!treeShopUrl || all.some((l) => l.kind === "partner");
+  // Disclosures follow the links: tree buttons carry their own, plain decor links carry none.
+  const partnerShown = all.some((l) => l.kind === "partner");
   const amazonShown = all.some((l) => l.kind === "amazon");
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -51,12 +52,12 @@ export function LooksScreen({ treeShopUrl, tree, shopLinks, onOpenLink, onBack }
                 <Text style={styles.text}>{treeForCeiling(tree, true)}</Text>
                 <Button label={buyTreeLabel(product)} onPress={() => onOpenLink(product.url)} />
                 <Button label={t.allTrees} variant="quiet" onPress={() => onOpenLink(treeShopUrl)} />
-                <Text style={styles.note}>{t.buyTreeNote} {t.pricesNote}</Text>
+                <Text style={styles.note}>{t.buyTreeNote} {t.partnerDisclosure} {t.pricesNote}</Text>
               </>
             ) : (
               <>
                 <Button label={t.buyTree} onPress={() => onOpenLink(treeShopUrl)} />
-                <Text style={styles.note}>{t.buyTreeNote}</Text>
+                <Text style={styles.note}>{t.buyTreeNote} {t.partnerDisclosure}</Text>
               </>
             )}
           </View>
@@ -69,6 +70,7 @@ export function LooksScreen({ treeShopUrl, tree, shopLinks, onOpenLink, onBack }
               <>
                 <Button label={buyTreeLabel(product)} variant="quiet" onPress={() => onOpenLink(product.url)} />
                 <Text style={styles.text}>{t.flockNote(t.species(product.species))}</Text>
+                <Text style={styles.note}>{t.partnerDisclosure}</Text>
               </>
             )}
             {p.links.map((link, i) => (
@@ -77,7 +79,7 @@ export function LooksScreen({ treeShopUrl, tree, shopLinks, onOpenLink, onBack }
           </View>
         ))}
 
-        {/* One disclosure per kind of link that is actually on screen. */}
+        {/* One disclosure per kind of affiliate decor link that is actually on screen. */}
         {partnerShown && <Text style={styles.note}>{t.partnerDisclosure}</Text>}
         {amazonShown && <Text style={styles.note}>{t.amazonDisclosure}</Text>}
       </ScrollView>

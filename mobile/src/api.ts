@@ -48,8 +48,12 @@ export type Me = { credits: number; paid: boolean; freeDenied?: boolean };
 /** Settings the server can change without an app release. Older servers don't have the endpoint (404). */
 export type AppConfig = { christmas: boolean; treeShopUrl: string; shopLinks: unknown; treeCatalog: unknown };
 
-/** A "Shop this look" link for one Christmas theme. Amazon links only arrive once the server's gate is open. */
-export type ShopLink = { en: string; es: string; url: string; kind: "amazon" | "partner" };
+/**
+ * A "Shop this look" link for one Christmas theme. "amazon" and "partner" are affiliate links and are shown
+ * with their disclosure; "plain" (app 1.0.6+) earns nothing and is shown without one. Amazon affiliate links
+ * only arrive once the server's gate is open.
+ */
+export type ShopLink = { en: string; es: string; url: string; kind: "amazon" | "partner" | "plain" };
 export type ShopLinks = Record<string, ShopLink[]>;
 
 const MAX_LINKS_PER_THEME = 4;
@@ -63,7 +67,7 @@ export function parseShopLinks(raw: unknown): ShopLinks {
     const links = list.filter(
       (l): l is ShopLink =>
         !!l && typeof l.en === "string" && !!l.en && typeof l.es === "string" && !!l.es &&
-        typeof l.url === "string" && l.url.startsWith("https://") && (l.kind === "amazon" || l.kind === "partner")
+        typeof l.url === "string" && l.url.startsWith("https://") && (l.kind === "amazon" || l.kind === "partner" || l.kind === "plain")
     );
     if (links.length) out[theme] = links.slice(0, MAX_LINKS_PER_THEME);
   }

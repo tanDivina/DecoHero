@@ -42,6 +42,15 @@ db.exec(`
     free INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS users_ip_created ON users (ip, created_at);
+  -- One row per delivered Christmas design (server 1.0.6): lets its first "Move tree" be free. Purged after 7 days.
+  CREATE TABLE IF NOT EXISTS designs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    style_id TEXT NOT NULL,
+    move_used INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS designs_created ON designs (created_at);
 `);
 
 // Migrations for existing databases on the /data volume. Only additive: never drop or rewrite data.
@@ -75,7 +84,7 @@ const envInt = (name: string, fallback: number) => {
   const n = Number(process.env[name]);
   return process.env[name] !== undefined && process.env[name] !== "" && Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
 };
-const FREE_CREDITS = envInt("FREE_CREDITS", 3);
+const FREE_CREDITS = envInt("FREE_CREDITS", 1);
 // Shared Wi-Fi and carrier-grade NAT put many real users behind one IP, so this is deliberately generous.
 const MAX_NEW_PER_IP = envInt("MAX_NEW_INSTALLS_PER_IP_PER_DAY", 15);
 
@@ -218,4 +227,39 @@ export function releaseGeneration(paid: boolean, day: string) {
 export function purgeOldIps(): number {
   const cutoff = Date.now() - 48 * 60 * 60 * 1000;
   return db.prepare("UPDATE users SET ip = NULL WHERE ip IS NOT NULL AND created_at < ?").run(cutoff).changes;
+}
+
+/** Remembers a delivered Christmas design so its first move can be free. Holds no photo and no IP. */
+export function addDesign(id: string, userId: string, styleId: string) {
+  db.prepare("INSERT INTO designs (id, user_id, style_id, move_used, created_at) VALUES (?, ?, ?, 0, ?)").run(
+    id, userId, styleId.slice(0, 64), Date.now()
+  );
+}
+
+/** For a design whose response never reached the phone: the id was never usable. */
+export function removeDesign(id: string) {
+  db.prepare("DELETE FROM designs WHERE id = ?").run(id);
+}
+
+/** True when this install owns a design with this id in this style (whether or not its free move is used). */
+export function ownsDesign(id: string, userId: string, styleId: string): boolean {
+  return !!db.prepare("SELECT 1 FROM designs WHERE id = ? AND user_id = ? AND style_id = ?").get(id, userId, styleId);
+}
+
+/** Atomically takes the one free move of a design. False if it is unknown, someone else's, another style or used. */
+export function claimFreeMove(id: string, userId: string, styleId: string): boolean {
+  return db
+    .prepare("UPDATE designs SET move_used = 1 WHERE id = ? AND user_id = ? AND style_id = ? AND move_used = 0")
+    .run(id, userId, styleId).changes === 1;
+}
+
+/** Gives the free move back when the moved design failed or never reached the phone (like a credit refund). */
+export function releaseFreeMove(id: string) {
+  db.prepare("UPDATE designs SET move_used = 0 WHERE id = ?").run(id);
+}
+
+/** Retention: design rows are only needed while a result is on screen. Returns the number of rows removed. */
+export function purgeOldDesigns(): number {
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return db.prepare("DELETE FROM designs WHERE created_at < ?").run(cutoff).changes;
 }

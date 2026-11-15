@@ -77,6 +77,8 @@ export default function App() {
     const unit = defaultUnit(lang);
     return { unit, text: DEFAULT_CEILING[unit] };
   });
+  // Tree size picked on Home (a product id); null = the recommended, tallest tree that fits the ceiling.
+  const [treeChoice, setTreeChoice] = useState<string | null>(null);
   // Sizes the current results were made with (Christmas runs only).
   const [resultTree, setResultTree] = useState<TreeFit | null>(null);
   const [christmasOn, setChristmasOn] = useState(true);
@@ -215,7 +217,7 @@ export default function App() {
     const run = styleIds.map((styleId) => ({ styleId, requestId: randomUUID(), status: "loading" as const, place: spot }));
     // Home only enables the button in Christmas mode once the ceiling height is valid.
     const height = mode === "christmas" ? ceilingCm(ceiling) : null;
-    const tree = height === null ? null : treeFit(height, ceiling.unit, treeCatalog);
+    const tree = height === null ? null : treeFit(height, ceiling.unit, treeCatalog, treeChoice);
     setResultTree(tree);
     setResultPhoto(photo);
     setResults(run);
@@ -264,7 +266,7 @@ export default function App() {
   const hasShopLinks = !!treeShopUrl || Object.keys(shopLinks).length > 0;
   // "Shop the styles" shows the tree for the ceiling typed on Home, when that is a valid height.
   const looksHeight = ceilingCm(ceiling);
-  const looksTree = looksHeight === null ? null : treeFit(looksHeight, ceiling.unit, treeCatalog);
+  const looksTree = looksHeight === null ? null : treeFit(looksHeight, ceiling.unit, treeCatalog, treeChoice);
 
   if (!fontsLoaded || !langReady) return null;
 
@@ -288,6 +290,8 @@ export default function App() {
             onSelect={mode === "christmas" ? setTreeSelected : setSelected}
             ceiling={ceiling}
             onCeiling={setCeiling}
+            treeChoice={treeChoice}
+            onTreeChoice={setTreeChoice}
             onRedesign={redesign}
             onViewResults={results.length && resultPhoto ? () => setScreen("results") : undefined}
             onOpenShop={openShop}

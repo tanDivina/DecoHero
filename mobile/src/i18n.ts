@@ -119,6 +119,10 @@ const en = {
   treeNone: (tree: string) => `No floor tree fits under this ceiling. A small tree on a table still works: ${tree}.`,
   treeNoneBare: "No floor tree fits under this ceiling.",
   treeRecommended: (tree: string, ceiling: string) => `Recommended for your ${ceiling} ceiling: ${tree}`,
+  treeSizeTitle: "Tree size",
+  treeSizeHint: "The tallest tree that fits is selected. Pick a smaller one if you like.",
+  treePicked: (tree: string, gap: string) => `Your tree: ${tree}. That leaves about ${gap} under the ceiling.`,
+  treeChosen: (tree: string, ceiling: string) => `Your tree for your ${ceiling} ceiling: ${tree}`,
   species: (s: "fraser" | "balsam" | "hybrid"): string =>
     s === "fraser" ? "Fraser fir" : s === "balsam" ? "Balsam fir" : "Balsam-Fraser hybrid",
   sizeRange: (from: string, to: string) => `${from} to ${to} ft`,
@@ -253,6 +257,10 @@ const es: Strings = {
   treeNone: (tree) => `Bajo este techo no cabe un árbol de piso. Un árbol pequeño sobre una mesa sí funciona: ${tree}.`,
   treeNoneBare: "Bajo este techo no cabe un árbol de piso.",
   treeRecommended: (tree, ceiling) => `Recomendado para tu techo de ${ceiling}: ${tree}`,
+  treeSizeTitle: "Tamaño del árbol",
+  treeSizeHint: "Está marcado el árbol más alto que cabe. Elige uno más pequeño si prefieres.",
+  treePicked: (tree, gap) => `Tu árbol: ${tree}. Quedan unos ${gap} bajo el techo.`,
+  treeChosen: (tree, ceiling) => `Tu árbol para tu techo de ${ceiling}: ${tree}`,
   species: (s) => (s === "fraser" ? "abeto Fraser" : s === "balsam" ? "abeto balsámico" : "híbrido balsámico-Fraser"),
   sizeRange: (from, to) => `${from} a ${to} ft`,
   sizeUpTo: (size) => `hasta ${size}`,
@@ -350,9 +358,11 @@ export function treeDescription(p: TreeProduct, unit: Unit, withShop: boolean): 
 }
 
 /** The recommendation sentence for a ceiling: Home shows it live, Results repeats it. */
-export function treeAdvice(pick: TreePick, unit: Unit, withShop: boolean): string {
+export function treeAdvice(pick: TreePick, unit: Unit, withShop: boolean, ceilingCm?: number): string {
   if (!pick.product) return t.treeNoneBare;
   const tree = treeDescription(pick.product, unit, withShop);
+  // A size the user picked: say how much room it leaves instead of calling it the recommendation.
+  if (pick.picked && ceilingCm !== undefined) return t.treePicked(tree, formatLength(ceilingCm - pick.product.maxFt * CM_PER_FT, unit));
   switch (pick.kind) {
     case "largest": return t.treeLargest(tree);
     case "tabletop": return t.treeTabletop(tree);
@@ -363,6 +373,7 @@ export function treeAdvice(pick: TreePick, unit: Unit, withShop: boolean): strin
 
 /** The same recommendation next to a result or a shop link: "Recommended for your 8 ft ceiling: ...". */
 export function treeForCeiling(fit: TreeFit, withShop: boolean): string {
+  if (fit.product && fit.picked) return t.treeChosen(treeDescription(fit.product, fit.unit, withShop), formatLength(fit.ceilingCm, fit.unit));
   return fit.product && (fit.kind === "fit" || fit.kind === "largest")
     ? t.treeRecommended(treeDescription(fit.product, fit.unit, withShop), formatLength(fit.ceilingCm, fit.unit))
     : treeAdvice(fit, fit.unit, withShop);

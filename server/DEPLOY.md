@@ -40,7 +40,15 @@ The key is the thing that got the other GCP project suspended, so:
 
 ## Shop this look links
 
-`SHOP_LINKS` maps a Christmas theme id (`xmas-classic`, `xmas-winter`, `xmas-nordic`, `xmas-coquette`, `xmas-tartan`, `xmas-tropical`) to at most 4 links. Each link has `label_en`, `label_es` (optional, English is used if missing), `url` and `kind` (`"partner"` or `"amazon"`). The label is the button text, at most 40 characters.
+`SHOP_LINKS` maps a Christmas theme id (`xmas-classic`, `xmas-winter`, `xmas-nordic`, `xmas-coquette`, `xmas-tartan`, `xmas-tropical`) to at most 4 links. Each link has `label_en`, `label_es` (optional, English is used if missing), `url` and `kind` (`"plain"`, `"partner"` or `"amazon"`). The label is the button text, at most 40 characters.
+
+| `kind` | What it is | Shown in the app |
+|---|---|---|
+| `plain` | An ordinary link that earns nothing: a product or search page with no affiliate tag. Server 1.0.6+, app 1.0.6+ (older apps skip it). | Without any disclosure. |
+| `partner` | An affiliate or referral link to a store that is not Amazon. | With "We may earn a commission." |
+| `amazon` | An Amazon Associates link (with the app's tracking ID). Held back until `AMAZON_APP_APPROVED=true`. | With the Amazon Associate sentence. |
+
+The tree button is separate: it comes from `TREE_SHOP_URL` / `TREE_CATALOG`, is always an affiliate link to the partner's store and always carries "We may earn a commission."
 
 Example with made-up addresses (paste it as a single line):
 
@@ -54,9 +62,18 @@ Rules the server enforces. A link that breaks one is skipped and named in the lo
 - Known theme ids only; anything else is ignored.
 - At most 4 links per theme (extra ones are ignored); labels longer than 40 characters are cut.
 - `kind: "amazon"` must point to an Amazon store (`amazon.com`, `amazon.com.mx`, `amazon.es`, ...) or `amzn.to`.
+- `kind: "plain"` may point anywhere, Amazon included, but must be written out in full (no `amzn.to`, `a.co`, `bit.ly` or other shortener) and may not carry an affiliate parameter (`tag`, `linkCode`, `sca_ref`, `ref`, `aff`, `irclickid`, ...). It is shown without a disclosure, so it has to be a link we earn nothing on.
 - `kind: "partner"` may not point to Amazon (`amazon.*`, `amzn.*`, `a.co`) and may not have "Amazon" in its label. This check reads the address as written: do not put an Amazon link behind another shortener or redirect.
 
 **Amazon links stay off until Amazon approves the app.** Amazon Associates only allows its links inside an "Approved Mobile Application": the app must be live in a public app store, approved by Amazon, and use its own tracking ID. Until then keep `AMAZON_APP_APPROVED` unset: links of kind `amazon` can already sit in `SHOP_LINKS`, but they are filtered out on the server and never reach the app. After approval, put the app's own tracking ID in the Amazon links and set `AMAZON_APP_APPROVED=true`. The links are free to reach: in Christmas mode the Home screen has a "Shop the styles" entry that lists every theme's links without a photo, a design or credits (Amazon requires that its links are accessible without paying), and each Christmas result repeats its own theme's links. The app opens every shop link in the phone's browser or the store's app (never inside DecoHero) and shows "As an Amazon Associate we earn from qualifying purchases." whenever an Amazon link is on screen.
+
+**Plain links now, affiliate links later.** While Amazon has not approved the app, decor links can ship as `kind: "plain"`: untagged product or search pages. A starter set of plain Amazon search links, two per theme (a suggestion: replace searches with hand-picked products as you like), as one line:
+
+```json
+{"xmas-classic":[{"label_en":"Red and gold glass ornaments","label_es":"Esferas de vidrio rojas y doradas","url":"https://www.amazon.com/s?k=red+gold+glass+ball+christmas+ornaments","kind":"plain"},{"label_en":"Red velvet tree skirt","label_es":"Pie de árbol de terciopelo rojo","url":"https://www.amazon.com/s?k=red+velvet+christmas+tree+skirt","kind":"plain"}],"xmas-winter":[{"label_en":"Silver snowflake ornaments","label_es":"Adornos de copos plateados","url":"https://www.amazon.com/s?k=silver+snowflake+christmas+ornaments","kind":"plain"},{"label_en":"White faux fur tree skirt","label_es":"Pie de árbol de pelo blanco","url":"https://www.amazon.com/s?k=white+faux+fur+christmas+tree+skirt","kind":"plain"}],"xmas-nordic":[{"label_en":"Natural wood ornaments","label_es":"Adornos de madera natural","url":"https://www.amazon.com/s?k=natural+wood+christmas+ornaments","kind":"plain"},{"label_en":"Seagrass tree collar","label_es":"Base de árbol de fibra natural","url":"https://www.amazon.com/s?k=seagrass+christmas+tree+collar","kind":"plain"}],"xmas-coquette":[{"label_en":"Pink velvet bows","label_es":"Lazos de terciopelo rosa","url":"https://www.amazon.com/s?k=pink+velvet+bows+christmas+tree","kind":"plain"},{"label_en":"Pearl ornaments","label_es":"Esferas color perla","url":"https://www.amazon.com/s?k=pearl+white+christmas+ball+ornaments","kind":"plain"}],"xmas-tartan":[{"label_en":"Tartan ribbon","label_es":"Cinta de tartán","url":"https://www.amazon.com/s?k=tartan+plaid+christmas+ribbon+wired","kind":"plain"},{"label_en":"Rattan tree collar","label_es":"Base de árbol de ratán","url":"https://www.amazon.com/s?k=rattan+christmas+tree+collar","kind":"plain"}],"xmas-tropical":[{"label_en":"Rattan and shell ornaments","label_es":"Adornos de ratán y conchas","url":"https://www.amazon.com/s?k=rattan+seashell+christmas+ornaments","kind":"plain"},{"label_en":"Seagrass tree collar","label_es":"Base de árbol de fibra natural","url":"https://www.amazon.com/s?k=seagrass+christmas+tree+collar","kind":"plain"}]}
+```
+
+After Amazon approves the app, edit `SHOP_LINKS` only: put the tracking ID in each address (`&tag=YOUR-APP-ID-20`), change its `kind` to `"amazon"`, and set `AMAZON_APP_APPROVED=true`. The app picks the change up on its next start and starts showing the Amazon Associate sentence; no app release is needed.
 
 Check what the app will get: `curl https://API/api/config`.
 

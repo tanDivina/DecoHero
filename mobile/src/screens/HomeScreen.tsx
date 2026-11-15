@@ -3,9 +3,9 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { TreeSpotPhoto } from "../components/TreeSpotPhoto";
-import { t, styleName, treeAdvice } from "../i18n";
+import { t, styleName, treeAdvice, treeDescription, treeSizeLabel } from "../i18n";
 import { MAX_STYLES_PER_RUN, STYLE_PRESETS, TREE_PRESETS } from "../stylePresets";
-import { Ceiling, TreeProduct, Unit, ceilingCm, recommendTree, switchUnit } from "../treeSize";
+import { Ceiling, TreeProduct, Unit, ceilingCm, switchUnit, treeFit, treeOptions } from "../treeSize";
 import { color, font, radius, space } from "../theme";
 import { Photo, Place, choosePhoto, takePhoto } from "../photo";
 
@@ -33,6 +33,9 @@ type Props = {
   onSelect: (styleIds: string[]) => void;
   ceiling: Ceiling;
   onCeiling: (c: Ceiling) => void;
+  /** Product id of the tree size the user picked; null = the recommended (tallest) tree that fits. */
+  treeChoice: string | null;
+  onTreeChoice: (id: string | null) => void;
   onRedesign: (styleIds: string[]) => void;
   /** Shown when finished designs from the last run can be reopened. */
   onViewResults?: () => void;
@@ -45,12 +48,15 @@ type Props = {
 
 export function HomeScreen({
   credits, freeDenied, photo, onPhoto, place, onPlace, treeCatalog, treeShop, mode, onMode, selected, onSelect, ceiling, onCeiling,
-  onRedesign, onViewResults, onOpenShop, onOpenAbout, onOpenLooks, onNotice,
+  treeChoice, onTreeChoice, onRedesign, onViewResults, onOpenShop, onOpenAbout, onOpenLooks, onNotice,
 }: Props) {
   const christmas = mode === "christmas";
   const presets = christmas ? TREE_PRESETS : STYLE_PRESETS;
   const height = christmas ? ceilingCm(ceiling) : null;
   const badCeiling = christmas && height === null;
+  // The tree this run will draw and link to: the recommended one, or the smaller size picked below.
+  const fit = height === null ? null : treeFit(height, ceiling.unit, treeCatalog, treeChoice);
+  const sizes = height === null ? [] : treeOptions(height, treeCatalog);
   const [picking, setPicking] = useState<"camera" | "gallery" | null>(null);
 
   async function pick(source: "camera" | "gallery") {
@@ -245,8 +251,33 @@ export function HomeScreen({
             <Text style={[styles.fit, badCeiling && styles.fitBad]}>
               {height === null
                 ? t.ceilingRange(ceiling.unit)
-                : `${treeAdvice(recommendTree(height, treeCatalog), ceiling.unit, treeShop)} ${t.treeEstimate}`}
+                : `${treeAdvice(fit!, ceiling.unit, treeShop, height)} ${t.treeEstimate}`}
             </Text>
+            {/* Smaller sizes from the partner's catalogue; the last pill is the recommended tree. */}
+            {sizes.length > 1 && fit?.product && (
+              <View style={styles.sizes}>
+                <Text style={styles.sizesTitle}>{t.treeSizeTitle}</Text>
+                <View style={styles.sizePills} accessibilityRole="radiogroup" accessibilityLabel={t.treeSizeTitle}>
+                  {sizes.map((p, i) => {
+                    const on = p.id === fit.product!.id;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        // The recommended tree is stored as "no choice", so it keeps following the ceiling.
+                        onPress={() => onTreeChoice(i === sizes.length - 1 ? null : p.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: on }}
+                        accessibilityLabel={treeDescription(p, ceiling.unit, treeShop)}
+                        style={[styles.sizePill, on && styles.modeOn]}
+                      >
+                        <Text style={styles.sizeText} maxFontSizeMultiplier={MAX_SCALE}>{treeSizeLabel(p)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={styles.prices}>{t.treeSizeHint}</Text>
+              </View>
+            )}
             {height !== null && treeShop && <Text style={styles.prices}>{t.pricesNote}</Text>}
             {/* Shop links never sit behind a design or a credit: this entry needs neither.
                 Placed after the ceiling block so the style chips above can't be mistaken for shop buttons. */}
@@ -396,6 +427,20 @@ const styles = StyleSheet.create({
   },
   fit: { marginTop: space(2), fontSize: 14, lineHeight: 20, color: color.stone },
   fitBad: { color: color.danger },
+  // Tree size pills: same border + fill selection as the unit switch, sized to their label, wrapping on small screens.
+  sizes: { marginTop: space(3) },
+  sizesTitle: { fontSize: 14, fontWeight: "600", color: color.ink, marginBottom: space(2) },
+  sizePills: { flexDirection: "row", flexWrap: "wrap", gap: space(2) },
+  sizePill: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: space(3),
+    borderRadius: radius.chip,
+    backgroundColor: color.plaster,
+    borderWidth: 1.5,
+    borderColor: color.line,
+  },
+  sizeText: { fontSize: 14, fontWeight: "600", color: color.ink, fontVariant: ["tabular-nums"] },
   // 3 equal columns: 12 styles = 4 rows. Labels stay on one line and shrink a little to fit, never wrap or clip.
   // Selection is border + fill + mark only: no weight change, so labels don't reflow when tapped.
   chips: { flexDirection: "row", flexWrap: "wrap", gap: space(2) },

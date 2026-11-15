@@ -3,16 +3,16 @@ import net from "node:net";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import sharp from "sharp";
-import { buildPrompt, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
+import { buildPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
 import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
 import { drawMarker, markerLeaked, parsePlace } from "./marker.js";
 import {
-  addReport, failuresToday, getCredits, getOrCreateUser, getUser, grantPurchase, logGeneration,
-  MAX_FAILURES_PER_INSTALL_PER_DAY, refundCredits, refundPurchase, releaseGeneration, reserveGeneration,
-  spendCredits, utcDay,
+  addDesign, addReport, claimFreeMove, failuresToday, getCredits, getOrCreateUser, getUser, grantPurchase, logGeneration,
+  MAX_FAILURES_PER_INSTALL_PER_DAY, ownsDesign, refundCredits, refundPurchase, releaseFreeMove, releaseGeneration,
+  removeDesign, reserveGeneration, spendCredits, utcDay,
 } from "./db.js";
 
 // Map your Google Play product ids (Play Console + RevenueCat) to credit amounts.
@@ -125,9 +125,43 @@ function treeShopUrl(): string {
 const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp"]);
 
 export type Generate = (imageJpegBase64: string, prompt: string) => Promise<Buffer>;
+/** Two JPEGs and a yes/no question for a cheap vision model; rejects when there is no clear answer. */
+export type AskYesNo = (firstJpegBase64: string, secondJpegBase64: string, question: string) => Promise<boolean>;
 
-export function createApp(generate: Generate, model: string) {
+// Door check (DOOR_CHECK=on): the question asked about the user's photo (first) and the design (second).
+const DOOR_QUESTION =
+  "Is any door or doorway that is visible in the first image hidden, removed or changed in the second? Answer only yes or no.";
+// The user tapped the spot, so a door partly behind the tree is their choice; a door that is gone or redrawn is not.
+const DOOR_QUESTION_MARKED =
+  "The second image is the first image with a Christmas tree added at a spot the user chose. Is any door or doorway that is " +
+  "visible in the first image removed or changed in the second? A door that is only partly behind the tree does not count. " +
+  "Answer only yes or no.";
+const DOOR_CHECK_TIMEOUT_MS = 30_000;
+
+export function createApp(generate: Generate, model: string, extras: { askYesNo?: AskYesNo } = {}) {
   const app = express();
+  // Since the last restart; printed with every flagged or failed door check. No install ids, no IPs.
+  const doorStats = { checked: 0, flagged: 0, retried: 0, fixed: 0, errors: 0 };
+  const forCheck = (img: Buffer) =>
+    sharp(img).resize({ width: 768, height: 768, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
+  /** true = a door was hidden, removed or changed; false = doors are fine; null = the check itself failed. */
+  async function doorChanged(original: Buffer, design: Buffer, marked: boolean): Promise<boolean | null> {
+    doorStats.checked++;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const [a, b] = await Promise.all([forCheck(original), forCheck(design)]);
+      return await Promise.race([
+        extras.askYesNo!(a.toString("base64"), b.toString("base64"), marked ? DOOR_QUESTION_MARKED : DOOR_QUESTION),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("door check timed out")), DOOR_CHECK_TIMEOUT_MS); }),
+      ]);
+    } catch (err) {
+      doorStats.errors++;
+      console.warn(`door check failed, design served unchecked: ${describeError(err)}; totals ${JSON.stringify(doorStats)}`);
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   app.disable("x-powered-by");
   // Number of reverse proxies in front of the app (Railway/Render: 1). Wrong values either let clients
   // spoof their IP (too high) or make every user share the proxy's IP (too low). See DEPLOY.md.
@@ -171,12 +205,14 @@ export function createApp(generate: Generate, model: string) {
     const shopUrl = treeShopUrl();
     res.json({
       christmas: !isOff(process.env.CHRISTMAS_MODE), treeShopUrl: shopUrl, shopLinks: shopLinks(), treeCatalog: treeCatalog(shopUrl),
+      // treeClear (app 1.0.6+): the clearing rule is on, so the app says a plant or lamp on the spot is taken out.
+      treeClear: flagOn("TREE_CLEAR"),
     });
   });
 
   app.post("/api/redesign", async (req, res) => {
     const installId = installIdOf(req);
-    const { image, styleId, ceilingCm, treeCm, place: rawPlace } = req.body ?? {};
+    const { image, styleId, ceilingCm, treeCm, place: rawPlace, moveOf } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
@@ -187,18 +223,21 @@ export function createApp(generate: Generate, model: string) {
     }
     // Sizes only exist for Christmas styles; interior styles (and older app versions) never look at them.
     // The species named in the prompt comes from the catalogue, never from the request.
-    const size = isTreeStyle(styleId) ? parseTreeSize(ceilingCm, treeCm, treeCatalog("")) : {};
+    const tree = isTreeStyle(styleId);
+    const size = tree ? parseTreeSize(ceilingCm, treeCm, treeCatalog("")) : {};
     if (!size) {
       res.status(400).json({ error: "BAD_SIZE" });
       return;
     }
     // Optional spot the user tapped for the tree (app 1.0.5+), Christmas styles only.
-    const place = isTreeStyle(styleId) ? parsePlace(rawPlace) : undefined;
+    const place = tree ? parsePlace(rawPlace) : undefined;
     if (place === null) {
       res.status(400).json({ error: "BAD_PLACE" });
       return;
     }
-    const prompt = buildPrompt(styleId, size, !!place);
+    // TREE_CLEAR=on lets the model take a plant, lamp or small table off the tree's spot; off keeps the 1.0.5 wording.
+    const clear = tree && flagOn("TREE_CLEAR");
+    const prompt = buildPrompt(styleId, size, place ?? false, { clear });
     if (!prompt) {
       res.status(400).json({ error: "BAD_STYLE" });
       return;
@@ -234,20 +273,30 @@ export function createApp(generate: Generate, model: string) {
       res.status(429).json({ error: "TOO_MANY_FAILURES", credits: getCredits(installId) });
       return;
     }
-    if (!spendCredits(installId, 1)) {
+    // "Move tree" (app 1.0.6+): `moveOf` names the design being moved. Its first move is free when the design
+    // belongs to this install, has this style and the request carries a new spot. Anything else (unknown, expired
+    // or foreign id, a second move, no spot, not a UUID) is simply a normal design that costs 1 credit.
+    const movedId = tree && place ? normaliseInstallId(moveOf) : null;
+    const movesOwnDesign = !!movedId && ownsDesign(movedId, installId, styleId);
+    const freeMove = movesOwnDesign && claimFreeMove(movedId, installId, styleId);
+    if (!freeMove && !spendCredits(installId, 1)) {
       res.status(402).json({ error: "NO_CREDITS", credits: getCredits(installId) });
       return;
     }
 
-    // From here on the credit is refunded at most once: on failure, on a refused cap, or when the client
-    // disconnects before the response was fully written.
+    // From here on the credit (or the free move) is given back at most once: on failure, on a refused cap, or
+    // when the client disconnects before the response was fully written.
     let settled = false;
     const refundOnce = () => {
       if (settled) return false;
       settled = true;
-      refundCredits(installId, 1);
+      if (freeMove) releaseFreeMove(movedId!);
+      else refundCredits(installId, 1);
       return true;
     };
+    // Row written for a new Christmas design right before it is sent; removed again if it never arrives.
+    let newDesignId: string | null = null;
+    let gone = false;
     let logged = false;
     const logOnce = (ok: boolean) => {
       if (logged) return;
@@ -260,7 +309,9 @@ export function createApp(generate: Generate, model: string) {
         if (sent) logOnce(true);
         return;
       }
+      gone = true;
       if (refundOnce()) {
+        if (newDesignId) removeDesign(newDesignId);
         // Logged as not ok, so it counts toward the per-install daily failure cap.
         logOnce(false);
         console.warn(`redesign (${styleId}): client disconnected before the response finished, credit refunded`);
@@ -283,12 +334,55 @@ export function createApp(generate: Generate, model: string) {
       produced = true;
       // The marker may never reach the user: an image that still shows it counts as a failed design (credit refunded).
       if (place && (await markerLeaked(input, output))) throw new Error("placement marker still visible in the result");
+
+      // Door check (DOOR_CHECK=on, Christmas only): a cheap vision model compares the photo with the design.
+      // "Yes, a door was hidden or changed" buys one silent second attempt with the problem named in the prompt.
+      // The user never pays for it and never gets an error from it: a failed check or retry serves the first image.
+      if (tree && extras.askYesNo && flagOn("DOOR_CHECK") && !gone && (await doorChanged(input, output, !!place))) {
+        doorStats.flagged++;
+        let served = "first attempt";
+        // The retry is a second paid image: it takes a slot of the global daily cap, never of the free cap.
+        if (gone) served = "nothing (client left)";
+        else if (reserveGeneration(true, day) !== "OK") served = "first attempt (daily cap reached, no retry)";
+        else {
+          doorStats.retried++;
+          let retryProduced = false;
+          try {
+            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, doorFix: true })!);
+            retryProduced = true;
+            if (place && (await markerLeaked(input, again))) served = "first attempt (marker left in the retry)";
+            else {
+              // Fixed, or flagged again, or not checkable: the retry was made with the correction, so it is served.
+              const still = await doorChanged(input, again, !!place);
+              if (still === false) doorStats.fixed++;
+              output = again;
+              served = still === false ? "retry (doors fine)" : still ? "retry (flagged again)" : "retry (unchecked)";
+            }
+          } catch (err) {
+            if (!retryProduced) releaseGeneration(true, day);
+            served = "first attempt (retry failed)";
+            console.warn(`door check retry failed (${styleId}): ${describeError(err)}`);
+          }
+        }
+        console.log(`door check (${styleId}, ${place ? "tapped spot" : "auto spot"}): door hidden or changed, served ${served}; totals ${JSON.stringify(doorStats)}`);
+      }
+
       if (!user.paid) output = await watermark(output);
       const jpeg = await sharp(output).jpeg({ quality: 86 }).toBuffer();
 
+      // designId (Christmas only, read by app 1.0.6+): a new design gets an id with one free move; a move keeps
+      // the id of the design it moved, so the free move cannot be chained.
+      let design: { designId: string; freeMove: boolean } | undefined;
+      if (tree && movesOwnDesign) design = { designId: movedId!, freeMove: false };
+      else if (tree && !gone) {
+        newDesignId = crypto.randomUUID();
+        addDesign(newDesignId, installId, styleId);
+        design = { designId: newDesignId, freeMove: true };
+      }
+
       // Logged as ok once the response has been fully written (see the close handler above).
       sent = true;
-      res.json({ image: jpeg.toString("base64"), credits: getCredits(installId) });
+      res.json({ image: jpeg.toString("base64"), credits: getCredits(installId), ...design });
     } catch (err) {
       console.error(`redesign failed (${styleId}): ${describeError(err)}`);
       refundOnce();

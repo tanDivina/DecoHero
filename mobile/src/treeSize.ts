@@ -19,7 +19,8 @@ export type TreeProduct = { id: string; name: string; species: Species; minFt: n
  * tree, to stand on a table), or the catalogue is empty (product = null).
  */
 export type TreeKind = "fit" | "largest" | "tabletop" | "none";
-export type TreePick = { kind: TreeKind; product: TreeProduct | null };
+/** picked: the user chose this size on Home instead of the recommended (tallest) one. */
+export type TreePick = { kind: TreeKind; product: TreeProduct | null; picked?: boolean };
 /** Sizes of one run: sent to the server and shown with the results. treeCm is missing when nothing fits. */
 export type TreeFit = TreePick & { ceilingCm: number; treeCm?: number; unit: Unit };
 
@@ -125,9 +126,33 @@ export function recommendTree(ceiling: number, catalog: TreeProduct[]): TreePick
   return { kind: best.id === sorted[0].id && spare > SPARE_CM ? "largest" : "fit", product: best };
 }
 
-/** Everything a run needs to know about the tree. The size sent to the server is the tallest tree that may arrive. */
-export function treeFit(ceiling: number, unit: Unit, catalog: TreeProduct[]): TreeFit {
-  const pick = recommendTree(ceiling, catalog);
+const fits = (t: TreeProduct, ceiling: number) => t.maxFt * CM_PER_FT + CLEARANCE_CM <= ceiling + 0.01;
+
+/**
+ * The floor-tree sizes the user can choose from under a ceiling (cm): one product per size the store lists
+ * (Fraser before Balsam, as in the recommendation), smallest first. The last one is the recommended tree.
+ */
+export function treeOptions(ceiling: number, catalog: TreeProduct[]): TreeProduct[] {
+  const seen = new Set<string>();
+  return [...catalog]
+    .sort(byPreference)
+    .filter((t) => {
+      const size = `${t.minFt}-${t.maxFt}`;
+      if (isTabletop(t) || !fits(t, ceiling) || seen.has(size)) return false;
+      seen.add(size);
+      return true;
+    })
+    .reverse();
+}
+
+/**
+ * Everything a run needs to know about the tree. The size sent to the server is the tallest tree that may arrive.
+ * `choiceId`: the size the user picked on Home; ignored when it is the recommended tree or no longer fits.
+ */
+export function treeFit(ceiling: number, unit: Unit, catalog: TreeProduct[], choiceId?: string | null): TreeFit {
+  const best = recommendTree(ceiling, catalog);
+  const chosen = choiceId && choiceId !== best.product?.id ? treeOptions(ceiling, catalog).find((t) => t.id === choiceId) : undefined;
+  const pick: TreePick = chosen ? { kind: "fit", product: chosen, picked: true } : best;
   const cm = pick.product ? pick.product.maxFt * CM_PER_FT : undefined;
   // "none" with a tree as tall as the room: let the server size the tree from the ceiling alone.
   return { ...pick, ceilingCm: ceiling, treeCm: cm !== undefined && cm < ceiling ? cm : undefined, unit };
