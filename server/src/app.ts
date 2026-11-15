@@ -22,6 +22,10 @@ const CREDIT_PACKS: Record<string, number> = {
   credits_15: 15,
   credits_50: 50,
   credits_150: 150,
+  // Web Billing products recreated Nov 2026 at $3.99 / $9.99 / $24.99 (RevenueCat can't reprice in place).
+  credits_15_w2: 15,
+  credits_50_w2: 50,
+  credits_150_w2: 150,
 };
 /** RevenueCat may send "credits_15:some-base-plan"; only the part before ":" is the product. */
 const packFor = (productId: unknown) => {
