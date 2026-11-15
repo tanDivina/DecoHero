@@ -35,7 +35,10 @@ if (keys(strings.en) !== keys(strings.es)) {
 }
 
 // ---- the real style list, read from the app so the page cannot list a style the app lacks ----
-const presets = [...read(join(root, "mobile/src/stylePresets.ts"))
+// Only STYLE_PRESETS: the file also holds TREE_PRESETS (Christmas mode), which the landing page does not list.
+const presetsSrc = read(join(root, "mobile/src/stylePresets.ts"));
+const stylePresetsBlock = /export const STYLE_PRESETS = \[([\s\S]*?)\] as const;/.exec(presetsSrc)?.[1] ?? "";
+const presets = [...stylePresetsBlock
   .matchAll(/\{\s*id:\s*"([^"]+)",\s*en:\s*"([^"]+)",\s*es:\s*"([^"]+)"\s*\}/g)]
   .map(([, id, en, es]) => ({ id, en, es }));
 if (presets.length === 0) throw new Error("No styles found in mobile/src/stylePresets.ts");
