@@ -1,5 +1,5 @@
 # DecoHero Privacy Policy
-_Last updated: November 12, 2026_
+_Last updated: November 15, 2026_
 
 <!-- Repo note (not published). This file is the English source of https://deco.hero-apps.com/privacy:
      `node scripts/build-site.mjs` turns it into site/privacy.html. The Spanish source is
@@ -12,7 +12,7 @@ DecoHero is made by Divina Endeavors LLC (Hero Apps), United States, the data co
 This policy covers the DecoHero Android app, the DecoHero web app at https://deco.hero-apps.com/app and the website at https://deco.hero-apps.com.
 
 ## In short
-DecoHero has no ads, and we run no analytics or tracking of our own. To make a redesign, the app sends the room photo you choose to our server, which passes it to Google's Gemini API and sends the design back to your device. We do not store your photos or the designs. Our server does keep a small record so your credits work: your credit balance, your purchases, which styles you generated, any designs you reported, and, for the first 48 hours only, the IP address you first connected from.
+DecoHero has no ads, and we run no analytics or tracking of our own. To make a redesign, the app sends the room photo you choose to our server, which passes it to Google's Gemini API and sends the design back to your device. We do not store your photos or the designs. Our server does keep a small record so your credits work: your credit balance, your purchases, which styles you generated, any designs you reported, and, for the first 48 hours only, the IP address you first connected from. For Christmas designs it also keeps a small record for 7 days, so you can move the tree once for free. In Christmas mode the app shows links to stores, and some of them are affiliate links (section 7).
 
 - **Android app:** there are no accounts. The record is linked to a random install ID.
 - **Web app:** there are accounts. You sign in with Google through Firebase Authentication, and the record is linked to the user ID of that sign-in. Our server does not store your email address, name or profile picture; Firebase Authentication, a Google service, holds your Google email address and name.
@@ -28,6 +28,8 @@ When you tap to redesign, the app shrinks your photo (to at most 1280 pixels on 
 - In the web app, designs are held in the page's memory and are gone when you close or reload the page. A design is saved to your device only when you choose Save, which downloads the image, and shared only when you choose Share.
 - You cannot type your own prompts. Every design uses one of the fixed styles in the app.
 
+**Christmas designs.** For a Christmas design the app also sends the ceiling height you entered, the tree size if you chose one and, if you tapped one, the spot where the tree should stand. Our server uses them to write the instruction, and when you tapped a spot it marks that spot on the copy of the photo it sends to Gemini. To check the result, our server may send the design, and in some cases your photo with it, to a second Google Gemini model that only answers a question, such as where the tree stands or whether a door was covered. If the answer shows a mistake, the server makes the design once more at no cost to you. These checks use the same Gemini API under the same terms. The height, the tree size, the spot and the answers are not saved in our database; section 2 says what the server log notes.
+
 ## 2. What our server stores
 **Android app.** The first time you open DecoHero, it creates a random install ID on your phone. On Android it is not linked to your name, email, phone number or Google account.
 
@@ -40,12 +42,13 @@ Our server stores the following, linked to that ID:
 | Install or account record | Install ID (Android), or random user ID and Firebase user ID (web), credit balance, whether you have ever bought credits, whether you were refused free credits because of the limit described here, the date the record was created, and the IP address you first connected from (for IPv6, only the network part, the first four blocks). The IP address is erased automatically once the record is 48 hours old. | Keep your credit balance. The IP address lets us give free credits to a limited number of new installs or accounts per IP address per day, so free credits cannot be farmed. |
 | Purchases | Your ID, the credit pack bought, the number of credits, the RevenueCat event ID, the transaction ID from Google Play or from the web payment, the time, and the time of any refund | Add the credits you paid for exactly once, and remove them again if the purchase is refunded |
 | Design log | Your ID, the style generated, whether it worked, and the time | Spot abuse, control costs and answer support questions |
+| Christmas design record | Your ID, a random design ID, the theme, whether the one free move of the tree was used, and the time. Deleted automatically after 7 days. It does not include your photo or the design. | Lets you move the tree once for free |
 | Reports | Your ID, the style of the design you reported, and the time. The report does not include your photo or the design. | Review AI output that users flag |
 | Daily totals | The number of designs made per day, with no personal data | Daily spending limits |
 
 **IP address.** Besides the copy in the install or account record, the server also keeps your IP address in memory for up to 10 minutes to limit how many requests one connection can make. That copy is not written to disk.
 
-**Server logs.** Our hosting provider keeps the server's log output for a limited period set by the provider. These logs contain error messages, for each purchase your ID and the credit pack, and for each refund the credit pack. They do not contain photos or designs. The provider's request logs also record the IP address, time and web address of each request to our server; for older versions of the Android app that address includes the install ID.
+**Server logs.** Our hosting provider keeps the server's log output for a limited period set by the provider. These logs contain error messages, for each purchase your ID and the credit pack, and for each refund the credit pack. They do not contain photos or designs. For Christmas designs they can also contain the theme, the spot you tapped, where the tree was placed and running totals of the checks, with no ID. The provider's request logs also record the IP address, time and web address of each request to our server; for older versions of the Android app that address includes the install ID.
 
 ## 3. Signing in on the web
 The Android app has no sign-in. The web app uses Google sign-in through Firebase Authentication, a Google service.
@@ -62,7 +65,7 @@ The Android app has no sign-in. The web app uses Google sign-in through Firebase
 ## 5. Who else receives data
 | Provider | What it receives | Why |
 |---|---|---|
-| Google Gemini API (Google LLC) | Your room photo and the style instruction | Creates the redesign |
+| Google Gemini API (Google LLC) | Your room photo, the generated design (for the checks in section 1) and the style instruction, which for Christmas designs includes the ceiling height, the tree size and the spot | Creates the redesign and checks Christmas designs |
 | RevenueCat, Inc. | Install ID or user ID, purchase details, basic device, browser and app information; on the web also the email address of your Google sign-in and technical events from the checkout | Confirms purchases and tells our server to add credits |
 | Google Play (Google LLC) | Your purchase, under your Google account (Android app) | Processes the payment |
 | Stripe, Inc. | Your card and payment details, email address, IP address and browser information (web app) | Processes card payments on the web and prevents fraud |
@@ -76,7 +79,10 @@ Each provider processes data under its own terms: Google (https://policies.googl
 ## 6. The Android waitlist on the website
 If you join the Android waitlist on https://deco.hero-apps.com, we store your email address, the language of the page, the page address and the time in our own inbox database (Cloud Firestore, a Google service). A notification with the same details is sent to our email through FormSubmit (https://formsubmit.co). We use your address only to tell you when the Android app is available. To be removed from the list, email support@hero-apps.com.
 
-## 7. Permissions
+## 7. Shop links
+In Christmas mode the app shows links to stores, for example to buy a real tree from our partner Christmas Trees in the Mail (https://christmastreesinthemail.com). Some are affiliate links: if you buy after tapping one, we may earn a commission, and the app says so next to the link. A link opens in your browser or in the store's app. We do not send the store your photo, your designs or your ID; the link only carries a referral code that tells the store the visit came from DecoHero. What you do on the store's site is covered by that store's privacy policy.
+
+## 8. Permissions
 **Android app.**
 
 - **Camera:** to photograph a room. You can also pick an existing photo with Android's photo picker, which needs no permission.
@@ -86,7 +92,7 @@ If you join the Android waitlist on https://deco.hero-apps.com, we store your em
 
 DecoHero does not use your location, contacts, microphone or advertising ID.
 
-## 8. Browser storage and cookies
+## 9. Browser storage and cookies
 The web app keeps a small amount of data in your browser's storage (local storage and similar) so it works between visits:
 
 - your sign-in session, managed by Firebase Authentication, so you stay signed in;
@@ -96,16 +102,16 @@ During checkout, Stripe and RevenueCat may set their own cookies or browser stor
 
 <!-- TODO(Dorien): once the web app is final, list the exact local storage keys here (check the built app in the browser's dev tools: Application > Storage) and confirm that nothing else is stored. -->
 
-## 9. What we do not do
-- No advertising and no advertising ID. We run no analytics and no crash reporting of our own, and the apps contain no advertising, analytics or crash reporting SDKs. The only third-party events are the technical checkout events the RevenueCat software sends to RevenueCat when you buy credits on the web (section 4).
+## 10. What we do not do
+- No advertising networks and no advertising ID. The only commercial links are the shop links in Christmas mode (section 7). We run no analytics and no crash reporting of our own, and the apps contain no advertising, analytics or crash reporting SDKs. The only third-party events are the technical checkout events the RevenueCat software sends to RevenueCat when you buy credits on the web (section 4).
 - No selling of personal data, and no use of your photos to train AI models.
 - Android app: no accounts, passwords or sign-in.
 - Web app: no passwords of our own. Sign-in is handled by Google, and our server stores no email address, name or profile picture.
 
-## 10. How long we keep data, and deleting it
-Photos and designs are not kept on our server at all. The IP address in your install or account record is erased automatically once the record is 48 hours old. The other records in section 2 have no automatic expiry at the moment: we keep them until you delete them or ask us to delete them. Purchase records may need to be kept longer where tax or accounting law requires it.
+## 11. How long we keep data, and deleting it
+Photos and designs are not kept on our server at all. The IP address in your install or account record is erased automatically once the record is 48 hours old. Christmas design records are deleted after 7 days. The other records in section 2 have no automatic expiry at the moment: we keep them until you delete them or ask us to delete them. Purchase records may need to be kept longer where tax or accounting law requires it.
 
-**Web app.** Open About and privacy in the web app and choose Delete account. This immediately removes the link to your sign-in, your credit balance, your design log and your reports from our server, and deletes your account in Firebase Authentication. Purchase records are kept for tax and accounting, no longer linked to the account. Unused credits are lost and cannot be restored.
+**Web app.** Open About and privacy in the web app and choose Delete account. This immediately removes the link to your sign-in, your credit balance, your design log and your reports from our server, and deletes your account in Firebase Authentication. Purchase records are kept for tax and accounting, no longer linked to the account. Christmas design records are not removed at once: they hold only the account's random ID and are deleted within 7 days. Unused credits are lost and cannot be restored.
 
 After the deletion we keep two things for a short time, only to prevent abuse: a one-way salted hash of your sign-in ID for up to 3 hours, so that a session that was still open cannot re-create the account, and the record that free starter credits were given to your IP address, which is deleted after 48 hours like the other IP data. We also keep the account's random DecoHero ID on a list of deleted accounts, with no sign-in ID, email or IP attached, so that a payment that arrives late is not credited to a deleted account.
 
@@ -122,11 +128,11 @@ We delete what we find within 30 days and confirm by email. Uninstalling DecoHer
 
 Under the GDPR, the CCPA and similar laws you may also ask us what we hold about you, ask us to correct it, or object to how we use it. Write to the same address. We answer within 30 days.
 
-## 11. Security
+## 12. Security
 All traffic between the app, our server, Google, RevenueCat and Stripe is encrypted with HTTPS. The release Android app refuses to talk to a server address that is not HTTPS. Our Gemini API key lives only on the server, never in the app or in the web page.
 
-## 12. Children
+## 13. Children
 DecoHero is meant for adults. It is not directed to children under 13, and we do not knowingly collect their data.
 
-## 13. Changes and contact
+## 14. Changes and contact
 If we change what DecoHero does with data, we update this page and the date at the top. Questions: support@hero-apps.com, Divina Endeavors LLC, United States.
