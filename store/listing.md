@@ -43,7 +43,7 @@ HOW IT WORKS
 • Save to your gallery or share with your partner, landlord or contractor
 
 NO ACCOUNT, NO SUBSCRIPTION
-Your first 3 designs are free. After that, buy a credit pack: one credit is one design, and credits never expire. Any purchase also removes the small DecoHero mark from new designs.
+Your first design is free. After that, buy a credit pack: one credit is one design, and credits never expire. Any purchase also removes the small DecoHero mark from new designs.
 
 PRIVATE BY DESIGN
 No sign-up and no ads. Your photo is used only to create your designs and isn't kept on our servers afterwards, or used to train AI models.
@@ -76,7 +76,7 @@ CÓMO FUNCIONA
 • Guarda en tu galería o comparte con tu pareja, arrendador o contratista
 
 SIN CUENTA, SIN SUSCRIPCIÓN
-Tus primeros 3 diseños son gratis. Después, compra un paquete de créditos: un crédito es un diseño y los créditos no vencen. Cualquier compra también quita la pequeña marca DecoHero de tus nuevos diseños.
+Tu primer diseño es gratis. Después, compra un paquete de créditos: un crédito es un diseño y los créditos no vencen. Cualquier compra también quita la pequeña marca DecoHero de tus nuevos diseños.
 
 PRIVADO DESDE EL DISEÑO
 Sin registro y sin anuncios. Tu foto solo se usa para crear tus diseños; no la guardamos en nuestros servidores después ni la usamos para entrenar modelos de IA.
@@ -89,6 +89,6 @@ Los diseños son ideas generadas con IA para inspirarte, no productos ni medidas
 
 | Product ID | Name (EN / ES) | Description (EN / ES) | Price |
 |---|---|---|---|
-| `credits_15` | 15 designs / 15 diseños | 15 room redesigns. Never expire. / 15 rediseños. No vencen. | $2.99 |
-| `credits_50` | 50 designs / 50 diseños | 50 room redesigns. Never expire. / 50 rediseños. No vencen. | $7.99 |
-| `credits_150` | 150 designs / 150 diseños | 150 room redesigns. Never expire. / 150 rediseños. No vencen. | $19.99 |
+| `credits_15` | 15 designs / 15 diseños | 15 room redesigns. Never expire. / 15 rediseños. No vencen. | $3.99 |
+| `credits_50` | 50 designs / 50 diseños | 50 room redesigns. Never expire. / 50 rediseños. No vencen. | $9.99 |
+| `credits_150` | 150 designs / 150 diseños | 150 room redesigns. Never expire. / 150 rediseños. No vencen. | $24.99 |

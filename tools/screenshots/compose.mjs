@@ -47,7 +47,7 @@ const COPY = {
     s5: { h: "Same walls, windows and floor plan", sub: "DecoHero changes furniture, colors and light. The room stays yours." },
     s6: { h: "Twelve styles to try on", sub: "From Japandi calm to art deco glamour." },
     s7: {
-      h: "Start with three free designs",
+      h: "Start with a free design",
       sub: "Then buy credits only when you want more.",
       pack: (n) => `${n} designs`,
       popular: "Most popular",
@@ -78,7 +78,7 @@ const COPY = {
     s5: { h: "Mismas paredes, ventanas y distribución", sub: "DecoHero cambia muebles, colores y luz. El espacio sigue siendo tuyo." },
     s6: { h: "Doce estilos para probar", sub: "De la calma japandi al brillo art déco." },
     s7: {
-      h: "Empieza con tres diseños gratis",
+      h: "Empieza con un diseño gratis",
       sub: "Después compra créditos solo cuando quieras más.",
       pack: (n) => `${n} diseños`,
       popular: "Más popular",
@@ -264,7 +264,7 @@ function s6(lang) {
 // ── 07 Free designs, packs, trust ────────────────────────────────────────────
 function s7(lang) {
   const c = COPY[lang];
-  const packs = [[15, "$2.99"], [50, "$7.99"], [150, "$19.99"]];
+  const packs = [[15, "$3.99"], [50, "$9.99"], [150, "$24.99"]];
   const cards = packs.map(([n, price], i) => `
     <div style="flex:1;position:relative;background:${color.plaster};border:2.5px solid ${i === 1 ? color.brass : color.line};border-radius:14px;padding:34px 20px 30px;text-align:center">
       ${i === 1 ? `<div style="position:absolute;top:-21px;left:50%;transform:translateX(-50%);white-space:nowrap;background:${color.brass};color:#fff;font-size:21px;font-weight:600;padding:7px 18px;border-radius:999px">${c.s7.popular}</div>` : ""}

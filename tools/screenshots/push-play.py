@@ -15,6 +15,8 @@ managed publishing is on). Reads the service-account key from ~/.secrets/gsc_key
                push-play.py --set v2 --commit       (around Jan 2)
   --brand    only the icon (store/play-icon-512.png) and feature graphics (store/feature-graphic-<lang>.png,
              made by tools/screenshots/brand.mjs) for every listing; screenshots untouched
+  --text     also set the full description of every listing from store/listing.md ("## English" for en-*,
+             "## Español" for es-*). Title and short description are left as they are in Play.
   --add-es   also create/update the es-419 listing (text from store/listing.md "## Español",
              feature graphic store/feature-graphic-es.png)
 """
@@ -59,6 +61,16 @@ def set_feature(lang):
 commit = "--commit" in sys.argv
 add_es = "--add-es" in sys.argv
 brand = "--brand" in sys.argv
+text = "--text" in sys.argv
+
+
+def full_description(lang):
+    md = open(os.path.join(ROOT, "store/listing.md"), encoding="utf-8").read()
+    head, marker = ("## Español", "**Descripción completa:**") if lang.startswith("es") else ("## English", "**Full description:**")
+    full = md.split(head, 1)[1].split("\n---", 1)[0].split(marker, 1)[1].strip()
+    assert 0 < len(full) <= 4000, len(full)
+    assert "\u2014" not in full, "em dash in listing"
+    return full
 
 
 def spanish_listing():
@@ -88,6 +100,16 @@ try:
             print("  es-419 text + feature graphic set")
         if "es-419" not in langs:
             langs.append("es-419")
+    for lang in langs if text else []:
+        full = full_description(lang)
+        try:
+            live = edits.listings().get(packageName=PKG, editId=eid, language=lang).execute().get("fullDescription", "")
+        except Exception:
+            live = ""  # listing not created yet (dry run with --add-es)
+        print(f"{lang}: full description {len(full)}/4000, {'same as Play' if full == live else 'differs from Play'}")
+        if commit and full != live:
+            edits.listings().patch(packageName=PKG, editId=eid, language=lang, body={"fullDescription": full}).execute()
+            print("  full description set")
     for lang in langs if brand else []:
         fg = os.path.join(ROOT, f"store/feature-graphic-{FOLDER(lang)}.png")
         print(f"{lang}: icon play-icon-512.png, feature graphic {os.path.basename(fg)}")
