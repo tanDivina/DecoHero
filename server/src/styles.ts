@@ -231,11 +231,38 @@ export const flagOn = (name: string) => ON.has((process.env[name] ?? "").trim().
 const DOOR_FIX_AUTO = `Correction: an earlier attempt at this edit hid, removed or changed a door or doorway of the room. That is not allowed. In this image every door and doorway of the original photo stays fully visible and exactly as it is, so stand the tree at a different spot, well away from all of them.`;
 const DOOR_FIX_MARKED = `Correction: an earlier attempt at this edit removed or changed a door or doorway of the room. That is not allowed. Keep the tree on the marked spot, and draw every door and doorway of the original photo exactly as it is.`;
 
+/** "on the right side, near the front": the same spot in room words, for the correction after a missed spot. */
+function spotWords(p: Place): string {
+  const side = p.x < 0.36 ? "on the left side" : p.x > 0.64 ? "on the right side" : "around the middle from left to right";
+  const depth = p.y > 0.72 ? "near the front, close to the camera" : p.y < 0.5 ? "toward the back of the room" : "at middle depth";
+  return `${side}, ${depth}`;
+}
+
+/**
+ * Added to the prompt of the one silent retry after the place check (see app.ts) found the tree away from the
+ * marked spot. Names where the tree came out and where it has to go, in numbers and in words.
+ */
+function placeFix(target: Place, cameOut: Place): string {
+  const dx = pct(target.x) - pct(cameOut.x);
+  const dy = pct(target.y) - pct(cameOut.y);
+  const moves = [
+    dx !== 0 ? `${dx > 0 ? "to the right" : "to the left"} by about ${Math.abs(dx)}% of the image width` : "",
+    Math.abs(dy) >= 5 ? `${dy > 0 ? "toward the camera (lower in the picture)" : "toward the back of the room (higher in the picture)"} by about ${Math.abs(dy)}% of the image height` : "",
+  ].filter(Boolean).join(" and ");
+  return `Correction: an earlier attempt at this edit put the tree in the wrong place. The foot of the tree came out at about ` +
+    `${pct(cameOut.x)}% from the left and about ${pct(cameOut.y)}% from the top (${spotWords(cameOut)}); it must stand at about ` +
+    `${pct(target.x)}% from the left and about ${pct(target.y)}% from the top (${spotWords(target)}), exactly on the magenta marker. ` +
+    (moves ? `Compared with that attempt, the whole tree moves ${moves}. ` : "") +
+    `Do not centre the tree in the picture, in front of a window or on open floor: the marked spot is the only allowed position.`;
+}
+
 export type PromptOptions = {
   /** Clearing rule (TREE_CLEAR). Off: the 1.0.5 intro and placement text. */
   clear?: boolean;
   /** The retry after a failed door check. */
   doorFix?: boolean;
+  /** The retry after a failed place check: where the tree's base came out in the first attempt. Needs a spot in `marked`. */
+  placeFix?: Place;
 };
 
 /**
@@ -250,7 +277,8 @@ export function buildPrompt(styleId: string, size: TreeSize = {}, marked: boolea
     const spot = typeof marked === "object" ? marked : undefined;
     const place = `${marked ? placeMarked(spot, !!opts.clear) : auto}${opts.clear ? `\n${CLEAR}\n` : " "}`;
     const fix = opts.doorFix ? `\n\n${marked ? DOOR_FIX_MARKED : DOOR_FIX_AUTO}` : "";
-    return `${intro}\n${place}${TREE_REST}\n\n${themeText(styleId, size.species)}\n\n${scaleLine(size, !!marked)}${fix}`;
+    const moved = opts.placeFix && spot ? `\n\n${placeFix(spot, opts.placeFix)}` : "";
+    return `${intro}\n${place}${TREE_REST}\n\n${themeText(styleId, size.species)}\n\n${scaleLine(size, !!marked)}${fix}${moved}`;
   }
   return isStyle(styleId) ? `${BASE}\n\n${STYLE_PROMPTS[styleId]}` : null;
 }

@@ -48,7 +48,19 @@ const fakeGenerate = async (img: string, prompt: string): Promise<Buffer> => {
   if (mode === "fail") throw new Error("Gemini returned no image (SAFETY)");
   if (mode === "echo") return Buffer.from(img, "base64");
   if (mode === "slow") await new Promise((r) => setTimeout(r, 400));
-  return sharp({ create: { width: 640, height: 480, channels: 3, background: "#a08060" } }).png().toBuffer();
+  return sharp({ create: { width: 640, height: 480, channels: 3, background: colours.shift() ?? "#a08060" } }).png().toBuffer();
+};
+// Background colour of the next fake designs, so a test can tell which attempt was served; empty = the usual brown.
+let colours: string[] = [];
+
+// Fake place check: the tree's base for each design in turn (null = no tree found, Error = the check failed).
+let treeSpots: ({ x: number; y: number } | null | Error)[] = [];
+let locateCalls = 0;
+const fakeLocateTree = async (_design: string): Promise<{ x: number; y: number } | null> => {
+  locateCalls++;
+  const next = treeSpots.shift() ?? null;
+  if (next instanceof Error) throw next;
+  return next;
 };
 
 // Fake door check: answers are taken from this queue ("yes" = a door was hidden or changed); empty queue = "no".
@@ -79,7 +91,7 @@ const fakeVerify = async (token: string) => {
 };
 /** A token for a sign-in made `inSec` seconds from now (after any delete done so far). */
 const freshToken = (uid: string, inSec = 5) => `Bearer good:${uid}@${Math.floor(Date.now() / 1000) + inSec}`;
-const server = createApp(fakeGenerate, "fake-model", { askYesNo: fakeAskYesNo, verifyIdToken: fakeVerify }).listen(0);
+const server = createApp(fakeGenerate, "fake-model", { askYesNo: fakeAskYesNo, locateTree: fakeLocateTree, verifyIdToken: fakeVerify }).listen(0);
 await new Promise((r) => server.once("listening", r));
 const port = (server.address() as AddressInfo).port;
 const base = `http://127.0.0.1:${port}`;
@@ -1242,6 +1254,246 @@ await test("shop links 1.0.6: plain links need no approval and no disclosure, an
   const fine = parseShopLinks(JSON.stringify({ "xmas-winter": [{ ...search, url: "https://www.amazon.com/s?k=white+faux+fur+tree+skirt&i=garden&s=review-rank" }] }));
   assert.equal(fine["xmas-winter"][0].kind, "plain");
   delete process.env.SHOP_LINKS;
+});
+
+// Place check helpers: a paying install (no watermark), and the colour of the design that came back.
+const RED = "#c81e1e";
+const GREEN = "#1ea03c";
+const placedInstall = async (tx: string) => {
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: tx });
+  const post = (body: Record<string, unknown>) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, styleId: "xmas-classic", ...body }, ip });
+  return { id, ip, post };
+};
+const servedColour = async (b64: string) => {
+  const { data } = await sharp(Buffer.from(b64, "base64")).raw().toBuffer({ resolveWithObject: true });
+  return data[0] > 150 && data[1] < 90 ? "red" : data[1] > 120 && data[0] < 90 ? "green" : "other";
+};
+const SPOT = { x: 0.75, y: 0.85 };
+
+await test("place check: off by default, on-spot serves the first design, a failed or empty check serves it unchecked", async () => {
+  const { id, post } = await placedInstall("GPA.placecheck1");
+  mode = "ok";
+  const start = await credits(id);
+
+  // Flag off (the default): the locator is never called, whatever it would say.
+  delete process.env.PLACE_CHECK;
+  delete process.env.PLACE_CHECK_TOLERANCE;
+  treeSpots = [{ x: 0.2, y: 0.85 }];
+  let before = calls;
+  assert.equal((await post({ place: SPOT })).status, 200);
+  assert.deepEqual([locateCalls, calls - before], [0, 1]);
+  treeSpots = [];
+
+  process.env.PLACE_CHECK = "on";
+  try {
+    // No spot, or a room style: nothing to check.
+    assert.equal((await post({})).status, 200);
+    assert.equal((await post({ styleId: "japandi", place: SPOT })).status, 200);
+    assert.equal(locateCalls, 0);
+
+    // On the spot (within 12% of the width and the same depth band): one check, one generation.
+    for (const spot of [{ x: 0.75, y: 0.85 }, { x: 0.64, y: 0.85 }, { x: 0.86, y: 0.7 }]) {
+      treeSpots = [spot];
+      colours = [RED, GREEN];
+      before = calls;
+      const checks = locateCalls;
+      const r = await post({ place: SPOT });
+      assert.equal(r.status, 200);
+      assert.deepEqual([locateCalls - checks, calls - before], [1, 1], JSON.stringify(spot));
+      assert.equal(await servedColour(r.json.image), "red");
+      assert.ok(!/Correction:/.test(lastPrompt));
+      colours = [];
+    }
+
+    // The check throws, finds no tree, or answers with nonsense: the design is served as it is, no retry.
+    for (const answer of [new Error("503 UNAVAILABLE"), null, { x: 7, y: 0.5 }]) {
+      treeSpots = [answer];
+      colours = [RED];
+      before = calls;
+      const r = await post({ place: SPOT });
+      assert.equal(r.status, 200);
+      assert.equal(calls - before, 1);
+      assert.equal(await servedColour(r.json.image), "red");
+    }
+    assert.deepEqual(treeSpots, []);
+    // One credit per served design, nothing else.
+    assert.equal(await credits(id), start - 9);
+  } finally {
+    delete process.env.PLACE_CHECK;
+    treeSpots = [];
+    colours = [];
+  }
+});
+
+await test("place check: an off-spot tree gets one free retry with the correction, and the closer design is served", async () => {
+  const { id, post } = await placedInstall("GPA.placecheck2");
+  mode = "ok";
+  process.env.PLACE_CHECK = "on";
+  try {
+    // Off (59% instead of 75%), then on the spot: the second image is served, one credit, two slots of the daily cap.
+    let start = await credits(id);
+    let used = today()!.total;
+    let before = calls;
+    let checks = locateCalls;
+    treeSpots = [{ x: 0.59, y: 0.8 }, { x: 0.74, y: 0.84 }];
+    colours = [RED, GREEN];
+    let r = await post({ place: SPOT });
+    assert.equal(r.status, 200);
+    assert.deepEqual([calls - before, locateCalls - checks], [2, 2]);
+    assert.equal(await servedColour(r.json.image), "green");
+    assert.equal(r.json.credits, start - 1);
+    assert.equal(await credits(id), start - 1);
+    assert.equal(today()!.total, used + 2);
+    assert.equal(r.json.freeMove, true);
+    // The retry prompt is the placed prompt plus where the tree came out and where it has to go.
+    assert.ok(/Correction: an earlier attempt at this edit put the tree in the wrong place/.test(lastPrompt));
+    assert.ok(lastPrompt.includes("came out at about 59% from the left and about 80% from the top"));
+    assert.ok(lastPrompt.includes("it must stand at about 75% from the left and about 85% from the top (on the right side, near the front, close to the camera)"));
+    assert.ok(lastPrompt.includes("the whole tree moves to the right by about 16% of the image width"));
+    assert.ok(/centre dot of the magenta marker/.test(lastPrompt));
+    // One row in the generation log: the retry is ours, not the user's.
+    await new Promise((res) => setTimeout(res, 50));
+    assert.deepEqual((peek2.prepare("SELECT ok FROM generations WHERE user_id = ?").all(id) as { ok: number }[]).map((x) => x.ok), [1]);
+
+    // Off, and the retry is still off but closer: the retry is served.
+    treeSpots = [{ x: 0.45, y: 0.85 }, { x: 0.6, y: 0.85 }];
+    colours = [RED, GREEN];
+    before = calls;
+    r = await post({ place: SPOT });
+    assert.equal(calls - before, 2);
+    assert.equal(await servedColour(r.json.image), "green");
+    // Off, and the retry is further away: the first attempt is served. Never a third attempt.
+    treeSpots = [{ x: 0.6, y: 0.85 }, { x: 0.3, y: 0.85 }];
+    colours = [RED, GREEN];
+    before = calls;
+    r = await post({ place: SPOT });
+    assert.equal(calls - before, 2);
+    assert.equal(await servedColour(r.json.image), "red");
+    // Right column, wrong depth (base far up the picture): also a miss.
+    treeSpots = [{ x: 0.75, y: 0.55 }, { x: 0.75, y: 0.83 }];
+    colours = [RED, GREEN];
+    r = await post({ place: SPOT });
+    assert.equal(await servedColour(r.json.image), "green");
+    assert.ok(lastPrompt.includes("toward the camera (lower in the picture) by about 30% of the image height"));
+
+    // The retry fails, or the re-check finds no tree: the first attempt is served and the request still succeeds.
+    treeSpots = [{ x: 0.5, y: 0.85 }, null];
+    colours = [RED, GREEN];
+    r = await post({ place: SPOT });
+    assert.equal(r.status, 200);
+    assert.equal(await servedColour(r.json.image), "red");
+    // The re-check itself fails: the first is known to be off, so the corrected retry is served.
+    treeSpots = [{ x: 0.5, y: 0.85 }, new Error("deadline exceeded")];
+    colours = [RED, GREEN];
+    r = await post({ place: SPOT });
+    assert.equal(await servedColour(r.json.image), "green");
+
+    // PLACE_CHECK_TOLERANCE: 0.2 accepts the 16% miss from the phone test; nonsense values fall back to 0.12.
+    process.env.PLACE_CHECK_TOLERANCE = "0.2";
+    treeSpots = [{ x: 0.59, y: 0.85 }];
+    before = calls;
+    assert.equal((await post({ place: SPOT })).status, 200);
+    assert.equal(calls - before, 1);
+    process.env.PLACE_CHECK_TOLERANCE = "banana";
+    treeSpots = [{ x: 0.59, y: 0.85 }, SPOT];
+    before = calls;
+    assert.equal((await post({ place: SPOT })).status, 200);
+    assert.equal(calls - before, 2);
+    delete process.env.PLACE_CHECK_TOLERANCE;
+
+    // A free move that misses is retried too, and stays free.
+    start = await credits(id);
+    treeSpots = [SPOT];
+    const design = await post({ place: SPOT });
+    assert.equal(await credits(id), start - 1);
+    treeSpots = [{ x: 0.57, y: 0.85 }, { x: 0.45, y: 0.84 }];
+    colours = [RED, GREEN];
+    before = calls;
+    r = await post({ place: { x: 0.44, y: 0.85 }, moveOf: design.json.designId });
+    assert.equal(r.status, 200);
+    assert.equal(calls - before, 2);
+    assert.equal(await servedColour(r.json.image), "green");
+    assert.equal(await credits(id), start - 1);
+    assert.deepEqual(treeSpots, []);
+  } finally {
+    delete process.env.PLACE_CHECK;
+    delete process.env.PLACE_CHECK_TOLERANCE;
+    treeSpots = [];
+    colours = [];
+  }
+});
+
+await test("place check: no retry at the daily cap, and a client that leaves during the retry is refunded once", async () => {
+  const { MAX_GENERATIONS_PER_DAY } = await import("../src/db.js");
+  const { id, ip, post } = await placedInstall("GPA.placecheck3");
+  mode = "ok";
+  process.env.PLACE_CHECK = "on";
+  const day = new Date().toISOString().slice(0, 10);
+  const rw = new Database(process.env.DB_PATH!);
+  const used = today()!.total;
+  try {
+    // One slot left: the design takes it, the retry finds the cap reached and is skipped. The user still gets a design.
+    rw.prepare("UPDATE daily_usage SET total = ? WHERE day = ?").run(MAX_GENERATIONS_PER_DAY - 1, day);
+    const start = await credits(id);
+    treeSpots = [{ x: 0.5, y: 0.85 }, SPOT];
+    colours = [RED, GREEN];
+    let before = calls;
+    const checks = locateCalls;
+    const r = await post({ place: SPOT });
+    assert.equal(r.status, 200);
+    assert.deepEqual([calls - before, locateCalls - checks], [1, 1]);
+    assert.equal(await servedColour(r.json.image), "red");
+    assert.equal(await credits(id), start - 1);
+    assert.equal(today()!.total, MAX_GENERATIONS_PER_DAY);
+    rw.prepare("UPDATE daily_usage SET total = ? WHERE day = ?").run(used + 1, day);
+
+    // The client drops the connection while the retry is being generated: credit back once, logged as not delivered,
+    // and both images stay counted against the daily cap (both were paid for).
+    treeSpots = [{ x: 0.5, y: 0.85 }, SPOT];
+    colours = [];
+    mode = "slow";
+    before = calls;
+    const body = JSON.stringify({ image: jpeg, styleId: "xmas-classic", place: SPOT });
+    await new Promise<void>((resolve) => {
+      const q = http.request(`${base}/api/redesign`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(body), "x-install-id": id, "x-forwarded-for": ip },
+      });
+      q.on("error", () => resolve());
+      q.end(body);
+      setTimeout(() => { q.destroy(); resolve(); }, 600);
+    });
+    await new Promise((res) => setTimeout(res, 900));
+    assert.equal(calls - before, 2, "the retry had started");
+    assert.equal(await credits(id), start - 1, "credit refunded once after the disconnect");
+    assert.equal(today()!.total, used + 3);
+    const rows = peek2.prepare("SELECT ok FROM generations WHERE user_id = ? ORDER BY rowid").all(id) as { ok: number }[];
+    assert.deepEqual(rows.map((x) => x.ok), [1, 0]);
+    assert.equal((peek2.prepare("SELECT COUNT(*) AS n FROM designs WHERE user_id = ?").get(id) as { n: number }).n, 1, "no design row for the lost one");
+  } finally {
+    rw.prepare("UPDATE daily_usage SET total = MIN(total, ?) WHERE day = ?").run(used + 3, day);
+    rw.close();
+    mode = "ok";
+    delete process.env.PLACE_CHECK;
+    treeSpots = [];
+    colours = [];
+  }
+});
+
+await test("place check: the locator's answer is parsed defensively", async () => {
+  const { parseTreeBase } = await import("../src/gemini.js");
+  assert.deepEqual(parseTreeBase('{"found": true, "x": 590, "y": 850}'), { x: 0.59, y: 0.85 });
+  assert.deepEqual(parseTreeBase('```json\n{"found":true,"x":0,"y":1000}\n```'), { x: 0, y: 1 });
+  // Gemini's own conventions: point is [y, x], box_2d is [ymin, xmin, ymax, xmax]; the base is the middle of the bottom edge.
+  assert.deepEqual(parseTreeBase('[{"point": [850, 590], "label": "tree base"}]'), { x: 0.59, y: 0.85 });
+  assert.deepEqual(parseTreeBase('{"box_2d": [200, 400, 900, 700]}'), { x: 0.55, y: 0.9 });
+  for (const none of ['{"found": false}', '{"found": false, "x": 500, "y": 500}', "[]", "null"]) assert.equal(parseTreeBase(none), null, none);
+  for (const bad of ["", "the tree is on the right", '{"found": true}', '{"found": true, "x": 1200, "y": 500}', '{"x": "590", "y": 850}', '{"x": -1, "y": 5}', '{"box_2d": [200, 700, 900, 400]}', "42"]) {
+    assert.throws(() => parseTreeBase(bad), /place check/, bad);
+  }
 });
 
 server.close();

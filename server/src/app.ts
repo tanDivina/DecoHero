@@ -8,7 +8,7 @@ import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
-import { drawMarker, markerLeaked, parsePlace } from "./marker.js";
+import { drawMarker, markerLeaked, parsePlace, type Place } from "./marker.js";
 import { firebaseVerifier, isKeyFetchFailure, type VerifiedToken, type VerifyIdToken } from "./auth.js";
 import {
   addDesign, addReport, claimFreeMove, deletedAt, deleteWebAccount, failuresToday, getCredits, getOrCreateUser,
@@ -158,9 +158,32 @@ const DOOR_QUESTION_MARKED =
   "Answer only yes or no.";
 const DOOR_CHECK_TIMEOUT_MS = 30_000;
 
+/**
+ * Finds the tree's base in a generated design (JPEG): fractions of the image, or null when there is no tree or the
+ * model is not sure. Rejects when the call fails.
+ */
+export type LocateTree = (designJpegBase64: string) => Promise<Place | null>;
+
+// Place check (PLACE_CHECK=on): how far the tree's base may be from the tapped spot before one free retry.
+const PLACE_CHECK_TIMEOUT_MS = 30_000;
+const PLACE_TOLERANCE_X = 0.12;
+/** Up and down the picture is depth in the room, which the locator reads less precisely, so only a clear miss counts. */
+const PLACE_TOLERANCE_Y = 0.2;
+/** PLACE_CHECK_TOLERANCE: horizontal tolerance as a fraction of the image width; anything outside 0-1 is ignored. */
+const placeTolerance = () => {
+  const n = Number(process.env.PLACE_CHECK_TOLERANCE);
+  return process.env.PLACE_CHECK_TOLERANCE?.trim() && Number.isFinite(n) && n > 0 && n <= 1 ? n : PLACE_TOLERANCE_X;
+};
+/** How far `at` is from `spot`, in tolerances: above 1 is off the spot, and the lower of two results is the closer one. */
+const placeMiss = (at: Place, spot: Place, tolerance: number) =>
+  Math.max(Math.abs(at.x - spot.x) / tolerance, Math.abs(at.y - spot.y) / PLACE_TOLERANCE_Y);
+const at = (p: Place) => `x=${p.x.toFixed(2)},y=${p.y.toFixed(2)}`;
+
 export type AppOptions = {
   /** Yes/no vision check used by the door check (DOOR_CHECK=on). */
   askYesNo?: AskYesNo;
+  /** Tree locator used by the place check (PLACE_CHECK=on). */
+  locateTree?: LocateTree;
   /** Firebase ID token check for the web app. Defaults to firebase-admin when FIREBASE_PROJECT_ID is set. */
   verifyIdToken?: VerifyIdToken;
 };
@@ -198,6 +221,29 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       doorStats.errors++;
       console.warn(`door check failed, design served unchecked: ${describeError(err)}; totals ${JSON.stringify(doorStats)}`);
       return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  // Since the last restart; printed with every missed spot and failed place check. No install ids, no IPs.
+  // checked = placed designs looked at, off = first attempt away from the spot, fixed = retry on the spot.
+  const placeStats = { checked: 0, off: 0, retried: 0, fixed: 0, errors: 0 };
+  /** Where the tree stands in a design, null when the model sees none or is not sure, "error" when the check itself failed. */
+  async function treeBase(design: Buffer): Promise<Place | null | "error"> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const img = await forCheck(design);
+      const found = await Promise.race([
+        extras.locateTree!(img.toString("base64")),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("place check timed out")), PLACE_CHECK_TIMEOUT_MS); }),
+      ]);
+      // A locator that answers with anything but a point inside the image is treated as a failed check.
+      if (found !== null && parsePlace(found) == null) throw new Error("place check gave a point outside the image");
+      return found;
+    } catch (err) {
+      placeStats.errors++;
+      console.warn(`place check failed, design served unchecked: ${describeError(err)}; totals ${JSON.stringify(placeStats)}`);
+      return "error";
     } finally {
       clearTimeout(timer);
     }
@@ -486,6 +532,8 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       // The marker may never reach the user: an image that still shows it counts as a failed design (credit refunded).
       if (place && (await markerLeaked(input, output))) throw new Error("placement marker still visible in the result");
 
+      // The served image was made with the door correction, so a place retry keeps that correction.
+      let doorFixed = false;
       // Door check (DOOR_CHECK=on, Christmas only): a cheap vision model compares the photo with the design.
       // "Yes, a door was hidden or changed" buys one silent second attempt with the problem named in the prompt.
       // The user never pays for it and never gets an error from it: a failed check or retry serves the first image.
@@ -507,6 +555,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
               const still = await doorChanged(input, again, !!place);
               if (still === false) doorStats.fixed++;
               output = again;
+              doorFixed = true;
               served = still === false ? "retry (doors fine)" : still ? "retry (flagged again)" : "retry (unchecked)";
             }
           } catch (err) {
@@ -516,6 +565,58 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           }
         }
         console.log(`door check (${styleId}, ${place ? "tapped spot" : "auto spot"}): door hidden or changed, served ${served}; totals ${JSON.stringify(doorStats)}`);
+      }
+
+      // Place check (PLACE_CHECK=on, Christmas with a tapped spot): a cheap vision model says where the tree's base is.
+      // Off the spot buys one silent second attempt that names where the tree came out and where it has to go; the
+      // closer of the two is served. The user never pays for it and never gets an error from it: a failed check
+      // serves the design unchecked.
+      if (tree && place && extras.locateTree && flagOn("PLACE_CHECK") && !gone) {
+        placeStats.checked++;
+        const tolerance = placeTolerance();
+        const first = await treeBase(output);
+        if (first === null) {
+          console.log(`place check (${styleId}): no tree base found, design served unchecked; totals ${JSON.stringify(placeStats)}`);
+        } else if (first !== "error" && placeMiss(first, place, tolerance) > 1) {
+          placeStats.off++;
+          let served = "first attempt";
+          // The retry is a second paid image: it takes a slot of the global daily cap, never of the free cap.
+          if (gone) served = "nothing (client left)";
+          else if (reserveGeneration(true, day) !== "OK") served = "first attempt (daily cap reached, no retry)";
+          else {
+            placeStats.retried++;
+            let retryProduced = false;
+            try {
+              const again = await generate(
+                sentToModel.toString("base64"),
+                buildPrompt(styleId, size, place, { clear, doorFix: doorFixed, placeFix: first })!
+              );
+              retryProduced = true;
+              if (await markerLeaked(input, again)) served = "first attempt (marker left in the retry)";
+              else {
+                const second = await treeBase(again);
+                if (second === "error") {
+                  // Not checkable: the first attempt is known to be off and the retry was made with the correction.
+                  output = again;
+                  served = "retry (unchecked)";
+                } else if (second === null) served = "first attempt (no tree base found in the retry)";
+                else {
+                  const closer = placeMiss(second, place, tolerance) < placeMiss(first, place, tolerance);
+                  const onSpot = placeMiss(second, place, tolerance) <= 1;
+                  if (onSpot) placeStats.fixed++;
+                  if (closer) output = again;
+                  served = `${closer ? "retry" : "first attempt"} (retry ${onSpot ? "on the spot" : "still off"} at ${at(second)})`;
+                }
+              }
+            } catch (err) {
+              if (!retryProduced) releaseGeneration(true, day);
+              served = "first attempt (retry failed)";
+              console.warn(`place check retry failed (${styleId}): ${describeError(err)}`);
+            }
+          }
+          if (gone) served = "nothing (client left)";
+          console.log(`place check (${styleId}): spot ${at(place)}, tree at ${at(first)}, served ${served}; totals ${JSON.stringify(placeStats)}`);
+        }
       }
 
       if (!user.paid) output = await watermark(output);
