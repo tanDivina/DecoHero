@@ -19,11 +19,12 @@ type Props = {
 const HIGHLIGHT_ID = "credits_50"; // "Most popular"
 const WEB = Platform.OS === "web";
 
-/** Per-design price in the phone's own number format, so it reads like Play's price string next to it. */
+/** Per-design price in the same number format as the store's price string next to it:
+ * the phone's locale on Android (like Play), en-US on web (RevenueCat Web Billing formats "$3.99"). */
 function perDesignPrice(pack: CreditPack, credits: number): string | null {
   const { price, currencyCode } = pack;
   if (!price || !currencyCode) return null;
-  const tags = [getLocales()[0]?.languageTag, "en-US"].filter((x): x is string => !!x);
+  const tags = [WEB ? undefined : getLocales()[0]?.languageTag, "en-US"].filter((x): x is string => !!x);
   for (const tag of tags) {
     try {
       return new Intl.NumberFormat(tag, { style: "currency", currency: currencyCode }).format(price / credits);
