@@ -21,6 +21,41 @@
     setPos();
   }
 
+  // ---- styles: show all 12 styles on another sample room ----
+  var rooms = document.getElementById("rooms");
+  var grid = document.getElementById("style-grid");
+  if (rooms && grid) {
+    var chips = rooms.querySelectorAll(".room-chip");
+    var pics = grid.querySelectorAll("img[data-style]");
+    var current = 0;
+    var pick = function (chip) {
+      var room = chip.dataset.room;
+      var turn = ++current;
+      for (var i = 0; i < chips.length; i++) chips[i].setAttribute("aria-pressed", String(chips[i] === chip));
+      grid.classList.add("swapping");
+      // Load the new room's 12 pictures first, so tiles never flash empty, then swap them in together.
+      var left = pics.length;
+      var swap = function () {
+        if (--left > 0 || turn !== current) return;
+        for (var k = 0; k < pics.length; k++) {
+          var img = pics[k];
+          img.src = "/img/rooms/thumb-" + room + "-" + img.dataset.style + ".webp";
+          img.alt = grid.dataset.alt.replace("{room}", chip.dataset.alt).replace("{style}", img.dataset.name);
+        }
+        grid.classList.remove("swapping");
+      };
+      for (var n = 0; n < pics.length; n++) {
+        var pre = new Image();
+        pre.onload = pre.onerror = swap;
+        pre.src = "/img/rooms/thumb-" + room + "-" + pics[n].dataset.style + ".webp";
+      }
+    };
+    for (var c = 0; c < chips.length; c++) {
+      chips[c].addEventListener("click", function () { pick(this); });
+    }
+    rooms.hidden = false;
+  }
+
   // ---- Android waitlist -> Hero Inbox ----
   var form = document.getElementById("waitlist");
   var thanks = document.getElementById("waitlist-thanks");

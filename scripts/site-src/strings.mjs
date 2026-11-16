@@ -55,7 +55,8 @@ export const strings = {
     step3_alt: "DecoHero results screen with a finished Mediterranean design of a sample terrace and the buttons Save and Share",
     styles_eyebrow: "The styles",
     styles_h2: "{{style_count}} styles for the same four walls.",
-    styles_sub: "Every design uses one of these fixed styles. There is no prompt box, so you pick, tap and compare.",
+    styles_sub: "One sample room, every style, same walls and windows. Pick another room to see it change. There is no prompt box: you pick, tap and compare.",
+    rooms_label: "Sample room",
     pricing_eyebrow: "Pricing",
     pricing_h2: "Pay per design. No subscription.",
     pricing_sub: "One credit is one design. Credits never expire.",
@@ -151,7 +152,8 @@ export const strings = {
     step3_alt: "Pantalla de resultados de DecoHero con un diseño Mediterráneo terminado de una terraza de muestra y los botones Guardar y Compartir",
     styles_eyebrow: "Los estilos",
     styles_h2: "{{style_count}} estilos para las mismas cuatro paredes.",
-    styles_sub: "Cada diseño usa uno de estos estilos fijos. No hay que escribir instrucciones: eliges, tocas y comparas.",
+    styles_sub: "Una habitación de muestra, todos los estilos, mismas paredes y ventanas. Elige otra habitación para verla cambiar. No hay que escribir instrucciones: eliges, tocas y comparas.",
+    rooms_label: "Habitación de muestra",
     pricing_eyebrow: "Precios",
     pricing_h2: "Pagas por diseño. Sin suscripción.",
     pricing_sub: "Un crédito es un diseño. Los créditos no vencen.",
@@ -231,24 +233,19 @@ export const styleNotes = {
   },
 };
 
-// One real output per style from store/rooms/after (model output of the server prompts on sample rooms,
-// see store/rooms/README.md). Not used: sala-panama-mediterranean, kitchen-mediterranean and
-// kitchen-modern-minimal, which change the room too much. Files: site/img/rooms/thumb-<room>-<style>.webp.
-export const styleThumbs = {
-  "tropical-modern": "sala-panama",
-  "modern-minimal": "home-office",
-  "japandi": "bedroom",
-  "scandinavian": "living-room",
-  "mid-century": "living-room",
-  "boho": "bedroom",
-  "coastal": "sala-panama",
-  "mediterranean": "terrace",
-  "industrial": "home-office",
-  "luxury-classic": "dining-room",
-  "farmhouse": "dining-room",
-  "art-deco": "dining-room",
-};
-export const roomNames = {
-  en: { "sala-panama": "living room", "home-office": "home office", "bedroom": "bedroom", "living-room": "living room", "terrace": "terrace", "dining-room": "dining room" },
-  es: { "sala-panama": "sala", "home-office": "oficina en casa", "bedroom": "dormitorio", "living-room": "sala", "terrace": "terraza", "dining-room": "comedor" },
+// The styles section shows one sample room in all 12 styles, with a picker for the room.
+// Every image is real model output of the server prompts (store/rooms/after, see store/rooms/README.md).
+// Thumbs: site/img/rooms/thumb-<room>-<style>.webp (640x480). Picker chips: site/img/rooms/chip-<room>.webp,
+// made from store/rooms/before. First room in the list is shown when the page loads, per language.
+export const sampleRooms = {
+  en: [
+    { id: "living-room", name: "Apartment", alt: "apartment living room" },
+    { id: "sala-panama", name: "Panama house", alt: "living room in a Panama house" },
+    { id: "bedroom", name: "Bedroom", alt: "bedroom" },
+  ],
+  es: [
+    { id: "sala-panama", name: "Casa en Panamá", alt: "sala de una casa en Panamá" },
+    { id: "living-room", name: "Apartamento", alt: "sala de apartamento" },
+    { id: "bedroom", name: "Dormitorio", alt: "dormitorio" },
+  ],
 };

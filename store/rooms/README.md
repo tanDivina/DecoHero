@@ -37,6 +37,21 @@ user tapping "Try again". First outputs were rejected when they changed the room
 | home-office industrial | changed the window and the view outside |
 | sala-panama tropical-modern | removed the window bars |
 
-`bedroom art-deco` was dropped completely (it turned the window into leaded glass).
+`bedroom art-deco` was dropped completely in the first batch (it turned the window into leaded glass).
+
+Nov 15 2026: the landing page's styles section shows all 12 styles on living-room, sala-panama and
+bedroom, so the missing pairs were made. Rejected outputs are kept in `../rejected/` (`-a1` = first try):
+
+| Rejected | Why |
+|---|---|
+| living-room mid-century (Nov 13) | glass table and plant cramped against the sofa |
+| living-room mid-century a1 | camera moved to a frontal view |
+| living-room modern-minimal a1 | furniture layout and camera changed |
+| living-room luxury-classic a2 | second try was worse (frontal camera, panelling); a1 kept |
+| living-room farmhouse a1 | window frame and camera changed |
+| sala-panama mediterranean (Nov 13) | changed the room too much |
+| sala-panama modern-minimal a1 | removed the window bars |
+| sala-panama luxury-classic a1 | moved a wall window, added a mirror wall |
+| bedroom art-deco a1 | panelled walls, changed window |
 
 `fal-calls.log` has one line per fal call (time, model, result). No keys are stored anywhere here.
