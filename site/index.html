@@ -66,7 +66,7 @@
             <a class="btn" href="/app">Try it in your browser
               <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="btn btn-ghost" href="#android">Android waitlist</a>
+            <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">Get it on Google Play</a>
           </div>
           <p class="hero-note">1 free design when you sign in with Google. No subscription.</p>
         </div>
@@ -194,7 +194,7 @@
           <details><summary>What happens to my photos?</summary><div class="answer"><p>Your photo goes to our server, which passes it to Google's Gemini API to create the design and sends the result back to you. Our server handles the photo and the design in memory only. It doesn't write them to a database, to disk or to logs.</p><p>We use Google's paid Gemini API, so Google doesn't use your photos to improve its products, though it may keep them for a limited time to detect abuse. We don't use your photos to train AI models. The <a href="/privacy">privacy policy</a> has the details.</p></div></details>
           <details><summary>Do credits expire?</summary><div class="answer"><p>No. Credits you buy stay on your account until you use them. Deleting your account is the one exception: unused credits are lost.</p></div></details>
           <details><summary>Can I get a refund?</summary><div class="answer"><p>When a design fails, the credit returns to your balance on its own. For a refund of a purchase, email <a href="mailto:support@hero-apps.com">support@hero-apps.com</a> from the address you sign in with. A refunded pack's credits are removed from your balance. See the <a href="/terms">terms</a>.</p></div></details>
-          <details><summary>Is there an Android app? An iPhone app?</summary><div class="answer"><p>The Android app is in testing on Google Play and isn't public yet. <a href="#android">Join the waitlist</a> and we'll email you when it is. There is no iPhone app. The web app runs in your browser.</p></div></details>
+          <details><summary>Is there an Android app? An iPhone app?</summary><div class="answer"><p>Yes, DecoHero is <a href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">on Google Play</a>. There is no iPhone app yet. On an iPhone, the web app runs in your browser.</p></div></details>
           <details><summary>Do I need an account?</summary><div class="answer"><p>On the web, yes. You sign in with Google so your credits stay with you. Our server stores an ID for your sign-in, not your email address, name or profile picture. You can delete the account from the app's About screen.</p></div></details>
           <details><summary>How close are the designs to reality?</summary><div class="answer"><p>They are AI-generated ideas, not exact products or measurements. DecoHero is built to keep the room's architecture and change the furniture, colours, materials and lighting. Results depend on the photo, and a daylight shot from a corner works best.</p></div></details>
         </div>
@@ -205,28 +205,14 @@
       <div class="wrap waitlist-in">
         <div>
           <p class="eyebrow">Android</p>
-          <h2>Coming soon to Google Play</h2>
-          <p class="waitlist-p">The Android app is in testing. Leave your email and we'll tell you when it's public. We use your address for that and nothing else.</p>
+          <h2>Now on Google Play</h2>
+          <p class="waitlist-p">Get DecoHero on your Android phone. Your first design is free, and credits you buy stay on your phone.</p>
         </div>
         <div class="waitlist-box">
-          <form id="waitlist" novalidate data-lang="en" data-sending="Sending"
-                data-error="That didn't go through. Try again, or write to support@hero-apps.com." data-invalid="Check the email address and try again.">
-            <label for="wl-email">Email address</label>
-            <div class="field">
-              <input id="wl-email" name="email" type="email" autocomplete="email" inputmode="email"
-                     placeholder="you@example.com" required aria-describedby="wl-msg">
-              <button class="btn btn-light" type="submit">Join the waitlist</button>
-            </div>
-            <div class="hp" aria-hidden="true">
-              <label for="wl-company">Leave this field empty</label>
-              <input id="wl-company" name="company" type="text" tabindex="-1" autocomplete="off">
-            </div>
-            <p class="form-msg" id="wl-msg" role="alert"></p>
-          </form>
-          <div class="thanks" id="waitlist-thanks" hidden tabindex="-1">
-            <h3>You're on the list.</h3>
-            <p>We'll email you when DecoHero is on Google Play. Until then, the web app is open.</p>
-          </div>
+          <a class="btn btn-light" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">Get it on Google Play
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <p class="waitlist-p">Android 7 and up. Free to install, with in-app credit packs.</p>
         </div>
       </div>
     </section>

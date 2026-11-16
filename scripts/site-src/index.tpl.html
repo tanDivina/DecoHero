@@ -66,7 +66,7 @@
             <a class="btn" href="/app">{{cta_primary}}
               <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="btn btn-ghost" href="#android">{{cta_secondary}}</a>
+            <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">{{cta_secondary}}</a>
           </div>
           <p class="hero-note">{{hero_note}}</p>
         </div>
@@ -198,24 +198,10 @@
           <p class="waitlist-p">{{wait_p}}</p>
         </div>
         <div class="waitlist-box">
-          <form id="waitlist" novalidate data-lang="{{lang}}" data-sending="{{wait_sending}}"
-                data-error="{{wait_error}}" data-invalid="{{wait_invalid}}">
-            <label for="wl-email">{{wait_label}}</label>
-            <div class="field">
-              <input id="wl-email" name="email" type="email" autocomplete="email" inputmode="email"
-                     placeholder="{{wait_placeholder}}" required aria-describedby="wl-msg">
-              <button class="btn btn-light" type="submit">{{wait_button}}</button>
-            </div>
-            <div class="hp" aria-hidden="true">
-              <label for="wl-company">{{hp_label}}</label>
-              <input id="wl-company" name="company" type="text" tabindex="-1" autocomplete="off">
-            </div>
-            <p class="form-msg" id="wl-msg" role="alert"></p>
-          </form>
-          <div class="thanks" id="waitlist-thanks" hidden tabindex="-1">
-            <h3>{{wait_thanks_h}}</h3>
-            <p>{{wait_thanks_p}}</p>
-          </div>
+          <a class="btn btn-light" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">{{play_button}}
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <p class="waitlist-p">{{play_note}}</p>
         </div>
       </div>
     </section>
