@@ -35,7 +35,7 @@ if (keys(strings.en) !== keys(strings.es)) {
 }
 
 // ---- the real style list, read from the app so the page cannot list a style the app lacks ----
-// Only STYLE_PRESETS: the file also holds TREE_PRESETS (Christmas mode), which the landing page does not list.
+// Only STYLE_PRESETS here: TREE_PRESETS (Christmas mode) is read separately below.
 const presetsSrc = read(join(root, "mobile/src/stylePresets.ts"));
 const stylePresetsBlock = /export const STYLE_PRESETS = \[([\s\S]*?)\] as const;/.exec(presetsSrc)?.[1] ?? "";
 const presets = [...stylePresetsBlock
@@ -45,6 +45,17 @@ if (presets.length === 0) throw new Error("No styles found in mobile/src/stylePr
 for (const p of presets) {
   for (const l of LANGS) if (!styleNotes[l][p.id]) throw new Error(`No ${l} note for style ${p.id}`);
 }
+// Christmas mode: the tree style names shown on the page come from TREE_PRESETS, so they match the app.
+const treeBlock = /export const TREE_PRESETS = \[([\s\S]*?)\] as const;/.exec(presetsSrc)?.[1] ?? "";
+const trees = [...treeBlock
+  .matchAll(/\{\s*id:\s*"xmas-([^"]+)",\s*en:\s*"([^"]+)",\s*es:\s*"([^"]+)"\s*\}/g)]
+  .map(([, id, en, es]) => ({ id, en, es }));
+if (trees.length !== 6) throw new Error(`The Christmas copy says six tree styles, mobile/src/stylePresets.ts has ${trees.length}`);
+const treeNames = (lang) => Object.fromEntries(["classic", "nordic", "tropical"].map((id) => {
+  const t = trees.find((x) => x.id === id);
+  if (!t) throw new Error(`No tree style xmas-${id} in mobile/src/stylePresets.ts`);
+  return ["tree_" + id, esc(t[lang])];
+}));
 const styleList = (lang) => presets.map((p, i) => {
   const room = styleThumbs[p.id];
   const img = `/img/rooms/thumb-${room}-${p.id}.webp`;
@@ -164,7 +175,7 @@ const legalSrc = {
 
 for (const lang of LANGS) {
   const dir = lang === "en" ? "" : "es/";
-  write(dir + "index.html", fill(indexTpl, { ...common(lang, "index"), style_list: styleList(lang), style_count: String(presets.length) }, "index"));
+  write(dir + "index.html", fill(indexTpl, { ...common(lang, "index"), style_list: styleList(lang), ...treeNames(lang), style_count: String(presets.length) }, "index"));
   for (const page of ["privacy", "terms"]) {
     const { title, html } = markdown(read(legalSrc[page][lang]));
     write(dir + page + ".html", fill(legalTpl, {

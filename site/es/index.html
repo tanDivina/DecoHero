@@ -31,7 +31,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css?v=a9d15b1e39">
+  <link rel="stylesheet" href="/css/site.css?v=5ce70495bd">
+  <noscript><style>.ba-toggle { display: none; }</style></noscript>
 </head>
 <body>
   <a class="skip" href="#main">Ir al contenido</a>
@@ -41,6 +42,7 @@
       <a class="wordmark" href="/es" aria-label="Inicio de DecoHero">DecoHero</a>
       <nav class="top-links" aria-label="Principal">
         <a href="#how">Cómo funciona</a>
+        <a href="#christmas">Navidad</a>
         <a href="#styles">Estilos</a>
         <a href="#pricing">Precios</a>
         <a href="#faq">Preguntas</a>
@@ -68,10 +70,14 @@
             </a>
             <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">Descárgala en Google Play</a>
           </div>
-          <p class="hero-note">1 diseño gratis al iniciar sesión con Google. Sin suscripción.</p>
+          <p class="hero-note">Nuevo: modo Navidad. Prueba un árbol en tu propia sala. 1 diseño gratis al iniciar sesión con Google.</p>
         </div>
 
-        <figure class="ba ba-landscape" id="compare">
+        <figure class="ba ba-landscape" id="compare" data-xmas-before="/img/rooms/sala-panama-before.webp" data-xmas-after="/img/rooms/sala-panama-xmas-tropical.webp" data-xmas-before-alt="Sala de muestra en Panamá antes: sofás marrones, piso de baldosas, ventanas con rejas, abanico de techo y sillas plásticas apiladas junto al televisor" data-xmas-after-alt="La misma sala con un árbol de Navidad en estilo Navidad tropical donde estaban las sillas apiladas: adornos tejidos, estrella de ratán y base de canasta. Los sofás, el televisor, las ventanas y el piso no cambian" data-xmas-tag="Después, Navidad tropical">
+          <div class="ba-toggle" role="group" aria-label="Muestra para comparar">
+            <button type="button" data-pair="rooms" aria-pressed="true">Espacios</button>
+            <button type="button" data-pair="xmas" aria-pressed="false">Navidad</button>
+          </div>
           <div class="ba-stage">
             <div class="ba-pane ba-before">
               <img src="/img/rooms/sala-panama-before.webp" width="1200" height="896" fetchpriority="high" decoding="async" alt="Sala de muestra antes: sofás marrones, piso de baldosas, ventanas con rejas y abanico de techo">
@@ -115,6 +121,36 @@
             <p>Los diseños llegan uno por uno. Mantén presionado un diseño para volver a tu espacio original y guarda los que te gusten.</p>
           </li>
         </ol>
+      </div>
+    </section>
+
+    <section class="section section-xmas" id="christmas">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Modo Navidad</p>
+            <h2>Mira el árbol en tu sala antes de pedirlo.</h2>
+          </div>
+          <p class="section-sub">Cambia a Navidad, agrega una foto de tu espacio y DecoHero le pone un árbol de Navidad. El resto del espacio se mantiene en su lugar. Elige hasta cuatro de seis estilos de árbol y compáralos.</p>
+        </div>
+        <ul class="trees" aria-label="La misma sala de muestra con tres estilos de árbol">
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-before.webp" width="600" height="804" loading="lazy" decoding="async" alt="Sala de muestra antes: sofá beige, sillón marrón, mesa de centro de vidrio y un televisor sobre una cómoda de pino"><span class="ba-tag">Antes</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-classic.webp" width="600" height="804" loading="lazy" decoding="async" alt="La misma sala con un árbol de Navidad en estilo Clásico cálido junto al sofá: bolas rojas y doradas, luces cálidas, una estrella arriba y regalos sobre un pie de árbol rojo"><span class="ba-tag ba-tag-after">Clásico cálido</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-nordic.webp" width="600" height="804" loading="lazy" decoding="async" alt="La misma sala con un árbol de Navidad delgado en estilo Nórdico entre el sofá y el sillón: pocos adornos claros, base de canasta y dos regalos blancos"><span class="ba-tag ba-tag-after">Nórdico</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-tropical.webp" width="600" height="804" loading="lazy" decoding="async" alt="La misma sala con un árbol de Navidad en estilo Navidad tropical junto al sofá: adornos tejidos y rosados, estrella de ratán, base de canasta y regalos envueltos con hojas verdes"><span class="ba-tag ba-tag-after">Navidad tropical</span></li>
+        </ul>
+        <p class="sample-note">Espacios de muestra. Los diseños son ideas generadas con IA, no productos ni medidas exactas.</p>
+        <div class="pricing-foot">
+          <ul class="fine">
+            <li>Escribe la altura de tu techo y queda marcado el árbol más alto que cabe, con espacio para la base y la estrella.</li>
+            <li>Toca la foto donde quieres el árbol o deja que DecoHero elija el lugar.</li>
+            <li>Enlaces a un árbol natural. Algunos son enlaces de afiliado.</li>
+            <li>Un diseño con árbol usa un crédito. El tamaño es un cálculo aproximado: mide tu techo antes de hacer el pedido.</li>
+          </ul>
+          <a class="btn" href="/app">Prueba el modo Navidad
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
       </div>
     </section>
 
@@ -197,6 +233,7 @@
           <details><summary>¿Hay app para Android? ¿Y para iPhone?</summary><div class="answer"><p>Sí, DecoHero está <a href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">en Google Play</a>. Todavía no hay app para iPhone. En un iPhone, la app web funciona en tu navegador.</p></div></details>
           <details><summary>¿Necesito una cuenta?</summary><div class="answer"><p>En la web, sí. Inicias sesión con Google para que tus créditos se queden contigo. Nuestro servidor guarda un ID de tu inicio de sesión, no tu correo, tu nombre ni tu foto de perfil. Puedes eliminar la cuenta desde la pantalla Acerca de de la app.</p></div></details>
           <details><summary>¿Qué tan reales son los diseños?</summary><div class="answer"><p>Son ideas generadas con IA, no productos ni medidas exactas. DecoHero está hecho para mantener la arquitectura del espacio y cambiar los muebles, los colores, los materiales y la iluminación. El resultado depende de la foto, y una toma con luz de día desde una esquina funciona mejor.</p></div></details>
+          <details><summary>¿Cómo funciona el árbol de Navidad?</summary><div class="answer"><p>En el modo Navidad, DecoHero agrega un árbol a tu foto y mantiene el resto del espacio en su lugar. Escribes la altura de tu techo y queda marcado el árbol más alto que cabe, con al menos 30 cm (12 in) libres bajo el techo para la base y la estrella. Puedes elegir uno más pequeño. Toca la foto donde quieres el árbol o deja que DecoHero elija. El árbol queda en el espacio libre del piso más cercano a tu toque.</p><p>Con tus resultados recibes enlaces para comprar un árbol natural en la tienda de nuestro aliado, que envía solo dentro de Estados Unidos. Algunos son enlaces de afiliado, así que podemos recibir una comisión si compras desde ellos. La imagen es un cálculo aproximado: mide tu techo antes de hacer el pedido.</p></div></details>
         </div>
       </div>
     </section>
@@ -234,6 +271,6 @@
   </footer>
 
   <script src="https://hero-inbox-2026.web.app/inbox.js" defer></script>
-  <script src="/js/site.js?v=1dc0b32177" defer></script>
+  <script src="/js/site.js?v=d70289d4cd" defer></script>
 </body>
 </html>

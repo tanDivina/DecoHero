@@ -89,6 +89,13 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
 .ba-pane img { width: 100%; height: 100%; object-fit: cover; }
 .ba-tag { position: absolute; top: 12px; left: 12px; padding: 6px 12px; border-radius: 999px; background: rgba(246, 247, 244, .94); color: var(--ink); font-size: 0.75rem; font-weight: 600; line-height: 1.2; pointer-events: none; }
 .ba-tag-after { background: var(--olive); color: var(--white); }
+/* Rooms / Christmas sample switch above the stage. Hidden without JS (noscript style in the page head). */
+.ba-toggle { display: inline-flex; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--plaster); }
+.ba-toggle button { min-height: 40px; padding: 8px 18px; border: 0; border-radius: 999px; background: transparent; color: var(--stone); font: 600 0.9rem/1.2 var(--sans); cursor: pointer; transition: background-color .25s var(--ease), color .25s var(--ease); }
+.ba-toggle button:hover { color: var(--ink); }
+.ba-toggle button[aria-pressed="true"] { background: var(--ink); color: var(--plaster); }
+/* The Christmas sample is landscape. In the portrait stage it is cropped around the tree. */
+.ba-portrait.ba-xmas .ba-pane img { object-position: 42% 50%; }
 .ba figcaption, .sample-note { font-size: 0.85rem; color: var(--stone); margin-top: 14px; }
 .sample-note { margin-top: 28px; }
 .ba-on .ba-stage { display: block; --pos: 50%; }
@@ -123,6 +130,14 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
 .style img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; background: var(--line); margin-bottom: 14px; }
 .style h3 { margin-top: 4px; font-size: 1.45rem; }
 .style p { color: var(--stone); font-size: 0.97rem; margin-top: 6px; max-width: 24rem; }
+
+/* christmas mode */
+.section-xmas { background: var(--brass-wash); border-top: 1px solid #E2D3B6; }
+.trees { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 40px; }
+.tree { position: relative; }
+.tree img { width: 100%; aspect-ratio: 600 / 804; object-fit: cover; border-radius: 16px; background: var(--line); }
+.tree .ba-tag { top: 10px; left: 10px; max-width: calc(100% - 20px); }
+.section-xmas .sample-note { margin-top: 18px; }
 
 /* pricing */
 .packs { display: grid; gap: 14px; margin-top: 40px; }
@@ -215,6 +230,7 @@ h3 { font-size: 1.7rem; line-height: 1.15; }
   .section-head { grid-template-columns: 1.2fr .8fr; align-items: end; gap: 48px; }
   .steps { gap: 44px; margin-top: 56px; }
   .styles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 48px 24px; margin-top: 56px; }
+  .trees { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin-top: 56px; }
   .packs { grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 52px; }
   .pricing-foot { grid-template-columns: 1fr auto; align-items: center; }
   .faq-in { grid-template-columns: .8fr 1.2fr; gap: 64px; }
