@@ -32,6 +32,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css?v={{css_v}}">
+  <noscript><style>.ba-toggle { display: none; }</style></noscript>
 </head>
 <body>
   <a class="skip" href="#main">{{skip}}</a>
@@ -41,6 +42,7 @@
       <a class="wordmark" href="{{home}}" aria-label="{{footer_home}}">DecoHero</a>
       <nav class="top-links" aria-label="{{nav_label}}">
         <a href="#how">{{nav_how}}</a>
+        <a href="#christmas">{{nav_xmas}}</a>
         <a href="#styles">{{nav_styles}}</a>
         <a href="#pricing">{{nav_pricing}}</a>
         <a href="#faq">{{nav_faq}}</a>
@@ -68,10 +70,14 @@
             </a>
             <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">{{cta_secondary}}</a>
           </div>
-          <p class="hero-note">{{hero_note}}</p>
+          <p class="hero-note">{{hero_note_xmas}}</p>
         </div>
 
-        <figure class="ba ba-{{hero_shape}}" id="compare">
+        <figure class="ba ba-{{hero_shape}}" id="compare" data-xmas-before="{{ba_before_xmas_img}}" data-xmas-after="{{ba_after_xmas_img}}" data-xmas-before-alt="{{ba_before_xmas_alt}}" data-xmas-after-alt="{{ba_after_xmas_alt}}" data-xmas-tag="{{ba_after_xmas}}">
+          <div class="ba-toggle" role="group" aria-label="{{hero_toggle_label}}">
+            <button type="button" data-pair="rooms" aria-pressed="true">{{hero_toggle_rooms}}</button>
+            <button type="button" data-pair="xmas" aria-pressed="false">{{hero_toggle_xmas}}</button>
+          </div>
           <div class="ba-stage">
             <div class="ba-pane ba-before">
               <img src="{{ba_before_img}}" width="{{ba_w}}" height="{{ba_h}}" fetchpriority="high" decoding="async" alt="{{ba_before_alt}}">
@@ -115,6 +121,36 @@
             <p>{{step3_p}}</p>
           </li>
         </ol>
+      </div>
+    </section>
+
+    <section class="section section-xmas" id="christmas">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">{{xmas_eyebrow}}</p>
+            <h2>{{xmas_h2}}</h2>
+          </div>
+          <p class="section-sub">{{xmas_p}}</p>
+        </div>
+        <ul class="trees" aria-label="{{xmas_examples}}">
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-before.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_before_alt}}"><span class="ba-tag">{{ba_before}}</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-classic.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_classic_alt}}"><span class="ba-tag ba-tag-after">{{tree_classic}}</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-nordic.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_nordic_alt}}"><span class="ba-tag ba-tag-after">{{tree_nordic}}</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-tropical.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_tropical_alt}}"><span class="ba-tag ba-tag-after">{{tree_tropical}}</span></li>
+        </ul>
+        <p class="sample-note">{{sample_note}}</p>
+        <div class="pricing-foot">
+          <ul class="fine">
+            <li>{{xmas_li1}}</li>
+            <li>{{xmas_li2}}</li>
+            <li>{{xmas_li3}}</li>
+            <li>{{xmas_note}}</li>
+          </ul>
+          <a class="btn" href="/app">{{xmas_cta}}
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
       </div>
     </section>
 
@@ -192,6 +228,7 @@
           <details><summary>{{faq4_q}}</summary><div class="answer">{{faq4_a}}</div></details>
           <details><summary>{{faq5_q}}</summary><div class="answer">{{faq5_a}}</div></details>
           <details><summary>{{faq6_q}}</summary><div class="answer">{{faq6_a}}</div></details>
+          <details><summary>{{faq7_q}}</summary><div class="answer">{{faq7_a}}</div></details>
         </div>
       </div>
     </section>

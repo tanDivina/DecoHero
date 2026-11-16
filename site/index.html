@@ -31,7 +31,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css?v=cb9ca07083">
+  <link rel="stylesheet" href="/css/site.css?v=377cd28b01">
+  <noscript><style>.ba-toggle { display: none; }</style></noscript>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -41,6 +42,7 @@
       <a class="wordmark" href="/" aria-label="DecoHero home">DecoHero</a>
       <nav class="top-links" aria-label="Main">
         <a href="#how">How it works</a>
+        <a href="#christmas">Christmas</a>
         <a href="#styles">Styles</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
@@ -68,10 +70,14 @@
             </a>
             <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">Get it on Google Play</a>
           </div>
-          <p class="hero-note">1 free design when you sign in with Google. No subscription.</p>
+          <p class="hero-note">New: Christmas mode. Try a tree in your own room. 1 free design when you sign in with Google.</p>
         </div>
 
-        <figure class="ba ba-portrait" id="compare">
+        <figure class="ba ba-portrait" id="compare" data-xmas-before="/img/rooms/sala-panama-before.webp" data-xmas-after="/img/rooms/sala-panama-xmas-tropical.webp" data-xmas-before-alt="Sample living room in Panama before: brown sofas, tiled floor, barred windows, a ceiling fan and stacked plastic chairs next to the TV" data-xmas-after-alt="The same room with a Christmas tree in Tropical Christmas style where the stacked chairs stood: woven ornaments, a rattan star and a basket base. Sofas, TV, windows and floor are unchanged" data-xmas-tag="After, Tropical Christmas">
+          <div class="ba-toggle" role="group" aria-label="Sample to compare">
+            <button type="button" data-pair="rooms" aria-pressed="true">Rooms</button>
+            <button type="button" data-pair="xmas" aria-pressed="false">Christmas</button>
+          </div>
           <div class="ba-stage">
             <div class="ba-pane ba-before">
               <img src="/img/rooms/living-room-before.webp" width="896" height="1200" fetchpriority="high" decoding="async" alt="Sample living room before: beige sofa, brown armchair, glass coffee table and a TV on a pine chest">
@@ -115,6 +121,36 @@
             <p>Designs arrive one at a time. Press and hold a design to flip back to your original room, then save the ones you like.</p>
           </li>
         </ol>
+      </div>
+    </section>
+
+    <section class="section section-xmas" id="christmas">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Christmas mode</p>
+            <h2>See the tree in your room before you order it.</h2>
+          </div>
+          <p class="section-sub">Switch to Christmas, add a photo of your room, and DecoHero adds one Christmas tree to it. The rest of the room stays in place. Pick up to four of six tree styles and compare them side by side.</p>
+        </div>
+        <ul class="trees" aria-label="The same sample room with three tree styles">
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-before.webp" width="600" height="804" loading="lazy" decoding="async" alt="Sample living room before: beige sofa, brown armchair, glass coffee table and a TV on a pine chest"><span class="ba-tag">Before</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-classic.webp" width="600" height="804" loading="lazy" decoding="async" alt="The same living room with a Christmas tree in Classic warmth style next to the sofa: red and gold baubles, warm lights, a star on top and wrapped gifts on a red tree skirt"><span class="ba-tag ba-tag-after">Classic warmth</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-nordic.webp" width="600" height="804" loading="lazy" decoding="async" alt="The same living room with a slim Christmas tree in Nordic minimal style between the sofa and the armchair: a few pale ornaments, a basket base and two white gifts"><span class="ba-tag ba-tag-after">Nordic minimal</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-tropical.webp" width="600" height="804" loading="lazy" decoding="async" alt="The same living room with a Christmas tree in Tropical Christmas style next to the sofa: woven and blush ornaments, a rattan star, a basket base and gifts wrapped with green leaves"><span class="ba-tag ba-tag-after">Tropical Christmas</span></li>
+        </ul>
+        <p class="sample-note">Sample rooms. Designs are AI-generated ideas, not exact products or measurements.</p>
+        <div class="pricing-foot">
+          <ul class="fine">
+            <li>Enter your ceiling height and the tallest tree that fits is selected, with room for the stand and the topper.</li>
+            <li>Tap the photo where the tree should go, or let DecoHero choose the spot.</li>
+            <li>Links to buy a real farm-cut tree, delivered in the US only. Some are affiliate links.</li>
+            <li>One tree design uses one credit. Tree sizes are estimates, so measure your ceiling before you order.</li>
+          </ul>
+          <a class="btn" href="/app">Try Christmas mode
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
       </div>
     </section>
 
@@ -205,6 +241,7 @@
           <details><summary>Is there an Android app? An iPhone app?</summary><div class="answer"><p>Yes, DecoHero is <a href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">on Google Play</a>. There is no iPhone app yet. On an iPhone, the web app runs in your browser.</p></div></details>
           <details><summary>Do I need an account?</summary><div class="answer"><p>On the web, yes. You sign in with Google so your credits stay with you. Our server stores an ID for your sign-in, not your email address, name or profile picture. You can delete the account from the app's About screen.</p></div></details>
           <details><summary>How close are the designs to reality?</summary><div class="answer"><p>They are AI-generated ideas, not exact products or measurements. DecoHero is built to keep the room's architecture and change the furniture, colours, materials and lighting. Results depend on the photo, and a daylight shot from a corner works best.</p></div></details>
+          <details><summary>How does the Christmas tree work?</summary><div class="answer"><p>In Christmas mode DecoHero adds one tree to your photo and keeps the rest of the room in place. Enter your ceiling height and the tallest tree that fits is selected, leaving at least 12 in (30 cm) under the ceiling for the stand and the topper. You can pick a smaller size. Tap the photo where the tree should go, or let DecoHero choose. The tree stands on the open floor nearest your tap.</p><p>With your results you get links to buy a real farm-cut tree from our partner's store, which delivers in the US only. Some of these are affiliate links, so we may earn a commission if you buy through them. The picture is an estimate: measure your ceiling before you order.</p></div></details>
         </div>
       </div>
     </section>
@@ -242,6 +279,6 @@
   </footer>
 
   <script src="https://hero-inbox-2026.web.app/inbox.js" defer></script>
-  <script src="/js/site.js?v=f52158b2f6" defer></script>
+  <script src="/js/site.js?v=5c88fd0cd8" defer></script>
 </body>
 </html>
