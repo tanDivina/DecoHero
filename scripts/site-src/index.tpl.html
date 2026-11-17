@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}}</title>
+  <meta name="description" content="{{description}}">
+  <link rel="canonical" href="{{origin}}{{path}}">
+  <link rel="alternate" hreflang="en" href="{{origin}}{{en_path}}">
+  <link rel="alternate" hreflang="es" href="{{origin}}{{es_path}}">
+  <link rel="alternate" hreflang="x-default" href="{{origin}}{{en_path}}">
+  <meta name="theme-color" content="#E8EBE6">
+  <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/img/icon-192.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DecoHero">
+  <meta property="og:url" content="{{origin}}{{path}}">
+  <meta property="og:title" content="{{og_title}}">
+  <meta property="og:description" content="{{og_description}}">
+  <meta property="og:image" content="{{origin}}{{og_image}}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{og_image_alt}}">
+  <meta property="og:locale" content="{{og_locale}}">
+  <meta property="og:locale:alternate" content="{{og_locale_alt}}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{og_title}}">
+  <meta name="twitter:description" content="{{og_description}}">
+  <meta name="twitter:image" content="{{origin}}{{og_image}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css?v={{css_v}}">
+  <noscript><style>.ba-toggle { display: none; }</style></noscript>
+</head>
+<body>
+  <a class="skip" href="#main">{{skip}}</a>
+
+  <header class="top">
+    <div class="wrap top-in">
+      <a class="wordmark" href="{{home}}" aria-label="{{footer_home}}">DecoHero</a>
+      <nav class="top-links" aria-label="{{nav_label}}">
+        <a href="#how">{{nav_how}}</a>
+        <a href="#christmas">{{nav_xmas}}</a>
+        <a href="#styles">{{nav_styles}}</a>
+        <a href="#pricing">{{nav_pricing}}</a>
+        <a href="#faq">{{nav_faq}}</a>
+      </nav>
+      <div class="top-side">
+        <div class="lang" role="group" aria-label="{{lang_label}}">
+          <a href="{{en_path}}" lang="en" hreflang="en"{{en_current}}>EN</a>
+          <a href="{{es_path}}" lang="es" hreflang="es"{{es_current}}>ES</a>
+        </div>
+        <a class="btn btn-small" href="/app">{{nav_cta}}</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero hero-{{hero_shape}}">
+      <div class="wrap hero-in">
+        <div class="hero-text">
+          <p class="eyebrow">{{eyebrow}}</p>
+          <h1>{{h1}}</h1>
+          <p class="lede">{{hero_sub}}</p>
+          <div class="cta-row">
+            <a class="btn" href="/app">{{cta_primary}}
+              <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">{{cta_secondary}}</a>
+          </div>
+          <p class="hero-note">{{hero_note_xmas}}</p>
+        </div>
+
+        <figure class="ba ba-{{hero_shape}}" id="compare" data-xmas-before="{{ba_before_xmas_img}}" data-xmas-after="{{ba_after_xmas_img}}" data-xmas-before-alt="{{ba_before_xmas_alt}}" data-xmas-after-alt="{{ba_after_xmas_alt}}" data-xmas-tag="{{ba_after_xmas}}">
+          <div class="ba-toggle" role="group" aria-label="{{hero_toggle_label}}">
+            <button type="button" data-pair="rooms" aria-pressed="true">{{hero_toggle_rooms}}</button>
+            <button type="button" data-pair="xmas" aria-pressed="false">{{hero_toggle_xmas}}</button>
+          </div>
+          <div class="ba-stage">
+            <div class="ba-pane ba-before">
+              <img src="{{ba_before_img}}" width="{{ba_w}}" height="{{ba_h}}" fetchpriority="high" decoding="async" alt="{{ba_before_alt}}">
+              <span class="ba-tag">{{ba_before}}</span>
+            </div>
+            <div class="ba-pane ba-after">
+              <img src="{{ba_after_img}}" width="{{ba_w}}" height="{{ba_h}}" decoding="async" alt="{{ba_after_alt}}">
+              <span class="ba-tag ba-tag-after">{{ba_after}}</span>
+            </div>
+            <span class="ba-handle" aria-hidden="true" hidden>
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9.5 7.5 5 12l4.5 4.5M14.5 7.5 19 12l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <input class="ba-range" type="range" min="0" max="100" step="1" value="50" aria-label="{{ba_slider}}" hidden>
+          </div>
+          <figcaption>{{sample_note}}</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="wrap">
+        <p class="eyebrow">{{how_eyebrow}}</p>
+        <h2>{{how_h2}}</h2>
+        <ol class="steps">
+          <li class="step reveal">
+            <img src="{{step1_img}}" width="720" height="960" loading="lazy" decoding="async" alt="{{step1_alt}}">
+            <span class="step-n">01</span>
+            <h3>{{step1_h}}</h3>
+            <p>{{step1_p}}</p>
+          </li>
+          <li class="step reveal">
+            <img src="{{step2_img}}" width="720" height="960" loading="lazy" decoding="async" alt="{{step2_alt}}">
+            <span class="step-n">02</span>
+            <h3>{{step2_h}}</h3>
+            <p>{{step2_p}}</p>
+          </li>
+          <li class="step reveal">
+            <img src="{{step3_img}}" width="720" height="960" loading="lazy" decoding="async" alt="{{step3_alt}}">
+            <span class="step-n">03</span>
+            <h3>{{step3_h}}</h3>
+            <p>{{step3_p}}</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section section-xmas" id="christmas">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">{{xmas_eyebrow}}</p>
+            <h2>{{xmas_h2}}</h2>
+          </div>
+          <p class="section-sub">{{xmas_p}}</p>
+        </div>
+        <ul class="trees" aria-label="{{xmas_examples}}">
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-before.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_before_alt}}"><span class="ba-tag">{{ba_before}}</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-classic.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_classic_alt}}"><span class="ba-tag ba-tag-after">{{tree_classic}}</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-nordic.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_nordic_alt}}"><span class="ba-tag ba-tag-after">{{tree_nordic}}</span></li>
+          <li class="tree reveal"><img src="/img/rooms/xmas-living-room-tropical.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_tropical_alt}}"><span class="ba-tag ba-tag-after">{{tree_tropical}}</span></li>
+        </ul>
+        <p class="sample-note">{{sample_note}}</p>
+        <div class="pricing-foot">
+          <ul class="fine">
+            <li>{{xmas_li1}}</li>
+            <li>{{xmas_li2}}</li>
+            <li>{{xmas_li3}}</li>
+            <li>{{xmas_note}}</li>
+          </ul>
+          <a class="btn" href="/app">{{xmas_cta}}
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-plaster" id="styles">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">{{styles_eyebrow}}</p>
+            <h2>{{styles_h2}}</h2>
+          </div>
+          <p class="section-sub">{{styles_sub}}</p>
+        </div>
+        <div class="rooms" id="rooms" role="group" aria-label="{{rooms_label}}" hidden>
+          <p class="rooms-label">{{rooms_label}}</p>
+          <div class="rooms-chips">
+            {{room_picker}}
+          </div>
+        </div>
+        <ol class="styles" id="style-grid" data-alt="{{style_alt_tpl}}">
+{{style_list}}
+        </ol>
+        <p class="sample-note">{{sample_note}}</p>
+      </div>
+    </section>
+
+    <section class="section" id="pricing">
+      <div class="wrap">
+        <p class="eyebrow">{{pricing_eyebrow}}</p>
+        <h2>{{pricing_h2}}</h2>
+        <p class="section-sub">{{pricing_sub}}</p>
+        <ul class="packs">
+          <li class="pack pack-free reveal">
+            <p class="pack-name">{{free_name}}</p>
+            <p class="pack-amount">{{free_amount}}</p>
+            <p class="pack-price">{{free_price}}</p>
+            <p class="pack-note">{{free_note}}</p>
+          </li>
+          <li class="pack reveal">
+            <p class="pack-name">15 {{designs}}</p>
+            <p class="pack-amount">$3.99</p>
+            <p class="pack-note">{{pack15_note}}</p>
+          </li>
+          <li class="pack reveal">
+            <p class="pack-name">50 {{designs}}</p>
+            <p class="pack-amount">$9.99</p>
+            <p class="pack-note">{{pack50_note}}</p>
+          </li>
+          <li class="pack reveal">
+            <p class="pack-name">150 {{designs}}</p>
+            <p class="pack-amount">$24.99</p>
+            <p class="pack-note">{{pack150_note}}</p>
+          </li>
+        </ul>
+        <div class="pricing-foot">
+          <ul class="fine">
+            <li>{{pricing_li1}}</li>
+            <li>{{pricing_li2}}</li>
+            <li>{{pricing_li3}}</li>
+          </ul>
+          <a class="btn" href="/app">{{pricing_cta}}</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-plaster" id="faq">
+      <div class="wrap faq-in">
+        <div>
+          <p class="eyebrow">{{faq_eyebrow}}</p>
+          <h2>{{faq_h2}}</h2>
+        </div>
+        <div class="faq">
+          <details><summary>{{faq1_q}}</summary><div class="answer">{{faq1_a}}</div></details>
+          <details><summary>{{faq2_q}}</summary><div class="answer">{{faq2_a}}</div></details>
+          <details><summary>{{faq3_q}}</summary><div class="answer">{{faq3_a}}</div></details>
+          <details><summary>{{faq4_q}}</summary><div class="answer">{{faq4_a}}</div></details>
+          <details><summary>{{faq5_q}}</summary><div class="answer">{{faq5_a}}</div></details>
+          <details><summary>{{faq6_q}}</summary><div class="answer">{{faq6_a}}</div></details>
+          <details><summary>{{faq7_q}}</summary><div class="answer">{{faq7_a}}</div></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section waitlist" id="android">
+      <div class="wrap waitlist-in">
+        <div>
+          <p class="eyebrow">{{wait_eyebrow}}</p>
+          <h2>{{wait_h2}}</h2>
+          <p class="waitlist-p">{{wait_p}}</p>
+        </div>
+        <div class="waitlist-box">
+          <a class="btn btn-light" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">{{play_button}}
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <p class="waitlist-p">{{play_note}}</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <div>
+        <a class="wordmark" href="{{home}}" aria-label="{{footer_home}}">DecoHero</a>
+        <p class="foot-tag">{{footer_tag}}</p>
+      </div>
+      <nav class="foot-links" aria-label="{{footer_label}}">
+        <a href="{{privacy_path}}">{{footer_privacy}}</a>
+        <a href="{{terms_path}}">{{footer_terms}}</a>
+        <a href="mailto:support@hero-apps.com">support@hero-apps.com</a>
+      </nav>
+      <p class="foot-legal">&copy; 2026 Divina Endeavors LLC</p>
+    </div>
+  </footer>
+
+  <script src="https://hero-inbox-2026.web.app/inbox.js" defer></script>
+  <script src="/js/site.js?v={{js_v}}" defer></script>
+</body>
+</html>

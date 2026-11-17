@@ -1,0 +1,89 @@
+{
+  "expo": {
+    "name": "DecoHero",
+    "slug": "decohero",
+    "scheme": "decohero",
+    "version": "1.0.6",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.heroapps.decohero",
+      "versionCode": 7,
+      "adaptiveIcon": {
+        "backgroundColor": "#EDE3D0",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "com.google.android.gms.permission.AD_ID"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "DecoHero",
+      "shortName": "DecoHero",
+      "description": "See your room in a new style before you buy a thing.",
+      "lang": "en",
+      "themeColor": "#E8EBE6",
+      "backgroundColor": "#E8EBE6"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "DecoHero uses the camera so you can photograph the room you want to redesign.",
+          "photosPermission": "DecoHero lets you pick a photo of the room you want to redesign.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "DecoHero saves the designs you choose to your gallery.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": []
+        }
+      ],
+      "expo-sharing",
+      "expo-secure-store",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "android": ["en", "es"]
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#EDE3D0"
+        }
+      ],
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9a9c0ad6-0c18-4cfb-a4b7-46935262bb06"
+      }
+    },
+    "owner": "tandivina"
+  }
+}

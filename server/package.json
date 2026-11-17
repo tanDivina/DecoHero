@@ -1,0 +1,31 @@
+{
+  "name": "decohero-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit",
+    "test": "tsx test/smoke.ts",
+    "watermark-sample": "tsx scripts/watermark-sample.ts",
+    "marker-sample": "tsx scripts/marker-sample.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.4.0",
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^14.5.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2"
+  }
+}

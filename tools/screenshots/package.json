@@ -1,0 +1,14 @@
+{
+  "name": "decohero-screenshots",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "before": "node gen-before.mjs",
+    "after": "node gen-after.mjs",
+    "capture": "node capture.mjs",
+    "compose": "node compose.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

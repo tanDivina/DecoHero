@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{legal_title}}</title>
+  <meta name="description" content="{{legal_desc}}">
+  <link rel="canonical" href="{{origin}}{{path}}">
+  <link rel="alternate" hreflang="en" href="{{origin}}{{en_path}}">
+  <link rel="alternate" hreflang="es" href="{{origin}}{{es_path}}">
+  <meta name="theme-color" content="#E8EBE6">
+  <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="DecoHero">
+  <meta property="og:url" content="{{origin}}{{path}}">
+  <meta property="og:title" content="{{legal_title}}">
+  <meta property="og:description" content="{{legal_desc}}">
+  <meta property="og:image" content="{{origin}}{{og_image}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css?v={{css_v}}">
+</head>
+<body class="legal-page">
+  <a class="skip" href="#main">{{skip}}</a>
+
+  <header class="top">
+    <div class="wrap top-in">
+      <a class="wordmark" href="{{home}}" aria-label="{{footer_home}}">DecoHero</a>
+      <div class="top-side">
+        <div class="lang" role="group" aria-label="{{lang_label}}">
+          <a href="{{en_path}}" lang="en" hreflang="en"{{en_current}}>EN</a>
+          <a href="{{es_path}}" lang="es" hreflang="es"{{es_current}}>ES</a>
+        </div>
+        <a class="btn btn-small" href="/app">{{nav_cta}}</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="wrap legal">
+    <p class="legal-back"><a href="{{home}}">{{legal_back}}</a></p>
+{{legal_body}}
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <div>
+        <a class="wordmark" href="{{home}}" aria-label="{{footer_home}}">DecoHero</a>
+        <p class="foot-tag">{{footer_tag}}</p>
+      </div>
+      <nav class="foot-links" aria-label="{{footer_label}}">
+        <a href="{{privacy_path}}">{{footer_privacy}}</a>
+        <a href="{{terms_path}}">{{footer_terms}}</a>
+        <a href="mailto:support@hero-apps.com">support@hero-apps.com</a>
+      </nav>
+      <p class="foot-legal">&copy; 2026 Divina Endeavors LLC</p>
+    </div>
+  </footer>
+</body>
+</html>
