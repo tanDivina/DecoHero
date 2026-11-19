@@ -138,6 +138,17 @@ const en = {
   moveTree: "Move tree · 1 credit",
   moveTreeTitle: "Move the tree",
   moveTreeHint: "Tap the spot on the floor where the tree should stand. Moving it makes a new design and uses 1 credit.",
+  moveTreeFree: "Move tree · free",
+  moveTreeHintFree: "Tap the spot on the floor where the tree should stand. Your first move of this design is free.",
+  tapTree: "Tree spot",
+  tapRemove: "Take out furniture",
+  removeHint: "Tap up to 2 pieces you would carry out of the room yourself, like a chair or a side table. We take them out of the picture. Then pick the tree spot.",
+  removeTip: "Tip: a piece standing right next to one you mark can disappear too. To keep it, move it a little away from the other piece before you take the photo.",
+  removeSet: (n: number) => `${n} of 2 marked. Tap a mark again to keep that piece.`,
+  removeKeepAll: "Keep all furniture",
+  removeMarker: "Furniture to take out",
+  removeNeedsSpot: "Tap “Tree spot” and choose where the tree goes, so we know where to make room.",
+  removeOff: "Taking out furniture is paused right now. No credit was used. Go back, tap “Keep all furniture” and try again.",
   treeEstimate: "This is an estimate. Measure your ceiling before you order.",
   buyTree: "Buy a real tree",
   shopLook: "Shop this look",
@@ -306,6 +317,17 @@ const es: Strings = {
   moveTree: "Mover el árbol · 1 crédito",
   moveTreeTitle: "Mover el árbol",
   moveTreeHint: "Toca el lugar del piso donde quieres el árbol. Moverlo genera un diseño nuevo y usa 1 crédito.",
+  moveTreeFree: "Mover el árbol · gratis",
+  moveTreeHintFree: "Toca el lugar del piso donde quieres el árbol. El primer cambio de este diseño es gratis.",
+  tapTree: "Lugar del árbol",
+  tapRemove: "Quitar muebles",
+  removeHint: "Toca hasta 2 muebles que tú sacarías del espacio, como una silla o una mesita. Los quitamos de la foto. Después elige el lugar del árbol.",
+  removeTip: "Consejo: un mueble pegado a uno que marcaste también puede desaparecer. Para conservarlo, sepáralo un poco del otro antes de tomar la foto.",
+  removeSet: (n) => `${n} de 2 marcados. Toca una marca otra vez para conservar ese mueble.`,
+  removeKeepAll: "Conservar todos los muebles",
+  removeMarker: "Mueble a quitar",
+  removeNeedsSpot: "Toca “Lugar del árbol” y elige dónde va el árbol, así sabemos dónde hacer espacio.",
+  removeOff: "Quitar muebles está en pausa ahora. No se usó ningún crédito. Vuelve, toca “Conservar todos los muebles” e inténtalo de nuevo.",
   treeEstimate: "Es un cálculo aproximado. Mide tu techo antes de hacer el pedido.",
   buyTree: "Comprar un árbol real",
   shopLook: "Compra este look",
@@ -472,5 +494,7 @@ export function redesignErrorMessage(code?: string, retryAfterSec?: number): str
   if (code === "GENERATION_FAILED") return t.failed;
   if (code === "NETWORK") return t.lostConnection;
   if (code === "TOO_MANY_FAILURES") return t.tooManyFailures;
+  // The server switched TREE_REMOVE off after this phone read its config; refused before any credit was spent.
+  if (code === "BAD_REMOVE") return t.removeOff;
   return errorMessage(code, t.genericError, retryAfterSec);
 }

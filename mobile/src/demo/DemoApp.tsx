@@ -87,6 +87,9 @@ export function DemoApp() {
               // Room scenes only: no Christmas switch, tree spot or ceiling.
               place={null}
               onPlace={noop}
+              removals={[]}
+              onRemovals={noop}
+              canRemove={false}
               treeCatalog={[]}
               treeShop={false}
               mode="rooms"
