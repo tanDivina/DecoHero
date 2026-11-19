@@ -3,13 +3,13 @@
     "name": "DecoHero",
     "slug": "decohero",
     "scheme": "decohero",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.heroapps.decohero",
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "backgroundColor": "#EDE3D0",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -77,7 +77,16 @@
           "backgroundColor": "#EDE3D0"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {

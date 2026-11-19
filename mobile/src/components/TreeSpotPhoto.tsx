@@ -10,7 +10,14 @@ type Props = {
   place: Place | null;
   /** Missing: a plain photo that does not react to taps. */
   onPlace?: (place: Place) => void;
+  /** "Take out furniture" (1.0.7+): pieces the user lets us remove, drawn as X marks. */
+  removals?: Place[];
+  /** "remove": a tap adds an X mark (up to MAX_REMOVALS) or takes away the one it lands on, instead of setting the spot. */
+  tapMode?: "tree" | "remove";
+  onRemovals?: (removals: Place[]) => void;
 };
+
+export const MAX_REMOVALS = 2;
 
 const MARK = 34;
 
@@ -27,9 +34,11 @@ function pressPoint(e: GestureResponderEvent): { x: number; y: number } | null {
 }
 
 /** The room photo. A tap sets (or moves) the spot where the tree's base should stand. */
-export function TreeSpotPhoto({ photo, place, onPlace }: Props) {
+export function TreeSpotPhoto({ photo, place, onPlace, removals = [], tapMode = "tree", onRemovals }: Props) {
   const [view, setView] = useState({ width: 0, height: 0 });
   const at = place && onPlace && view.width ? placeToView(place, view, photo) : null;
+  const marks = onPlace && view.width ? removals.map((r) => placeToView(r, view, photo)) : [];
+  const removing = tapMode === "remove" && !!onRemovals;
   return (
     <Pressable
       disabled={!onPlace}
@@ -37,9 +46,17 @@ export function TreeSpotPhoto({ photo, place, onPlace }: Props) {
       onPress={(e) => {
         if (!onPlace || !view.width) return;
         const at = pressPoint(e);
-        if (at) onPlace(viewToPlace(at.x, at.y, view, photo));
+        if (!at) return;
+        if (!removing) {
+          onPlace(viewToPlace(at.x, at.y, view, photo));
+          return;
+        }
+        // A tap on (or right by) an X mark takes it away; anywhere else adds one while there is room.
+        const hit = marks.findIndex((m) => Math.hypot(m.x - at.x, m.y - at.y) <= MARK);
+        if (hit >= 0) onRemovals!(removals.filter((_, i) => i !== hit));
+        else if (removals.length < MAX_REMOVALS) onRemovals!([...removals, viewToPlace(at.x, at.y, view, photo)]);
       }}
-      accessibilityLabel={onPlace ? t.placeHint : undefined}
+      accessibilityLabel={onPlace ? (removing ? t.removeHint : t.placeHint) : undefined}
       style={styles.frame}
     >
       <Image source={{ uri: photo.uri }} style={[styles.photo, { aspectRatio: photo.aspect }]} resizeMode="cover" />
@@ -55,6 +72,20 @@ export function TreeSpotPhoto({ photo, place, onPlace }: Props) {
           </View>
         </View>
       )}
+      {marks.map((m, i) => (
+        // A ring with an X, in the danger colour, so it never reads as the brass tree spot.
+        <View
+          key={i}
+          pointerEvents="none"
+          accessibilityLabel={t.removeMarker}
+          style={[styles.mark, { left: m.x - MARK / 2, top: m.y - MARK / 2 }]}
+        >
+          <View style={[styles.ring, styles.removeRing]}>
+            <View style={[styles.bar, { transform: [{ rotate: "45deg" }] }]} />
+            <View style={[styles.bar, { transform: [{ rotate: "-45deg" }] }]} />
+          </View>
+        </View>
+      ))}
     </Pressable>
   );
 }
@@ -84,4 +115,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: color.brass },
+  removeRing: { borderColor: color.danger, borderWidth: 4 },
+  bar: { position: "absolute", width: 14, height: 3, borderRadius: 1.5, backgroundColor: color.danger },
 });

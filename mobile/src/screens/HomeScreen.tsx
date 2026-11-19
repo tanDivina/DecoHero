@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
+import { RemoveControls } from "../components/RemoveControls";
 import { TreeSpotPhoto } from "../components/TreeSpotPhoto";
 import { t, styleName, treeAdvice, treeDescription, treeSizeLabel } from "../i18n";
 import { MAX_STYLES_PER_RUN, STYLE_PRESETS, TREE_PRESETS } from "../stylePresets";
@@ -24,6 +25,11 @@ type Props = {
   /** Christmas mode: the spot the user tapped for the tree; null = DecoHero chooses. */
   place: Place | null;
   onPlace: (place: Place | null) => void;
+  /** Christmas mode: furniture the user lets us take out (1.0.7+). */
+  removals: Place[];
+  onRemovals: (removals: Place[]) => void;
+  /** The server offers "Take out furniture" (TREE_REMOVE). */
+  canRemove: boolean;
   /** The partner's trees, for the live recommendation. */
   treeCatalog: TreeProduct[];
   /** False when the server switched the tree shop off: sizes are shown without product names or prices. */
@@ -50,7 +56,7 @@ type Props = {
 };
 
 export function HomeScreen({
-  credits, freeDenied, photo, onPhoto, place, onPlace, treeCatalog, treeShop, mode, onMode, selected, onSelect, ceiling, onCeiling,
+  credits, freeDenied, photo, onPhoto, place, onPlace, removals, onRemovals, canRemove, treeCatalog, treeShop, mode, onMode, selected, onSelect, ceiling, onCeiling,
   treeChoice, onTreeChoice, onRedesign, onViewResults, onOpenShop, onOpenAbout, onOpenLooks, onNotice,
 }: Props) {
   const christmas = mode === "christmas";
@@ -61,6 +67,12 @@ export function HomeScreen({
   const fit = height === null ? null : treeFit(height, ceiling.unit, treeCatalog, treeChoice);
   const sizes = height === null ? [] : treeOptions(height, treeCatalog);
   const [picking, setPicking] = useState<"camera" | "gallery" | null>(null);
+  // What a tap on the photo does in Christmas mode: set the tree spot, or mark furniture to take out.
+  const [tapMode, setTapMode] = useState<"tree" | "remove">("tree");
+  const removing = christmas && canRemove && tapMode === "remove";
+  // Marked furniture only counts in Christmas mode with the option on; it needs a tree spot to make room at.
+  const marked = christmas && canRemove ? removals : [];
+  const needsSpot = marked.length > 0 && !place;
   // Web: adjustsFontSizeToFit does nothing in a browser, so long names ("Tropical moderno") wrap to two
   // lines there, in slightly smaller type on narrow phones.
   const { width } = useWindowDimensions();
@@ -85,7 +97,7 @@ export function HomeScreen({
     onSelect([...selected, id]);
   }
 
-  const ready = !!photo && selected.length > 0 && !badCeiling;
+  const ready = !!photo && selected.length > 0 && !badCeiling && !needsSpot;
   // Known balance too low for this run: send them to the shop instead of firing requests that will all fail.
   const short = ready && credits !== null && credits < selected.length;
   const instruction =
@@ -93,6 +105,7 @@ export function HomeScreen({
     : !photo ? t.needPhoto
     : !selected.length ? (christmas ? t.needTree : t.needStyle)
     : badCeiling ? t.ceilingRange(ceiling.unit)
+    : needsSpot ? t.removeNeedsSpot
     : null;
   const units: Unit[] = ["ft", "m"];
 
@@ -125,8 +138,18 @@ export function HomeScreen({
 
         {photo ? (
           <View>
-            <TreeSpotPhoto photo={photo} place={christmas ? place : null} onPlace={christmas ? onPlace : undefined} />
-            {christmas && (
+            <TreeSpotPhoto
+              photo={photo}
+              place={christmas ? place : null}
+              onPlace={christmas ? onPlace : undefined}
+              removals={marked}
+              tapMode={removing ? "remove" : "tree"}
+              onRemovals={christmas && canRemove ? onRemovals : undefined}
+            />
+            {christmas && canRemove && (
+              <RemoveControls tapMode={tapMode} onTapMode={setTapMode} count={marked.length} onKeepAll={() => onRemovals([])} />
+            )}
+            {christmas && !removing && (
               <View style={styles.placeRow}>
                 <Text style={styles.placeText}>{place ? t.placeSet : t.placeHint}</Text>
                 {place && (

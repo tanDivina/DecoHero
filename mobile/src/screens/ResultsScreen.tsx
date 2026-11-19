@@ -24,6 +24,14 @@ export type Result = {
   reported?: boolean;
   /** Christmas only: the spot the user tapped for the tree in this attempt; missing = DecoHero chose. */
   place?: Place | null;
+  /** Christmas only (1.0.7+): furniture taken out in this attempt. */
+  remove?: Place[];
+  /** Christmas only: the server's id for this design, sent back as moveOf by "Move tree". */
+  designId?: string;
+  /** The design's one free move is still unused. */
+  freeMove?: boolean;
+  /** Set when this attempt is a move: the designId it moves, so a retry after an error is the same move. */
+  moveOf?: string;
 };
 
 type Props = {
@@ -150,7 +158,7 @@ export function ResultsScreen({
               )}
             </View>
             {christmas && (
-              <Button label={t.moveTree} variant="quiet" onPress={() => onMoveTree(item)} maxFontSizeMultiplier={MAX_SCALE} />
+              <Button label={item.freeMove ? t.moveTreeFree : t.moveTree} variant="quiet" onPress={() => onMoveTree(item)} maxFontSizeMultiplier={MAX_SCALE} />
             )}
             {(showTree || showShop) && (
               <View style={styles.treeCard}>

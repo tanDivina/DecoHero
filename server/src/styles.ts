@@ -45,6 +45,28 @@ do not remove anything outside the circle. Large furniture is never moved, cut o
 circle, the tree stands beside it the way a real tree would, in front of or behind it depending on which is nearer the
 camera, and never passes through it.`;
 
+// "Take out furniture" (app 1.0.7+, TREE_REMOVE=on): the user tapped up to two pieces they would carry out of the room
+// themselves; each gets a cyan X marker (marker.ts). Always comes with a tapped tree spot. Tested offline Nov 16 2026
+// (server/scripts/xmas-remove-test.ts): marked pieces go cleanly; an unmarked piece touching a marked one can go too,
+// which the app tells the user up front.
+const TREE_INTRO_REMOVE = `Edit this photo of a room by adding ONE Christmas tree to it. This is a careful photo edit, not a redesign.
+Keep the room exactly as it is: the same walls, windows, doors, floor, ceiling, built-ins, furniture, rugs, curtains, art,
+colors, daylight, camera position, lens and perspective. Do not move, restyle, recolor or replace anything. The only exception
+is the removal rule below.`;
+
+const REMOVE = `Removal rule: the photo also has one or more bright cyan circles with a cyan X inside, drawn on top of it. Each one sits
+on a piece of furniture that the user has chosen to carry out of the room to make space for the tree. Remove every piece of
+furniture that has a cyan X on it completely, together with anything standing on it, as if it had been carried out of the room
+before the photo was taken: no leg, cushion, edge or shadow of it may remain or show behind or through the tree, and the floor,
+rug and wall it covered must continue exactly like the floor, rug and wall around them. Remove ONLY pieces with a cyan X: every
+piece of furniture without one stays exactly as it is, even when it touches or stands right next to a marked piece (a chair
+next to a marked desk stays if the chair itself has no X). Never remove doors, windows, walls, radiators, built-ins or ceiling
+lights, even if a cyan X is on them. Before editing, decide for each cyan X the one single piece it sits on; that is
+the only piece that X removes. Then check every other piece near the tree and near each X: if it has no X of its own it stays,
+complete and unchanged, and where the tree reaches it, the tree stands in front of or behind it the way a real tree
+would. Never remove an unmarked piece to make the tree fit. Remove all cyan circles and X marks: the final image must contain
+no cyan marks or tint. Add nothing to the room except the tree and the decor described below.`;
+
 /** Goes into PLACE_AUTO right before "Keep it well clear" when the clearing rule is on. */
 const AUTO_EMPTY_FIRST = `First look for a spot whose circle of floor is already empty. Only if the room has none, use the spot where the fewest small items have to be cleared.`;
 
@@ -64,11 +86,13 @@ const pct = (v: number) => Math.round(v * 100);
  * Server 1.0.6: the spot now beats composition and nearby furniture. In 1.0.5 a tap on or beside a side table made
  * the model slide the tree back toward open floor, because nothing may be moved and the tree may not pass through furniture.
  */
-function placeMarked(place: Place | undefined, clear: boolean): string {
+function placeMarked(place: Place | undefined, clear: boolean, remove = false): string {
   const where = place
     ? ` The centre dot is about ${pct(place.x)}% of the image width from the left edge and about ${pct(place.y)}% of the image height from the top.`
     : "";
-  const occupied = clear
+  const occupied = remove
+    ? `If a piece of furniture with a cyan X stands on the spot, it is taken out as the removal rule below says and the tree stands where it was; any piece without a cyan X on or next to the spot stays, and the tree stands in front of or behind it.`
+    : clear
     ? `The circle of the clearing rule below is centred on the marked spot.`
     : `If a small piece of furniture (a side table, a stool, a plant, a lamp) stands on or right next to the spot, the tree still stands on the spot: draw it directly in front of or behind that piece, whichever their distances from the camera require, and do not move the tree sideways to avoid it.`;
   return `The photo has a bright magenta circle with a magenta dot in its centre drawn on top of it. That is a marker
@@ -263,6 +287,8 @@ export type PromptOptions = {
   doorFix?: boolean;
   /** The retry after a failed place check: where the tree's base came out in the first attempt. Needs a spot in `marked`. */
   placeFix?: Place;
+  /** The photo carries cyan X markers on furniture the user lets us take out (TREE_REMOVE). Needs a spot in `marked`. */
+  remove?: boolean;
 };
 
 /**
@@ -272,10 +298,13 @@ export type PromptOptions = {
  */
 export function buildPrompt(styleId: string, size: TreeSize = {}, marked: boolean | Place = false, opts: PromptOptions = {}): string | null {
   if (isTreeStyle(styleId)) {
-    const intro = opts.clear ? TREE_INTRO_CLEAR : TREE_INTRO;
+    // Removal only exists with a tapped spot; it replaces the clearing rule (which never touches large furniture).
+    const remove = !!opts.remove && !!marked;
+    const intro = remove ? TREE_INTRO_REMOVE : opts.clear ? TREE_INTRO_CLEAR : TREE_INTRO;
     const auto = opts.clear ? `${PLACE_AUTO_HEAD}\n${AUTO_EMPTY_FIRST}\n${PLACE_AUTO_TAIL}` : `${PLACE_AUTO_HEAD}\n${PLACE_AUTO_TAIL}`;
     const spot = typeof marked === "object" ? marked : undefined;
-    const place = `${marked ? placeMarked(spot, !!opts.clear) : auto}${opts.clear ? `\n${CLEAR}\n` : " "}`;
+    const rule = remove ? `\n${REMOVE}\n` : opts.clear ? `\n${CLEAR}\n` : " ";
+    const place = `${marked ? placeMarked(spot, !!opts.clear, remove) : auto}${rule}`;
     const fix = opts.doorFix ? `\n\n${marked ? DOOR_FIX_MARKED : DOOR_FIX_AUTO}` : "";
     const moved = opts.placeFix && spot ? `\n\n${placeFix(spot, opts.placeFix)}` : "";
     return `${intro}\n${place}${TREE_REST}\n\n${themeText(styleId, size.species)}\n\n${scaleLine(size, !!marked)}${fix}${moved}`;

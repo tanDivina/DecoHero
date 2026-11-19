@@ -323,7 +323,7 @@ await test("config: tree shop link defaults to the store, can be replaced or swi
   delete process.env.AMAZON_APP_APPROVED;
   delete process.env.TREE_CATALOG;
   const { treeCatalog: trees, ...rest } = await get();
-  assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false });
+  assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false, treeRemove: false });
   assert.equal(trees.length, 10);
   process.env.TREE_SHOP_URL = "https://christmastreesinthemail.com/?ref=decohero";
   assert.equal((await get()).treeShopUrl, "https://christmastreesinthemail.com/?ref=decohero");
@@ -411,7 +411,7 @@ await test("shop links: mixed config, Amazon gate off and on, invalid entries ig
     const r = await req("GET", "/api/config");
     assert.equal(r.status, 200, broken.slice(0, 20));
     const { treeCatalog: _trees, ...rest } = r.json;
-    assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false }, broken.slice(0, 20));
+    assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false, treeRemove: false }, broken.slice(0, 20));
   }
   delete process.env.SHOP_LINKS;
   delete process.env.AMAZON_APP_APPROVED;
@@ -646,6 +646,75 @@ await test("tree spot: marker drawn on a copy, prompt follows the marker, strict
   const copy = Buffer.from(room);
   await drawMarker(room, { x: 0.5, y: 0.5 });
   assert.ok(copy.equals(room));
+});
+
+await test("take out furniture: cyan X markers, removal prompt, strict validation, flag, leak check refunds", async () => {
+  const { cyanShare, drawRemoveMarkers, removeMarkerLeaked, magentaShare } = await import("../src/marker.js");
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: "GPA.remove" });
+  const post = (body: Record<string, unknown>) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, ...body }, ip });
+  const spot = { x: 0.6, y: 0.8 };
+  const sofa = { x: 0.6, y: 0.65 };
+  mode = "ok";
+  const start = await credits(id);
+  const before = calls;
+
+  // Flag off (the default): refused before any credit or model call, so nobody pays for a room left as it was.
+  delete process.env.TREE_REMOVE;
+  assert.equal((await req("GET", "/api/config")).json.treeRemove, false);
+  const off = await post({ styleId: "xmas-classic", place: spot, remove: [sofa] });
+  assert.equal(off.status, 400);
+  assert.equal(off.json.error, "BAD_REMOVE");
+
+  process.env.TREE_REMOVE = "on";
+  try {
+    assert.equal((await req("GET", "/api/config")).json.treeRemove, true);
+    // Needs a tree spot, at most two pieces, each a valid spot.
+    const bad: Record<string, unknown>[] = [
+      { remove: [sofa] },
+      { place: spot, remove: [sofa, sofa, sofa] },
+      { place: spot, remove: [{ x: 2, y: 0.5 }] },
+      { place: spot, remove: sofa },
+      { place: spot, remove: "the sofa" },
+      { place: spot, remove: [sofa, null] },
+    ];
+    for (const b of bad) {
+      const r = await post({ styleId: "xmas-classic", ...b });
+      assert.equal(r.status, 400, JSON.stringify(b));
+      assert.equal(r.json.error, "BAD_REMOVE", JSON.stringify(b));
+    }
+    assert.equal(calls, before);
+    assert.equal(await credits(id), start);
+
+    // Valid: one cyan X per piece on top of the magenta tree marker, and the removal prompt.
+    const ok = await post({ styleId: "xmas-classic", place: spot, remove: [sofa, { x: 0.2, y: 0.6 }] });
+    assert.equal(ok.status, 200);
+    const sent = Buffer.from(lastImage, "base64");
+    const cyan = await cyanShare(sent);
+    assert.ok(cyan > 0.001 && cyan < 0.01, `two cyan markers cover ${cyan}`);
+    assert.ok((await magentaShare(sent)) > 0.001, "tree marker still drawn");
+    assert.ok(lastPrompt.includes("Removal rule") && lastPrompt.includes("cyan X"));
+    assert.ok(!lastPrompt.includes("Clearing rule"));
+    assert.ok(/Never remove an unmarked piece/.test(lastPrompt));
+    assert.equal(await credits(id), start - 1);
+    // An empty list is the same as no list: the normal prompt.
+    assert.equal((await post({ styleId: "xmas-classic", place: spot, remove: [] })).status, 200);
+    assert.ok(!lastPrompt.includes("Removal rule"));
+    // Interior styles ignore the field.
+    assert.equal((await post({ styleId: "japandi", remove: "anything" })).status, 200);
+    assert.equal(await cyanShare(Buffer.from(lastImage, "base64")), 0);
+  } finally {
+    delete process.env.TREE_REMOVE;
+  }
+
+  // Leak check: a cyan X left in the result is caught, cyan already in the room is not.
+  const room = await sharp({ create: { width: 800, height: 600, channels: 3, background: "#ccbbaa" } })
+    .composite([{ input: await sharp({ create: { width: 200, height: 150, channels: 3, background: "#00e5ff" } }).png().toBuffer(), left: 500, top: 100 }])
+    .jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
+  assert.equal(await removeMarkerLeaked(room, room), false);
+  assert.equal(await removeMarkerLeaked(room, await drawRemoveMarkers(room, [{ x: 0.2, y: 0.8 }])), true);
 });
 
 await test("watermark: text sits clear of the bottom-right corner", async () => {
