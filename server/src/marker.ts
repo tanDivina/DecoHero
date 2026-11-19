@@ -151,3 +151,36 @@ export async function removeMarkerLeaked(original: Buffer, output: Buffer): Prom
   const [before, after] = await Promise.all([cyanShare(original), cyanShare(output)]);
   return after - before > allowed;
 }
+
+/** Strong-cyan pixels in a square of side 4 marker radii around `spot` (fractions), and that square's pixel count. */
+async function cyanAround(img: Buffer, spot: Place): Promise<{ cyan: number; area: number }> {
+  const meta = await sharp(img).metadata();
+  const w = meta.width ?? 1024, h = meta.height ?? 1024;
+  const half = Math.round(geometry(w).outer * 2);
+  const left = Math.max(0, Math.round(spot.x * w) - half), top = Math.max(0, Math.round(spot.y * h) - half);
+  const width = Math.min(w - left, half * 2), height = Math.min(h - top, half * 2);
+  if (width < 1 || height < 1) return { cyan: 0, area: 1 };
+  const { data, info } = await sharp(img).extract({ left, top, width, height }).removeAlpha().toColourspace("srgb").raw()
+    .toBuffer({ resolveWithObject: true });
+  let n = 0;
+  for (let i = 0; i < data.length; i += info.channels) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (g >= 185 && b >= 185 && r <= 110) n++;
+  }
+  return { cyan: n, area: info.width * info.height };
+}
+
+/**
+ * Regular room redesigns (STYLE_REMOVE, server 1.0.8): the same leak test, but only in a small square around each
+ * spot. A redesign may bring turquoise pillows or tiles anywhere, which the whole-image test would take for a marker.
+ */
+export async function removeMarkerLeakedAt(original: Buffer, output: Buffer, spots: Place[]): Promise<boolean> {
+  for (const spot of spots) {
+    const [before, after] = await Promise.all([cyanAround(original, spot), cyanAround(output, spot)]);
+    const meta = await sharp(output).metadata();
+    // Share of the square one marker's cyan covers (ring + X), roughly; a fifth of it counts as a leak.
+    const allowed = removeShare(meta.width ?? 1024, meta.height ?? 1024) * ((meta.width ?? 1024) * (meta.height ?? 1024)) / after.area * 0.2;
+    if (after.cyan / after.area - before.cyan / before.area > allowed) return true;
+  }
+  return false;
+}

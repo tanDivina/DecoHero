@@ -102,6 +102,11 @@ function Main({ account }: { account: Account | null }) {
   const [christmasOn, setChristmasOn] = useState(true);
   // Server switch TREE_REMOVE: "Take out furniture" is offered. Off until the server says so.
   const [treeRemove, setTreeRemove] = useState(false);
+  // 1.0.8+ server switches: STYLE_REMOVE ("Take out furniture" on regular redesigns) and ROOM_DECOR ("Decorate whole room").
+  const [styleRemove, setStyleRemove] = useState(false);
+  const [roomDecor, setRoomDecor] = useState(false);
+  // "Decorate whole room" checkbox, Christmas mode only; off by default.
+  const [decorateRoom, setDecorateRoom] = useState(false);
   const [treeShopUrl, setTreeShopUrl] = useState(DEFAULT_TREE_SHOP_URL);
   // The partner's trees: the built-in list until the server sends its own.
   const [rawCatalog, setRawCatalog] = useState<TreeProduct[]>(FALLBACK_CATALOG);
@@ -185,6 +190,8 @@ function Main({ account }: { account: Account | null }) {
       setShopLinks(parseShopLinks(cfg.shopLinks));
       setRawCatalog(parseTreeCatalog(cfg.treeCatalog));
       setTreeRemove(cfg.treeRemove === true);
+      setStyleRemove(cfg.styleRemove === true);
+      setRoomDecor(cfg.roomDecor === true);
     }).catch(() => {});
   }, []);
 
@@ -232,12 +239,16 @@ function Main({ account }: { account: Account | null }) {
 
   async function runStyle(
     id: string, source: Photo, styleId: string, requestId: string, tree: TreeFit | null, spot: Place | null,
-    extra: { remove?: Place[]; moveOf?: string } = {}
+    extra: { remove?: Place[]; moveOf?: string; decorateRoom?: boolean } = {}
   ) {
     try {
       const christmas = isTreeStyle(styleId);
       const size = tree && christmas ? { ceilingCm: tree.ceilingCm, treeCm: tree.treeCm } : undefined;
-      const res = await api.redesign(id, source.base64, styleId, requestId, size, christmas ? spot : null, christmas ? extra : {});
+      // Regular styles only ever carry removals (1.0.8+); spot, moves and room decor are Christmas only.
+      const res = await api.redesign(
+        id, source.base64, styleId, requestId, size, christmas ? spot : null,
+        christmas ? extra : { remove: extra.remove }
+      );
       const uri = await writeTempJpeg(res.image, `decohero-${styleId}-${Date.now()}`);
       setCredits(res.credits);
       updateResult(requestId, { status: "done", uri, designId: res.designId, freeMove: res.freeMove === true });
@@ -253,9 +264,10 @@ function Main({ account }: { account: Account | null }) {
   function redesign(styleIds: string[]) {
     if (!installId || !photo) return;
     const spot = mode === "christmas" ? place : null;
-    // Removal needs a tree spot (Home blocks the button otherwise) and the server switch.
-    const remove = spot && treeRemove ? removals : [];
-    const run = styleIds.map((styleId) => ({ styleId, requestId: randomUUID(), status: "loading" as const, place: spot, remove }));
+    // Christmas removal needs a tree spot (Home blocks the button otherwise) and TREE_REMOVE; regular styles need STYLE_REMOVE.
+    const remove = mode === "christmas" ? (spot && treeRemove ? removals : []) : styleRemove ? removals : [];
+    const decor = mode === "christmas" && roomDecor && decorateRoom;
+    const run = styleIds.map((styleId) => ({ styleId, requestId: randomUUID(), status: "loading" as const, place: spot, remove, decor }));
     // Home only enables the button in Christmas mode once the ceiling height is valid.
     const height = mode === "christmas" ? ceilingCm(ceiling) : null;
     const tree = height === null ? null : treeFit(height, ceiling.unit, treeCatalog, treeChoice);
@@ -265,17 +277,17 @@ function Main({ account }: { account: Account | null }) {
     setResultsAt(undefined);
     setScreen("results");
     // One request per style, in parallel: each design appears as soon as it's ready.
-    run.forEach((r) => runStyle(installId, photo, r.styleId, r.requestId, tree, spot, { remove }));
+    run.forEach((r) => runStyle(installId, photo, r.styleId, r.requestId, tree, spot, { remove, decorateRoom: decor }));
   }
 
   function retry(r: Result) {
     if (!installId || !resultPhoto) return;
     const requestId = randomUUID();
     setResults((cur) =>
-      cur.map((x) => (x.styleId === r.styleId ? { styleId: x.styleId, requestId, status: "loading", place: x.place, remove: x.remove, designId: x.designId, moveOf: x.moveOf } : x))
+      cur.map((x) => (x.styleId === r.styleId ? { styleId: x.styleId, requestId, status: "loading", place: x.place, remove: x.remove, decor: x.decor, designId: x.designId, moveOf: x.moveOf } : x))
     );
     // A failed move is retried as the same move: the server gave its free move back when it failed.
-    runStyle(installId, resultPhoto, r.styleId, requestId, resultTree, r.place ?? null, { remove: r.remove, moveOf: r.moveOf });
+    runStyle(installId, resultPhoto, r.styleId, requestId, resultTree, r.place ?? null, { remove: r.remove, moveOf: r.moveOf, decorateRoom: r.decor });
   }
 
   /**
@@ -285,15 +297,18 @@ function Main({ account }: { account: Account | null }) {
   function moveTree(styleId: string, spot: Place, remove: Place[]) {
     if (!installId || !resultPhoto) return;
     const requestId = randomUUID();
-    const moveOf = results.find((x) => x.styleId === styleId)?.designId;
+    const moved = results.find((x) => x.styleId === styleId);
+    const moveOf = moved?.designId;
+    // A move keeps the design's "Decorate whole room" choice, while the server still offers it.
+    const decor = !!moved?.decor && roomDecor;
     const rm = treeRemove ? remove : [];
     setResults((cur) =>
-      cur.map((x) => (x.styleId === styleId ? { styleId, requestId, status: "loading", place: spot, remove: rm, designId: moveOf, moveOf } : x))
+      cur.map((x) => (x.styleId === styleId ? { styleId, requestId, status: "loading", place: spot, remove: rm, decor, designId: moveOf, moveOf } : x))
     );
     setMoving(null);
     setResultsAt(styleId);
     setScreen("results");
-    runStyle(installId, resultPhoto, styleId, requestId, resultTree, spot, { remove: rm, moveOf });
+    runStyle(installId, resultPhoto, styleId, requestId, resultTree, spot, { remove: rm, moveOf, decorateRoom: decor });
   }
 
   async function waitForCredits(before: number): Promise<boolean> {
@@ -344,6 +359,10 @@ function Main({ account }: { account: Account | null }) {
             removals={removals}
             onRemovals={setRemovals}
             canRemove={treeRemove}
+            canStyleRemove={styleRemove}
+            canDecorate={roomDecor}
+            decorateRoom={decorateRoom}
+            onDecorateRoom={setDecorateRoom}
             treeCatalog={treeCatalog}
             treeShop={!!treeShopUrl}
             mode={mode}

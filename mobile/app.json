@@ -3,13 +3,13 @@
     "name": "DecoHero",
     "slug": "decohero",
     "scheme": "decohero",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.heroapps.decohero",
-      "versionCode": 8,
+      "versionCode": 9,
       "adaptiveIcon": {
         "backgroundColor": "#EDE3D0",
         "foregroundImage": "./assets/android-icon-foreground.png",

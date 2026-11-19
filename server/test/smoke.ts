@@ -323,7 +323,7 @@ await test("config: tree shop link defaults to the store, can be replaced or swi
   delete process.env.AMAZON_APP_APPROVED;
   delete process.env.TREE_CATALOG;
   const { treeCatalog: trees, ...rest } = await get();
-  assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false, treeRemove: false });
+  assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false, treeRemove: false, styleRemove: false, roomDecor: false });
   assert.equal(trees.length, 10);
   process.env.TREE_SHOP_URL = "https://christmastreesinthemail.com/?ref=decohero";
   assert.equal((await get()).treeShopUrl, "https://christmastreesinthemail.com/?ref=decohero");
@@ -411,7 +411,7 @@ await test("shop links: mixed config, Amazon gate off and on, invalid entries ig
     const r = await req("GET", "/api/config");
     assert.equal(r.status, 200, broken.slice(0, 20));
     const { treeCatalog: _trees, ...rest } = r.json;
-    assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false, treeRemove: false }, broken.slice(0, 20));
+    assert.deepEqual(rest, { christmas: true, treeShopUrl: "https://christmastreesinthemail.com", shopLinks: {}, treeClear: false, treeRemove: false, styleRemove: false, roomDecor: false }, broken.slice(0, 20));
   }
   delete process.env.SHOP_LINKS;
   delete process.env.AMAZON_APP_APPROVED;
@@ -715,6 +715,111 @@ await test("take out furniture: cyan X markers, removal prompt, strict validatio
     .jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
   assert.equal(await removeMarkerLeaked(room, room), false);
   assert.equal(await removeMarkerLeaked(room, await drawRemoveMarkers(room, [{ x: 0.2, y: 0.8 }])), true);
+});
+
+await test("take out furniture on regular redesigns (STYLE_REMOVE): no spot needed, strict when on, ignored when off, local leak check", async () => {
+  const { cyanShare } = await import("../src/marker.js");
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: "GPA.styleremove" });
+  const post = (body: Record<string, unknown>) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, ...body }, ip });
+  const sofa = { x: 0.5, y: 0.6 };
+  mode = "ok";
+  const start = await credits(id);
+  const before = calls;
+
+  delete process.env.STYLE_REMOVE;
+  assert.equal((await req("GET", "/api/config")).json.styleRemove, false);
+  // Off: a real list is refused (nobody pays for a room with the piece still in it), garbage is ignored as in 1.0.7.
+  const off = await post({ styleId: "japandi", remove: [sofa] });
+  assert.equal(off.status, 400);
+  assert.equal(off.json.error, "BAD_REMOVE");
+  assert.equal(calls, before);
+  assert.equal((await post({ styleId: "japandi", remove: "anything" })).status, 200);
+  assert.ok(!lastPrompt.includes("Removal rule"));
+
+  process.env.STYLE_REMOVE = "on";
+  try {
+    assert.equal((await req("GET", "/api/config")).json.styleRemove, true);
+    const mid = calls;
+    for (const b of [{ remove: "the sofa" }, { remove: [sofa, sofa, sofa] }, { remove: [{ x: -1, y: 0 }] }]) {
+      const r = await post({ styleId: "japandi", ...b });
+      assert.equal(r.status, 400, JSON.stringify(b));
+      assert.equal(r.json.error, "BAD_REMOVE");
+    }
+    assert.equal(calls, mid);
+    const ok = await post({ styleId: "japandi", remove: [sofa] });
+    assert.equal(ok.status, 200);
+    assert.ok((await cyanShare(Buffer.from(lastImage, "base64"))) > 0.0005, "cyan X drawn");
+    assert.ok(lastPrompt.includes("Removal rule") && lastPrompt.includes("nothing new\nmay stand on that patch"));
+    assert.ok(lastPrompt.startsWith("Redesign the room"));
+    // Christmas still needs TREE_REMOVE and a spot: STYLE_REMOVE alone does not open the tree path.
+    assert.equal((await post({ styleId: "xmas-classic", place: { x: 0.5, y: 0.8 }, remove: [sofa] })).json.error, "BAD_REMOVE");
+    // A design that hands the marker back is a failure, credit refunded.
+    const c = await credits(id);
+    mode = "echo";
+    const leaked = await post({ styleId: "japandi", remove: [sofa] });
+    mode = "ok";
+    assert.notEqual(leaked.status, 200);
+    assert.equal(await credits(id), c);
+  } finally {
+    delete process.env.STYLE_REMOVE;
+  }
+  assert.equal(await credits(id), start - 2);
+
+  // The local check ignores turquoise elsewhere in the design and catches an X left on the spot.
+  const { drawRemoveMarkers, removeMarkerLeakedAt } = await import("../src/marker.js");
+  const room = await sharp({ create: { width: 800, height: 600, channels: 3, background: "#ccbbaa" } }).jpeg().toBuffer();
+  const turquoise = await sharp(room)
+    .composite([{ input: await sharp({ create: { width: 200, height: 150, channels: 3, background: "#40e0f0" } }).png().toBuffer(), left: 20, top: 20 }])
+    .jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
+  assert.equal(await removeMarkerLeakedAt(room, turquoise, [{ x: 0.7, y: 0.7 }]), false);
+  assert.equal(await removeMarkerLeakedAt(room, await drawRemoveMarkers(room, [{ x: 0.7, y: 0.7 }]), [{ x: 0.7, y: 0.7 }]), true);
+});
+
+await test("decorate whole room (ROOM_DECOR): Christmas only, validated, flag, prompt per theme", async () => {
+  const { ROOM_DECOR_PROMPTS, TREE_PROMPTS, buildPrompt } = await import("../src/styles.js");
+  assert.deepEqual(Object.keys(ROOM_DECOR_PROMPTS).sort(), Object.keys(TREE_PROMPTS).sort());
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: "GPA.decor" });
+  const post = (body: Record<string, unknown>) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: jpeg, ...body }, ip });
+  mode = "ok";
+
+  // Off: the prompt keeps the modest-decor sentence word for word, and decorateRoom:false is the same request.
+  const plain = buildPrompt("xmas-nordic", {}, false, {})!;
+  assert.ok(plain.includes("Add only the modest decor described below, close to the tree"));
+  assert.equal(buildPrompt("xmas-nordic", {}, false, { decorateRoom: false }), plain);
+  delete process.env.ROOM_DECOR;
+  assert.equal((await req("GET", "/api/config")).json.roomDecor, false);
+  assert.equal((await post({ styleId: "xmas-nordic", decorateRoom: true })).json.error, "BAD_DECOR");
+  assert.equal((await post({ styleId: "xmas-nordic", decorateRoom: false })).status, 200);
+  assert.ok(lastPrompt.includes("Add only the modest decor described below, close to the tree"));
+  assert.ok(!lastPrompt.includes("Room decoration rule"));
+
+  process.env.ROOM_DECOR = "on";
+  try {
+    assert.equal((await req("GET", "/api/config")).json.roomDecor, true);
+    for (const v of ["yes", 1, {}]) assert.equal((await post({ styleId: "xmas-nordic", decorateRoom: v })).json.error, "BAD_DECOR");
+    const ok = await post({ styleId: "xmas-nordic", decorateRoom: true });
+    assert.equal(ok.status, 200);
+    assert.ok(lastPrompt.includes("Room decoration rule") && lastPrompt.includes("oatmeal linen stockings"));
+    assert.ok(!lastPrompt.includes("Add only the modest decor"));
+    assert.ok(lastPrompt.includes("Keep every walkway, doorway and door completely"));
+    // Regular styles ignore it, whatever it is.
+    assert.equal((await post({ styleId: "japandi", decorateRoom: "yes" })).status, 200);
+    assert.ok(!lastPrompt.includes("Room decoration rule"));
+    // Combines with the tree marker and furniture removal.
+    process.env.TREE_REMOVE = "on";
+    const both = await post({ styleId: "xmas-tartan", place: { x: 0.5, y: 0.8 }, remove: [{ x: 0.5, y: 0.6 }], decorateRoom: true });
+    assert.equal(both.status, 200);
+    assert.ok(lastPrompt.includes("Removal rule") && lastPrompt.includes("Room decoration rule") && lastPrompt.includes("magenta"));
+  } finally {
+    delete process.env.ROOM_DECOR;
+    delete process.env.TREE_REMOVE;
+  }
 });
 
 await test("watermark: text sits clear of the bottom-right corner", async () => {

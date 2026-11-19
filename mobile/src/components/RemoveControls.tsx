@@ -8,14 +8,29 @@ type Props = {
   /** Pieces marked so far. */
   count: number;
   onKeepAll: () => void;
+  /** False on regular redesigns (1.0.8+): no tree spot, so no toggle; every tap on the photo marks a piece. */
+  tree?: boolean;
 };
 
 /**
  * "Take out furniture" (app 1.0.7+, server TREE_REMOVE): what a tap on the photo does, tree spot or X mark,
  * plus the honest warning that a piece touching a marked one can go too.
  */
-export function RemoveControls({ tapMode, onTapMode, count, onKeepAll }: Props) {
+export function RemoveControls({ tapMode, onTapMode, count, onKeepAll, tree = true }: Props) {
   const removing = tapMode === "remove";
+  if (!tree) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={styles.heading}>{count ? `${t.tapRemove} (${count})` : t.tapRemove}</Text>
+        <Text style={styles.text}>{count ? t.removeSet(count) : t.removeHintRoom}</Text>
+        {count > 0 && (
+          <Pressable onPress={onKeepAll} style={styles.linkTarget} accessibilityRole="button">
+            <Text style={styles.link}>{t.removeKeepAll}</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
   return (
     <View style={styles.wrap}>
       <View style={styles.segment} accessibilityRole="tablist">
@@ -55,6 +70,7 @@ const styles = StyleSheet.create({
   optionOn: { backgroundColor: color.olive },
   optionText: { color: color.ink, fontSize: 14, fontWeight: "600", textAlign: "center" },
   optionTextOn: { color: color.white },
+  heading: { color: color.ink, fontSize: 15, fontWeight: "600" },
   text: { color: color.stone, fontSize: 14, lineHeight: 20 },
   tip: { color: color.ink, fontSize: 14, lineHeight: 20, backgroundColor: color.brassWash, borderRadius: radius.chip, padding: space(3) },
   linkTarget: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },

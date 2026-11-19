@@ -90,6 +90,10 @@ export function DemoApp() {
               removals={[]}
               onRemovals={noop}
               canRemove={false}
+              canStyleRemove={false}
+              canDecorate={false}
+              decorateRoom={false}
+              onDecorateRoom={noop}
               treeCatalog={[]}
               treeShop={false}
               mode="rooms"

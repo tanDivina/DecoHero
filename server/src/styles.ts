@@ -24,6 +24,15 @@ export const STYLE_PROMPTS: Record<string, string> = {
   "art-deco": "Style: art deco. Geometric patterns, emerald and gold, curved velvet furniture, lacquer, glamorous lighting."
 };
 
+// "Take out furniture" on regular redesigns (app 1.0.8+, STYLE_REMOVE=on): up to two cyan X markers, no tree spot.
+const STYLE_REMOVE = `Removal rule: the photo also has one or two bright cyan circles with a cyan X inside, drawn on top of it. Each one sits
+on a piece of furniture that the user wants gone from the room. Before redesigning, name to yourself the one piece under each
+cyan X and the patch of floor it stands on. The redesigned room must not contain that piece, in any style, and nothing new
+may stand on that patch of floor: no sofa, chair, bench, bed, desk, table, cabinet or plant goes there. Show that patch as open
+floor (a rug may continue across it), so the room clearly has more free space than before. Every other piece is redesigned as
+described above, in about the same place. Never remove doors, windows, walls, radiators, built-ins or ceiling lights, even if
+a cyan X is on them. Remove all cyan circles and X marks: the final image must contain no cyan marks or tint.`;
+
 // Christmas mode (app 1.0.3+): add one tree, leave the room alone. Ids must match mobile/src/stylePresets.ts.
 const TREE_INTRO = `Edit this photo of a room by adding ONE Christmas tree to it. This is a careful photo edit, not a redesign.
 Keep everything else exactly as it is: the same walls, windows, doors, floor, ceiling, furniture, rugs, curtains, art,
@@ -109,6 +118,8 @@ its skirt or the gifts do not cover the marker, show the floor exactly as it loo
 }
 
 // The partner ships full farm-cut firs, so every theme draws that tree; themes only change what hangs on it.
+const MODEST_DECOR = `Add only the modest decor described below, close to the tree, and no other Christmas decorations anywhere
+else in the room.`;
 const TREE_REST = `The tree is a real, fresh-cut
 fir with natural, slightly irregular branches. Whatever the theme, it has the full, dense, wide silhouette of a
 farm-grown Christmas tree: a classic pyramid with thick layers of branches from just above the floor to the tip, widest at
@@ -119,6 +130,28 @@ else in the room. The tree must look like it was really there when the photo was
 shadow on the floor, and light and reflections that match the room. Match the time of day: in a daylit photo the tree's
 lights are on but faint and cast no glow on the walls; in an evening photo they cast a soft warm glow on the nearby floor and
 walls. There is a soft contact shadow under the skirt, falling away from the main window. Photorealistic. No people, no pets, no text, no watermarks.`;
+
+// "Decorate whole room" (app 1.0.8+, ROOM_DECOR=on): the modest-decor sentence of TREE_REST is swapped for this, and
+// the theme's ROOM_DECOR_PROMPTS line follows the tree theme. Only common, widely stocked items, so shops sell them.
+const TREE_REST_ROOM = TREE_REST.replace(MODEST_DECOR, `Decorate the tree as described below, and also decorate the rest of the room to match
+it, as described in the room decoration rule below.`);
+
+const ROOM_DECOR = `Room decoration rule: besides the tree, add matching Christmas decorations to the room, the way a person would decorate
+their own home in one afternoon. Use only the items listed below, placed on or against what is already there: garland
+along a mantel, shelf, console or windowsill, stockings on a mantel or shelf edge, a wreath on a wall, window or mirror,
+pillows and a throw on the existing sofa or chairs, candles on tables and shelves. Keep it tasteful and not overloaded.
+The walls, floor, windows, doors, ceiling, furniture and its layout, rugs and curtains, the camera position and perspective
+all stay exactly as they are; decorations never replace or hide furniture. Keep every walkway, doorway and door completely
+clear and every door fully visible, and never cover a TV or screen. No decorations on the floor except the gifts under the tree.`;
+
+export const ROOM_DECOR_PROMPTS: Record<string, string> = {
+  "xmas-classic": "Room decor: a lush pine garland with warm amber fairy lights, deep red velvet stockings, a red-and-gold wreath, red and gold throw pillows, warm ivory pillar candles.",
+  "xmas-winter": "Room decor: a frosted, white-flocked garland with tiny white micro lights, white faux-fur or cable-knit stockings, a frosted silver-and-white wreath, plush white and silver pillows with a white throw blanket, candles in silver mercury-glass holders.",
+  "xmas-nordic": "Room decor: plain eucalyptus and pine sprigs with tiny warm white lights, oatmeal linen stockings, a minimal wooden or greenery hoop wreath, neutral linen and boucle pillows, matte white ceramic taper candles. No shiny tinsel, nothing bright red.",
+  "xmas-coquette": "Room decor: a soft greenery garland with blush velvet bows and pearl strands, white and blush stockings, a wreath tied with a blush ribbon bow, blush velvet and satin pillows, white and pale pink taper candles.",
+  "xmas-tartan": "Room decor: a dark evergreen garland with red tartan and Black Watch tartan ribbon and vintage brass bells, plaid wool stockings, a wreath with a tartan bow, plaid pillows and a wool tartan throw.",
+  "xmas-tropical": "Room decor: a garland of palm and monstera leaves mixed with pine and warm fairy lights, small rattan and seagrass accents, a wreath of palm leaves and seashells, linen and coral pillows, candles in rattan lanterns. Nothing snowy, no fake snow.",
+};
 
 // The six agreed themes. No brand names in ids or prompts.
 export const TREE_PROMPTS: Record<string, string> = {
@@ -287,8 +320,10 @@ export type PromptOptions = {
   doorFix?: boolean;
   /** The retry after a failed place check: where the tree's base came out in the first attempt. Needs a spot in `marked`. */
   placeFix?: Place;
-  /** The photo carries cyan X markers on furniture the user lets us take out (TREE_REMOVE). Needs a spot in `marked`. */
+  /** The photo carries cyan X markers on furniture the user lets us take out (TREE_REMOVE: needs a spot in `marked`; STYLE_REMOVE for regular styles). */
   remove?: boolean;
+  /** Christmas styles: decorate the whole room to match the tree (ROOM_DECOR). */
+  decorateRoom?: boolean;
 };
 
 /**
@@ -307,7 +342,10 @@ export function buildPrompt(styleId: string, size: TreeSize = {}, marked: boolea
     const place = `${marked ? placeMarked(spot, !!opts.clear, remove) : auto}${rule}`;
     const fix = opts.doorFix ? `\n\n${marked ? DOOR_FIX_MARKED : DOOR_FIX_AUTO}` : "";
     const moved = opts.placeFix && spot ? `\n\n${placeFix(spot, opts.placeFix)}` : "";
-    return `${intro}\n${place}${TREE_REST}\n\n${themeText(styleId, size.species)}\n\n${scaleLine(size, !!marked)}${fix}${moved}`;
+    const rest = opts.decorateRoom ? TREE_REST_ROOM : TREE_REST;
+    const room = opts.decorateRoom ? `\n\n${ROOM_DECOR}\n${ROOM_DECOR_PROMPTS[styleId]}` : "";
+    return `${intro}\n${place}${rest}\n\n${themeText(styleId, size.species)}${room}\n\n${scaleLine(size, !!marked)}${fix}${moved}`;
   }
-  return isStyle(styleId) ? `${BASE}\n\n${STYLE_PROMPTS[styleId]}` : null;
+  if (!isStyle(styleId)) return null;
+  return `${BASE}\n\n${STYLE_PROMPTS[styleId]}${opts.remove ? `\n\n${STYLE_REMOVE}` : ""}`;
 }

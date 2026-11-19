@@ -148,6 +148,10 @@ const en = {
   removeKeepAll: "Keep all furniture",
   removeMarker: "Furniture to take out",
   removeNeedsSpot: "Tap “Tree spot” and choose where the tree goes, so we know where to make room.",
+  removeHintRoom: "Optional: tap up to 2 pieces you want gone, like a chair or a side table. The new design leaves that space open.",
+  decorateRoom: "Decorate whole room",
+  decorateRoomHint: "Adds garlands, lights, pillows and a wreath to match the tree.",
+  decorateOff: "Decorating the whole room is paused right now. No credit was used. Go back, turn off “Decorate whole room” and try again.",
   removeOff: "Taking out furniture is paused right now. No credit was used. Go back, tap “Keep all furniture” and try again.",
   treeEstimate: "This is an estimate. Measure your ceiling before you order.",
   buyTree: "Buy a real tree",
@@ -327,6 +331,10 @@ const es: Strings = {
   removeKeepAll: "Conservar todos los muebles",
   removeMarker: "Mueble a quitar",
   removeNeedsSpot: "Toca “Lugar del árbol” y elige dónde va el árbol, así sabemos dónde hacer espacio.",
+  removeHintRoom: "Opcional: toca hasta 2 muebles que quieras quitar, como una silla o una mesita. El nuevo diseño deja ese espacio libre.",
+  decorateRoom: "Decorar toda la habitación",
+  decorateRoomHint: "Añade guirnaldas, luces, cojines y una corona a juego con el árbol.",
+  decorateOff: "Decorar toda la habitación está en pausa ahora. No se usó ningún crédito. Vuelve, desactiva “Decorar toda la habitación” e inténtalo de nuevo.",
   removeOff: "Quitar muebles está en pausa ahora. No se usó ningún crédito. Vuelve, toca “Conservar todos los muebles” e inténtalo de nuevo.",
   treeEstimate: "Es un cálculo aproximado. Mide tu techo antes de hacer el pedido.",
   buyTree: "Comprar un árbol real",
@@ -496,5 +504,6 @@ export function redesignErrorMessage(code?: string, retryAfterSec?: number): str
   if (code === "TOO_MANY_FAILURES") return t.tooManyFailures;
   // The server switched TREE_REMOVE off after this phone read its config; refused before any credit was spent.
   if (code === "BAD_REMOVE") return t.removeOff;
+  if (code === "BAD_DECOR") return t.decorateOff;
   return errorMessage(code, t.genericError, retryAfterSec);
 }
