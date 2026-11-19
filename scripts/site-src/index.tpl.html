@@ -163,7 +163,13 @@
           </div>
           <p class="section-sub">{{styles_sub}}</p>
         </div>
-        <ol class="styles">
+        <div class="rooms" id="rooms" role="group" aria-label="{{rooms_label}}" hidden>
+          <p class="rooms-label">{{rooms_label}}</p>
+          <div class="rooms-chips">
+            {{room_picker}}
+          </div>
+        </div>
+        <ol class="styles" id="style-grid" data-alt="{{style_alt_tpl}}">
 {{style_list}}
         </ol>
         <p class="sample-note">{{sample_note}}</p>

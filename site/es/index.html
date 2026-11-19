@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css?v=5ce70495bd">
+  <link rel="stylesheet" href="/css/site.css?v=377cd28b01">
   <noscript><style>.ba-toggle { display: none; }</style></noscript>
 </head>
 <body>
@@ -161,21 +161,29 @@
             <p class="eyebrow">Los estilos</p>
             <h2>12 estilos para las mismas cuatro paredes.</h2>
           </div>
-          <p class="section-sub">Cada diseño usa uno de estos estilos fijos. No hay que escribir instrucciones: eliges, tocas y comparas.</p>
+          <p class="section-sub">Una habitación de muestra, todos los estilos, mismas paredes y ventanas. Elige otra habitación para verla cambiar. No hay que escribir instrucciones: eliges, tocas y comparas.</p>
         </div>
-        <ol class="styles">
-        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-tropical-modern.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Tropical moderno"><span class="style-n">01</span><h3>Tropical moderno</h3><p>Teca y ratán, estuco blanco, plantas tropicales grandes, lino.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-home-office-modern-minimal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: oficina en casa, estilo Minimalista"><span class="style-n">02</span><h3>Minimalista</h3><p>Líneas limpias, blancos cálidos y grises, almacenaje oculto, una lámpara protagonista.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-japandi.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: dormitorio, estilo Japandi"><span class="style-n">03</span><h3>Japandi</h3><p>Muebles bajos de madera natural, tonos tierra apagados, lámparas de papel, cerámica.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-living-room-scandinavian.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Nórdico"><span class="style-n">04</span><h3>Nórdico</h3><p>Roble claro, paredes blancas, lana y lino, grises suaves, plantas.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-living-room-mid-century.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Mid-century"><span class="style-n">05</span><h3>Mid-century</h3><p>Muebles de nogal con patas cónicas, toques mostaza y verde azulado, lámparas de globo.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-boho.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: dormitorio, estilo Boho"><span class="style-n">06</span><h3>Boho</h3><p>Alfombras superpuestas, macramé, ratán, macetas de terracota, muchas plantas.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-coastal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala, estilo Costero"><span class="style-n">07</span><h3>Costero</h3><p>Blancos y azules suaves, madera de deriva, fundas de lino, alfombra de yute.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-terrace-mediterranean.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: terraza, estilo Mediterráneo"><span class="style-n">08</span><h3>Mediterráneo</h3><p>Paredes encaladas, tonos terracota, hierro forjado, madera de olivo.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-home-office-industrial.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: oficina en casa, estilo Industrial"><span class="style-n">09</span><h3>Industrial</h3><p>Metal negro, madera recuperada, cuero, bombillas a la vista, tonos de concreto.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-luxury-classic.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: comedor, estilo Clásico de lujo"><span class="style-n">10</span><h3>Clásico de lujo</h3><p>Tapicería de terciopelo, mármol, detalles en latón, distribución simétrica.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-farmhouse.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: comedor, estilo Rústico moderno"><span class="style-n">11</span><h3>Rústico moderno</h3><p>Madera envejecida, herrajes negros, linos neutros, detalles vintage.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-art-deco.webp" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: comedor, estilo Art déco"><span class="style-n">12</span><h3>Art déco</h3><p>Patrones geométricos, esmeralda y dorado, muebles curvos de terciopelo, laca.</p></li>
+        <div class="rooms" id="rooms" role="group" aria-label="Habitación de muestra" hidden>
+          <p class="rooms-label">Habitación de muestra</p>
+          <div class="rooms-chips">
+            <button type="button" class="room-chip" data-room="sala-panama" data-alt="sala de una casa en Panamá" aria-pressed="true"><img src="/img/rooms/chip-sala-panama.webp" width="160" height="160" alt="" loading="lazy" decoding="async"><span>Casa en Panamá</span></button>
+            <button type="button" class="room-chip" data-room="living-room" data-alt="sala de apartamento" aria-pressed="false"><img src="/img/rooms/chip-living-room.webp" width="160" height="160" alt="" loading="lazy" decoding="async"><span>Apartamento</span></button>
+            <button type="button" class="room-chip" data-room="bedroom" data-alt="dormitorio" aria-pressed="false"><img src="/img/rooms/chip-bedroom.webp" width="160" height="160" alt="" loading="lazy" decoding="async"><span>Dormitorio</span></button>
+          </div>
+        </div>
+        <ol class="styles" id="style-grid" data-alt="Rediseño de muestra: {room}, estilo {style}">
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-tropical-modern.webp" data-style="tropical-modern" data-name="Tropical moderno" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Tropical moderno"><span class="style-n">01</span><h3>Tropical moderno</h3><p>Teca y ratán, estuco blanco, plantas tropicales grandes, lino.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-modern-minimal.webp" data-style="modern-minimal" data-name="Minimalista" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Minimalista"><span class="style-n">02</span><h3>Minimalista</h3><p>Líneas limpias, blancos cálidos y grises, almacenaje oculto, una lámpara protagonista.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-japandi.webp" data-style="japandi" data-name="Japandi" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Japandi"><span class="style-n">03</span><h3>Japandi</h3><p>Muebles bajos de madera natural, tonos tierra apagados, lámparas de papel, cerámica.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-scandinavian.webp" data-style="scandinavian" data-name="Nórdico" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Nórdico"><span class="style-n">04</span><h3>Nórdico</h3><p>Roble claro, paredes blancas, lana y lino, grises suaves, plantas.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-mid-century.webp" data-style="mid-century" data-name="Mid-century" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Mid-century"><span class="style-n">05</span><h3>Mid-century</h3><p>Muebles de nogal con patas cónicas, toques mostaza y verde azulado, lámparas de globo.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-boho.webp" data-style="boho" data-name="Boho" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Boho"><span class="style-n">06</span><h3>Boho</h3><p>Alfombras superpuestas, macramé, ratán, macetas de terracota, muchas plantas.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-coastal.webp" data-style="coastal" data-name="Costero" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Costero"><span class="style-n">07</span><h3>Costero</h3><p>Blancos y azules suaves, madera de deriva, fundas de lino, alfombra de yute.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-mediterranean.webp" data-style="mediterranean" data-name="Mediterráneo" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Mediterráneo"><span class="style-n">08</span><h3>Mediterráneo</h3><p>Paredes encaladas, tonos terracota, hierro forjado, madera de olivo.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-industrial.webp" data-style="industrial" data-name="Industrial" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Industrial"><span class="style-n">09</span><h3>Industrial</h3><p>Metal negro, madera recuperada, cuero, bombillas a la vista, tonos de concreto.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-luxury-classic.webp" data-style="luxury-classic" data-name="Clásico de lujo" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Clásico de lujo"><span class="style-n">10</span><h3>Clásico de lujo</h3><p>Tapicería de terciopelo, mármol, detalles en latón, distribución simétrica.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-farmhouse.webp" data-style="farmhouse" data-name="Rústico moderno" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Rústico moderno"><span class="style-n">11</span><h3>Rústico moderno</h3><p>Madera envejecida, herrajes negros, linos neutros, detalles vintage.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-art-deco.webp" data-style="art-deco" data-name="Art déco" width="640" height="480" loading="lazy" decoding="async" alt="Rediseño de muestra: sala de una casa en Panamá, estilo Art déco"><span class="style-n">12</span><h3>Art déco</h3><p>Patrones geométricos, esmeralda y dorado, muebles curvos de terciopelo, laca.</p></li>
         </ol>
         <p class="sample-note">Espacios de muestra. Los diseños son ideas generadas con IA, no productos ni medidas exactas.</p>
       </div>
@@ -271,6 +279,6 @@
   </footer>
 
   <script src="https://hero-inbox-2026.web.app/inbox.js" defer></script>
-  <script src="/js/site.js?v=d70289d4cd" defer></script>
+  <script src="/js/site.js?v=5c88fd0cd8" defer></script>
 </body>
 </html>

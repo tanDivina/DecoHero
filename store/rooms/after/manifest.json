@@ -1,11 +1,47 @@
 [
   {
+    "file": "bedroom-art-deco.jpg",
+    "room": "bedroom",
+    "style": "art-deco",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "a0bb69fda2fe8d82edaeb7e9608959aa427a58a33fa54344466dc0426e98ca98",
+    "createdAt": "2026-11-16T03:17:57.984Z",
+    "attempt": 2
+  },
+  {
     "file": "bedroom-boho.jpg",
     "room": "bedroom",
     "style": "boho",
     "model": "fal-ai/nano-banana-2/edit",
     "promptSha256": "f5bbc7aea85032af057c118ee6b177717ecd5ac4c5ae25780d7a479faa8abe24",
     "createdAt": "2026-11-13T15:43:55.278Z",
+    "attempt": 1
+  },
+  {
+    "file": "bedroom-coastal.jpg",
+    "room": "bedroom",
+    "style": "coastal",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "8f2a87a26945e861d19113694a51f630d9b0e1d1ba40013c71bdb516dfbde217",
+    "createdAt": "2026-11-16T03:16:41.709Z",
+    "attempt": 1
+  },
+  {
+    "file": "bedroom-farmhouse.jpg",
+    "room": "bedroom",
+    "style": "farmhouse",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "676da7701a1d5bc37e75786e2054d1e80654b31fd9b5ac7b984bbf7b8617573d",
+    "createdAt": "2026-11-16T03:16:40.752Z",
+    "attempt": 1
+  },
+  {
+    "file": "bedroom-industrial.jpg",
+    "room": "bedroom",
+    "style": "industrial",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "6cd093f4731f99d9491c4eb0ac07483678f05c8300cf5551135b3017b84755d7",
+    "createdAt": "2026-11-16T03:16:41.710Z",
     "attempt": 1
   },
   {
@@ -25,6 +61,51 @@
     "promptSha256": "32de621f8be6f3b685a3ec62e8027f0a0bd1150158d13512127c4b195b1754f1",
     "createdAt": "2026-11-13T15:46:14.299Z",
     "attempt": 2
+  },
+  {
+    "file": "bedroom-mediterranean.jpg",
+    "room": "bedroom",
+    "style": "mediterranean",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "6efbbcdd30a306e4b26d758a4d6cc4a9ee5f7752da4415e927383cb127c080ed",
+    "createdAt": "2026-11-16T03:16:41.460Z",
+    "attempt": 1
+  },
+  {
+    "file": "bedroom-mid-century.jpg",
+    "room": "bedroom",
+    "style": "mid-century",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "f6a9c7bddf6f5197afe62240f23384ceb7e915633563c18a21960923a313ed41",
+    "createdAt": "2026-11-16T03:16:23.775Z",
+    "attempt": 1
+  },
+  {
+    "file": "bedroom-modern-minimal.jpg",
+    "room": "bedroom",
+    "style": "modern-minimal",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "b1e95f4be20bb0cdbd9303584eb3f1099f21e5f6ec1d6a13d2ed40d4fd68a4fe",
+    "createdAt": "2026-11-16T03:16:23.616Z",
+    "attempt": 1
+  },
+  {
+    "file": "bedroom-scandinavian.jpg",
+    "room": "bedroom",
+    "style": "scandinavian",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "760dcd847046e4a19a3e6e9b75119eecefb7d70718f7bcf285cebd41c4fca60e",
+    "createdAt": "2026-11-16T03:16:26.208Z",
+    "attempt": 1
+  },
+  {
+    "file": "bedroom-tropical-modern.jpg",
+    "room": "bedroom",
+    "style": "tropical-modern",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "0aa4a667b386e92713e6d4f3c756aacc60872d9207e4f40d09573fd5c87f6d56",
+    "createdAt": "2026-11-16T03:16:25.119Z",
+    "attempt": 1
   },
   {
     "file": "dining-room-art-deco.jpg",
@@ -144,6 +225,24 @@
     "attempt": 1
   },
   {
+    "file": "living-room-coastal.jpg",
+    "room": "living-room",
+    "style": "coastal",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "8f2a87a26945e861d19113694a51f630d9b0e1d1ba40013c71bdb516dfbde217",
+    "createdAt": "2026-11-16T03:15:27.786Z",
+    "attempt": 1
+  },
+  {
+    "file": "living-room-farmhouse.jpg",
+    "room": "living-room",
+    "style": "farmhouse",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "676da7701a1d5bc37e75786e2054d1e80654b31fd9b5ac7b984bbf7b8617573d",
+    "createdAt": "2026-11-16T03:17:39.238Z",
+    "attempt": 2
+  },
+  {
     "file": "living-room-industrial.jpg",
     "room": "living-room",
     "style": "industrial",
@@ -162,13 +261,40 @@
     "attempt": 2
   },
   {
+    "file": "living-room-luxury-classic.jpg",
+    "room": "living-room",
+    "style": "luxury-classic",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "32de621f8be6f3b685a3ec62e8027f0a0bd1150158d13512127c4b195b1754f1",
+    "createdAt": "2026-11-16T03:17:38.656Z",
+    "attempt": 1
+  },
+  {
+    "file": "living-room-mediterranean.jpg",
+    "room": "living-room",
+    "style": "mediterranean",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "6efbbcdd30a306e4b26d758a4d6cc4a9ee5f7752da4415e927383cb127c080ed",
+    "createdAt": "2026-11-16T03:15:28.310Z",
+    "attempt": 1
+  },
+  {
     "file": "living-room-mid-century.jpg",
     "room": "living-room",
     "style": "mid-century",
     "model": "fal-ai/nano-banana-2/edit",
     "promptSha256": "f6a9c7bddf6f5197afe62240f23384ceb7e915633563c18a21960923a313ed41",
-    "createdAt": "2026-11-13T15:43:38.213Z",
-    "attempt": 1
+    "createdAt": "2026-11-16T03:17:39.906Z",
+    "attempt": 2
+  },
+  {
+    "file": "living-room-modern-minimal.jpg",
+    "room": "living-room",
+    "style": "modern-minimal",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "b1e95f4be20bb0cdbd9303584eb3f1099f21e5f6ec1d6a13d2ed40d4fd68a4fe",
+    "createdAt": "2026-11-16T03:17:36.679Z",
+    "attempt": 2
   },
   {
     "file": "living-room-scandinavian.jpg",
@@ -177,6 +303,24 @@
     "model": "fal-ai/nano-banana-2/edit",
     "promptSha256": "760dcd847046e4a19a3e6e9b75119eecefb7d70718f7bcf285cebd41c4fca60e",
     "createdAt": "2026-11-13T15:43:38.909Z",
+    "attempt": 1
+  },
+  {
+    "file": "living-room-tropical-modern.jpg",
+    "room": "living-room",
+    "style": "tropical-modern",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "0aa4a667b386e92713e6d4f3c756aacc60872d9207e4f40d09573fd5c87f6d56",
+    "createdAt": "2026-11-16T03:15:28.447Z",
+    "attempt": 1
+  },
+  {
+    "file": "sala-panama-art-deco.jpg",
+    "room": "sala-panama",
+    "style": "art-deco",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "a0bb69fda2fe8d82edaeb7e9608959aa427a58a33fa54344466dc0426e98ca98",
+    "createdAt": "2026-11-16T03:16:26.300Z",
     "attempt": 1
   },
   {
@@ -198,12 +342,75 @@
     "attempt": 1
   },
   {
+    "file": "sala-panama-farmhouse.jpg",
+    "room": "sala-panama",
+    "style": "farmhouse",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "676da7701a1d5bc37e75786e2054d1e80654b31fd9b5ac7b984bbf7b8617573d",
+    "createdAt": "2026-11-16T03:16:06.638Z",
+    "attempt": 1
+  },
+  {
+    "file": "sala-panama-industrial.jpg",
+    "room": "sala-panama",
+    "style": "industrial",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "6cd093f4731f99d9491c4eb0ac07483678f05c8300cf5551135b3017b84755d7",
+    "createdAt": "2026-11-16T03:16:04.797Z",
+    "attempt": 1
+  },
+  {
+    "file": "sala-panama-japandi.jpg",
+    "room": "sala-panama",
+    "style": "japandi",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "327118aa34e1c0d3cbd2aa583a347a47bef7db8a35753e23b4723599b53f5706",
+    "createdAt": "2026-11-16T03:15:45.612Z",
+    "attempt": 1
+  },
+  {
+    "file": "sala-panama-luxury-classic.jpg",
+    "room": "sala-panama",
+    "style": "luxury-classic",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "32de621f8be6f3b685a3ec62e8027f0a0bd1150158d13512127c4b195b1754f1",
+    "createdAt": "2026-11-16T03:17:57.812Z",
+    "attempt": 2
+  },
+  {
     "file": "sala-panama-mediterranean.jpg",
     "room": "sala-panama",
     "style": "mediterranean",
     "model": "fal-ai/nano-banana-2/edit",
     "promptSha256": "6efbbcdd30a306e4b26d758a4d6cc4a9ee5f7752da4415e927383cb127c080ed",
-    "createdAt": "2026-11-13T15:43:52.905Z",
+    "createdAt": "2026-11-16T03:16:04.297Z",
+    "attempt": 2
+  },
+  {
+    "file": "sala-panama-mid-century.jpg",
+    "room": "sala-panama",
+    "style": "mid-century",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "f6a9c7bddf6f5197afe62240f23384ceb7e915633563c18a21960923a313ed41",
+    "createdAt": "2026-11-16T03:16:04.268Z",
+    "attempt": 1
+  },
+  {
+    "file": "sala-panama-modern-minimal.jpg",
+    "room": "sala-panama",
+    "style": "modern-minimal",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "b1e95f4be20bb0cdbd9303584eb3f1099f21e5f6ec1d6a13d2ed40d4fd68a4fe",
+    "createdAt": "2026-11-16T03:17:37.379Z",
+    "attempt": 2
+  },
+  {
+    "file": "sala-panama-scandinavian.jpg",
+    "room": "sala-panama",
+    "style": "scandinavian",
+    "model": "fal-ai/nano-banana-2/edit",
+    "promptSha256": "760dcd847046e4a19a3e6e9b75119eecefb7d70718f7bcf285cebd41c4fca60e",
+    "createdAt": "2026-11-16T03:15:44.573Z",
     "attempt": 1
   },
   {

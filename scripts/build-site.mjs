@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
-import { roomNames, strings, styleNotes, styleThumbs } from "./site-src/strings.mjs";
+import { sampleRooms, strings, styleNotes } from "./site-src/strings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -56,15 +56,23 @@ const treeNames = (lang) => Object.fromEntries(["classic", "nordic", "tropical"]
   if (!t) throw new Error(`No tree style xmas-${id} in mobile/src/stylePresets.ts`);
   return ["tree_" + id, esc(t[lang])];
 }));
-const styleList = (lang) => presets.map((p, i) => {
-  const room = styleThumbs[p.id];
-  const img = `/img/rooms/thumb-${room}-${p.id}.webp`;
-  if (!room || !existsSync(join(out, img))) throw new Error(`No thumbnail for style ${p.id} (${img})`);
-  const alt = strings[lang].style_alt.replace("{room}", roomNames[lang][room]).replace("{style}", p[lang]);
-  return `        <li class="style reveal"><img src="${img}" width="640" height="480" loading="lazy" decoding="async" alt="${esc(alt)}">` +
+const thumb = (room, style) => `/img/rooms/thumb-${room}-${style}.webp`;
+for (const l of LANGS) for (const r of sampleRooms[l]) for (const p of presets) {
+  if (!existsSync(join(out, thumb(r.id, p.id)))) throw new Error(`No thumbnail ${thumb(r.id, p.id)}`);
+}
+const styleAlt = (lang, room, p) => strings[lang].style_alt.replace("{room}", room.alt).replace("{style}", p[lang]);
+const styleList = (lang) => {
+  const room = sampleRooms[lang][0];
+  return presets.map((p, i) =>
+    `        <li class="style reveal"><img src="${thumb(room.id, p.id)}" data-style="${p.id}" data-name="${esc(p[lang])}" width="640" height="480" loading="lazy" decoding="async" alt="${esc(styleAlt(lang, room, p))}">` +
     `<span class="style-n">${String(i + 1).padStart(2, "0")}</span>` +
-    `<h3>${esc(p[lang])}</h3><p>${esc(styleNotes[lang][p.id])}</p></li>`;
-}).join("\n");
+    `<h3>${esc(p[lang])}</h3><p>${esc(styleNotes[lang][p.id])}</p></li>`).join("\n");
+};
+// Round photo of each sample room before the redesign. The script swaps the 12 thumbnails; without it
+// the picker stays hidden and the first room shows.
+const roomPicker = (lang) => sampleRooms[lang].map((r, i) =>
+  `<button type="button" class="room-chip" data-room="${r.id}" data-alt="${esc(r.alt)}" aria-pressed="${i === 0}">` +
+  `<img src="/img/rooms/chip-${r.id}.webp" width="160" height="160" alt="" loading="lazy" decoding="async"><span>${esc(r.name)}</span></button>`).join("\n            ");
 
 // ---- tiny Markdown subset for the legal pages: h1, h2, paragraphs, - lists, tables, **bold**, _italic_ ----
 function inline(s) {
@@ -175,7 +183,7 @@ const legalSrc = {
 
 for (const lang of LANGS) {
   const dir = lang === "en" ? "" : "es/";
-  write(dir + "index.html", fill(indexTpl, { ...common(lang, "index"), style_list: styleList(lang), ...treeNames(lang), style_count: String(presets.length) }, "index"));
+  write(dir + "index.html", fill(indexTpl, { ...common(lang, "index"), style_list: styleList(lang), room_picker: roomPicker(lang), ...treeNames(lang), style_alt_tpl: esc(strings[lang].style_alt), style_count: String(presets.length) }, "index"));
   for (const page of ["privacy", "terms"]) {
     const { title, html } = markdown(read(legalSrc[page][lang]));
     write(dir + page + ".html", fill(legalTpl, {

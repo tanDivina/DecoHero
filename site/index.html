@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css?v=5ce70495bd">
+  <link rel="stylesheet" href="/css/site.css?v=377cd28b01">
   <noscript><style>.ba-toggle { display: none; }</style></noscript>
 </head>
 <body>
@@ -161,21 +161,29 @@
             <p class="eyebrow">The styles</p>
             <h2>12 styles for the same four walls.</h2>
           </div>
-          <p class="section-sub">Every design uses one of these fixed styles. There is no prompt box, so you pick, tap and compare.</p>
+          <p class="section-sub">One sample room, every style, same walls and windows. Pick another room to see it change. There is no prompt box: you pick, tap and compare.</p>
         </div>
-        <ol class="styles">
-        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-tropical-modern.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Tropical modern style"><span class="style-n">01</span><h3>Tropical modern</h3><p>Teak and rattan, white plaster, large tropical plants, linen.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-home-office-modern-minimal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: home office, Minimal style"><span class="style-n">02</span><h3>Minimal</h3><p>Clean lines, warm whites and greys, hidden storage, one statement light.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-japandi.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: bedroom, Japandi style"><span class="style-n">03</span><h3>Japandi</h3><p>Low natural-wood furniture, muted earthy tones, paper lamps, ceramics.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-living-room-scandinavian.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Scandinavian style"><span class="style-n">04</span><h3>Scandinavian</h3><p>Light oak, white walls, wool and linen, soft greys, plants.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-living-room-mid-century.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Mid-century style"><span class="style-n">05</span><h3>Mid-century</h3><p>Walnut furniture on tapered legs, mustard and teal accents, globe lights.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-bedroom-boho.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: bedroom, Boho style"><span class="style-n">06</span><h3>Boho</h3><p>Layered rugs, macrame, rattan, terracotta pots, many plants.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-sala-panama-coastal.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: living room, Coastal style"><span class="style-n">07</span><h3>Coastal</h3><p>Whites and soft blues, driftwood, linen slipcovers, a jute rug.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-terrace-mediterranean.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: terrace, Mediterranean style"><span class="style-n">08</span><h3>Mediterranean</h3><p>Limewashed walls, terracotta tones, wrought iron, olive wood.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-home-office-industrial.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: home office, Industrial style"><span class="style-n">09</span><h3>Industrial</h3><p>Black metal, reclaimed wood, leather, exposed bulbs, concrete tones.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-luxury-classic.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: dining room, Classic luxury style"><span class="style-n">10</span><h3>Classic luxury</h3><p>Velvet upholstery, marble, brass details, a symmetrical layout.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-farmhouse.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: dining room, Farmhouse style"><span class="style-n">11</span><h3>Farmhouse</h3><p>Distressed wood, black hardware, neutral linens, vintage accents.</p></li>
-        <li class="style reveal"><img src="/img/rooms/thumb-dining-room-art-deco.webp" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: dining room, Art deco style"><span class="style-n">12</span><h3>Art deco</h3><p>Geometric patterns, emerald and gold, curved velvet furniture, lacquer.</p></li>
+        <div class="rooms" id="rooms" role="group" aria-label="Sample room" hidden>
+          <p class="rooms-label">Sample room</p>
+          <div class="rooms-chips">
+            <button type="button" class="room-chip" data-room="living-room" data-alt="apartment living room" aria-pressed="true"><img src="/img/rooms/chip-living-room.webp" width="160" height="160" alt="" loading="lazy" decoding="async"><span>Apartment</span></button>
+            <button type="button" class="room-chip" data-room="sala-panama" data-alt="living room in a Panama house" aria-pressed="false"><img src="/img/rooms/chip-sala-panama.webp" width="160" height="160" alt="" loading="lazy" decoding="async"><span>Panama house</span></button>
+            <button type="button" class="room-chip" data-room="bedroom" data-alt="bedroom" aria-pressed="false"><img src="/img/rooms/chip-bedroom.webp" width="160" height="160" alt="" loading="lazy" decoding="async"><span>Bedroom</span></button>
+          </div>
+        </div>
+        <ol class="styles" id="style-grid" data-alt="Sample redesign: {room}, {style} style">
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-tropical-modern.webp" data-style="tropical-modern" data-name="Tropical modern" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Tropical modern style"><span class="style-n">01</span><h3>Tropical modern</h3><p>Teak and rattan, white plaster, large tropical plants, linen.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-modern-minimal.webp" data-style="modern-minimal" data-name="Minimal" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Minimal style"><span class="style-n">02</span><h3>Minimal</h3><p>Clean lines, warm whites and greys, hidden storage, one statement light.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-japandi.webp" data-style="japandi" data-name="Japandi" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Japandi style"><span class="style-n">03</span><h3>Japandi</h3><p>Low natural-wood furniture, muted earthy tones, paper lamps, ceramics.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-scandinavian.webp" data-style="scandinavian" data-name="Scandinavian" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Scandinavian style"><span class="style-n">04</span><h3>Scandinavian</h3><p>Light oak, white walls, wool and linen, soft greys, plants.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-mid-century.webp" data-style="mid-century" data-name="Mid-century" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Mid-century style"><span class="style-n">05</span><h3>Mid-century</h3><p>Walnut furniture on tapered legs, mustard and teal accents, globe lights.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-boho.webp" data-style="boho" data-name="Boho" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Boho style"><span class="style-n">06</span><h3>Boho</h3><p>Layered rugs, macrame, rattan, terracotta pots, many plants.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-coastal.webp" data-style="coastal" data-name="Coastal" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Coastal style"><span class="style-n">07</span><h3>Coastal</h3><p>Whites and soft blues, driftwood, linen slipcovers, a jute rug.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-mediterranean.webp" data-style="mediterranean" data-name="Mediterranean" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Mediterranean style"><span class="style-n">08</span><h3>Mediterranean</h3><p>Limewashed walls, terracotta tones, wrought iron, olive wood.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-industrial.webp" data-style="industrial" data-name="Industrial" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Industrial style"><span class="style-n">09</span><h3>Industrial</h3><p>Black metal, reclaimed wood, leather, exposed bulbs, concrete tones.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-luxury-classic.webp" data-style="luxury-classic" data-name="Classic luxury" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Classic luxury style"><span class="style-n">10</span><h3>Classic luxury</h3><p>Velvet upholstery, marble, brass details, a symmetrical layout.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-farmhouse.webp" data-style="farmhouse" data-name="Farmhouse" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Farmhouse style"><span class="style-n">11</span><h3>Farmhouse</h3><p>Distressed wood, black hardware, neutral linens, vintage accents.</p></li>
+        <li class="style reveal"><img src="/img/rooms/thumb-living-room-art-deco.webp" data-style="art-deco" data-name="Art deco" width="640" height="480" loading="lazy" decoding="async" alt="Sample redesign: apartment living room, Art deco style"><span class="style-n">12</span><h3>Art deco</h3><p>Geometric patterns, emerald and gold, curved velvet furniture, lacquer.</p></li>
         </ol>
         <p class="sample-note">Sample rooms. Designs are AI-generated ideas, not exact products or measurements.</p>
       </div>
@@ -271,6 +279,6 @@
   </footer>
 
   <script src="https://hero-inbox-2026.web.app/inbox.js" defer></script>
-  <script src="/js/site.js?v=d70289d4cd" defer></script>
+  <script src="/js/site.js?v=5c88fd0cd8" defer></script>
 </body>
 </html>
