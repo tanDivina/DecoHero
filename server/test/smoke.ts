@@ -752,7 +752,7 @@ await test("take out furniture on regular redesigns (STYLE_REMOVE): no spot need
     const ok = await post({ styleId: "japandi", remove: [sofa] });
     assert.equal(ok.status, 200);
     assert.ok((await cyanShare(Buffer.from(lastImage, "base64"))) > 0.0005, "cyan X drawn");
-    assert.ok(lastPrompt.includes("Removal rule") && lastPrompt.includes("nothing new is put in its place"));
+    assert.ok(lastPrompt.includes("Removal rule") && lastPrompt.includes("nothing new\nmay stand on that patch"));
     assert.ok(lastPrompt.startsWith("Redesign the room"));
     // Christmas still needs TREE_REMOVE and a spot: STYLE_REMOVE alone does not open the tree path.
     assert.equal((await post({ styleId: "xmas-classic", place: { x: 0.5, y: 0.8 }, remove: [sofa] })).json.error, "BAD_REMOVE");

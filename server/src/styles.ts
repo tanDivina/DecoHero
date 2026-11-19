@@ -26,11 +26,12 @@ export const STYLE_PROMPTS: Record<string, string> = {
 
 // "Take out furniture" on regular redesigns (app 1.0.8+, STYLE_REMOVE=on): up to two cyan X markers, no tree spot.
 const STYLE_REMOVE = `Removal rule: the photo also has one or two bright cyan circles with a cyan X inside, drawn on top of it. Each one sits
-on a piece of furniture that the user wants gone from the room. In the redesign, that piece is not there at all and
-nothing new is put in its place: leave that floor or wall area open, continuing the floor and walls around it, so the room
-has more free space than before. Remove only the pieces with a cyan X; everything else is redesigned as described above.
-Never remove doors, windows, walls, radiators, built-ins or ceiling lights, even if a cyan X is on them. Remove all cyan
-circles and X marks: the final image must contain no cyan marks or tint.`;
+on a piece of furniture that the user wants gone from the room. Before redesigning, name to yourself the one piece under each
+cyan X and the patch of floor it stands on. The redesigned room must not contain that piece, in any style, and nothing new
+may stand on that patch of floor: no sofa, chair, bench, bed, desk, table, cabinet or plant goes there. Show that patch as open
+floor (a rug may continue across it), so the room clearly has more free space than before. Every other piece is redesigned as
+described above, in about the same place. Never remove doors, windows, walls, radiators, built-ins or ceiling lights, even if
+a cyan X is on them. Remove all cyan circles and X marks: the final image must contain no cyan marks or tint.`;
 
 // Christmas mode (app 1.0.3+): add one tree, leave the room alone. Ids must match mobile/src/stylePresets.ts.
 const TREE_INTRO = `Edit this photo of a room by adding ONE Christmas tree to it. This is a careful photo edit, not a redesign.
