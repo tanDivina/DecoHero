@@ -33,6 +33,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css?v={{css_v}}">
   <noscript><style>.ba-toggle { display: none; }</style></noscript>
+{{analytics}}
+<script type="application/ld+json">{{jsonld}}</script>
 </head>
 <body>
   <a class="skip" href="#main">{{skip}}</a>
@@ -68,7 +70,7 @@
             <a class="btn" href="/app">{{cta_primary}}
               <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">{{cta_secondary}}</a>
+            <a class="btn btn-ghost" href="{{play_url}}" target="_blank" rel="noopener">{{cta_secondary}}</a>
           </div>
           <p class="hero-note">{{hero_note_xmas}}</p>
         </div>
@@ -140,6 +142,7 @@
           <li class="tree reveal"><img src="/img/rooms/xmas-living-room-tropical.webp" width="600" height="804" loading="lazy" decoding="async" alt="{{xmas_tropical_alt}}"><span class="ba-tag ba-tag-after">{{tree_tropical}}</span></li>
         </ul>
         <p class="sample-note">{{sample_note}}</p>
+        <p class="guide-links">{{xmas_guides}}</p>
         <div class="pricing-foot">
           <ul class="fine">
             <li>{{xmas_li1}}</li>
@@ -173,6 +176,7 @@
 {{style_list}}
         </ol>
         <p class="sample-note">{{sample_note}}</p>
+        <p class="guide-links">{{styles_more}}</p>
       </div>
     </section>
 
@@ -241,7 +245,7 @@
           <p class="waitlist-p">{{wait_p}}</p>
         </div>
         <div class="waitlist-box">
-          <a class="btn btn-light" href="https://play.google.com/store/apps/details?id=com.heroapps.decohero" target="_blank" rel="noopener noreferrer">{{play_button}}
+          <a class="btn btn-light" href="{{play_url}}" target="_blank" rel="noopener">{{play_button}}
             <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
           <p class="waitlist-p">{{play_note}}</p>
@@ -257,6 +261,7 @@
         <p class="foot-tag">{{footer_tag}}</p>
       </div>
       <nav class="foot-links" aria-label="{{footer_label}}">
+{{footer_guides}}
         <a href="{{privacy_path}}">{{footer_privacy}}</a>
         <a href="{{terms_path}}">{{footer_terms}}</a>
         <a href="mailto:support@hero-apps.com">support@hero-apps.com</a>

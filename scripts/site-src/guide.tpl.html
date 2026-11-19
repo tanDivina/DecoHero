@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{g_title}}</title>
+  <meta name="description" content="{{g_desc}}">
+  <link rel="canonical" href="{{origin}}{{path}}">
+{{hreflang}}
+  <meta name="theme-color" content="#E8EBE6">
+  <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/img/icon-192.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="DecoHero">
+  <meta property="og:url" content="{{origin}}{{path}}">
+  <meta property="og:title" content="{{g_title}}">
+  <meta property="og:description" content="{{g_desc}}">
+  <meta property="og:image" content="{{origin}}{{g_og_image}}">
+  <meta property="og:locale" content="{{og_locale}}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{g_title}}">
+  <meta name="twitter:description" content="{{g_desc}}">
+  <meta name="twitter:image" content="{{origin}}{{g_og_image}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css?v={{css_v}}">
+{{analytics}}
+<script type="application/ld+json">{{jsonld}}</script>
+</head>
+<body class="guide-page">
+  <a class="skip" href="#main">{{skip}}</a>
+
+  <header class="top">
+    <div class="wrap top-in">
+      <a class="wordmark" href="{{home}}" aria-label="{{footer_home}}">DecoHero</a>
+      <nav class="top-links" aria-label="{{nav_label}}">
+{{guide_nav}}
+      </nav>
+      <div class="top-side">
+        <div class="lang" role="group" aria-label="{{lang_label}}">
+          <a href="{{g_en_link}}" lang="en" hreflang="en"{{en_current}}>EN</a>
+          <a href="{{g_es_link}}" lang="es" hreflang="es"{{es_current}}>ES</a>
+        </div>
+        <a class="btn btn-small" href="/app">{{nav_cta}}</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <article class="guide">
+      <header class="wrap guide-head">
+        <nav class="crumbs" aria-label="{{crumbs_label}}">{{crumbs}}</nav>
+        <p class="eyebrow">{{g_eyebrow}}</p>
+        <h1>{{g_h1}}</h1>
+        <p class="lede">{{g_lede}}</p>
+      </header>
+      <div class="wrap guide-body">
+{{g_body}}
+      </div>
+    </article>
+
+    <section class="section waitlist cta-band">
+      <div class="wrap waitlist-in">
+        <div>
+          <p class="eyebrow">DecoHero</p>
+          <h2>{{g_cta_h}}</h2>
+          <p class="waitlist-p">{{g_cta_p}}</p>
+        </div>
+        <div class="waitlist-box cta-buttons">
+          <a class="btn btn-light" href="/app">{{g_cta_app}}
+            <svg class="arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a class="btn btn-outline-light" href="{{play_url}}" target="_blank" rel="noopener">{{play_button}}</a>
+          <p class="waitlist-p">{{g_cta_note}}</p>
+        </div>
+      </div>
+    </section>
+{{g_faq}}
+{{g_related}}
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <div>
+        <a class="wordmark" href="{{home}}" aria-label="{{footer_home}}">DecoHero</a>
+        <p class="foot-tag">{{footer_tag}}</p>
+      </div>
+      <nav class="foot-links" aria-label="{{footer_label}}">
+{{footer_guides}}
+        <a href="{{privacy_path}}">{{footer_privacy}}</a>
+        <a href="{{terms_path}}">{{footer_terms}}</a>
+        <a href="mailto:support@hero-apps.com">support@hero-apps.com</a>
+      </nav>
+      <p class="foot-legal">&copy; 2026 Divina Endeavors LLC</p>
+    </div>
+  </footer>
+{{g_scripts}}
+</body>
+</html>
