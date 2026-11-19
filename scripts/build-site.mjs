@@ -214,7 +214,7 @@ const appLd = (lang) => ({
   "@type": "SoftwareApplication",
   "@id": `${ORIGIN}/#app`,
   name: "DecoHero",
-  alternateName: "DecoHero: Room Redesign AI",
+  alternateName: ["DecoHero: Christmas Tree AI", "DecoHero: Room Redesign AI"],
   url: `${ORIGIN}/`,
   applicationCategory: "DesignApplication",
   operatingSystem: "Android, Web",
@@ -269,7 +269,7 @@ for (const p of presets) {
     campaign: "style_" + p.id.replace(/-/g, "_"),
     parent: "styles",
     title: `${g.kw}, shown on real rooms`,
-    desc: `${name} style on real sample rooms: before and after pictures of a living room and a bedroom, what makes a room ${name.toLowerCase()}, and four changes to start with.`,
+    desc: `${name} style on real sample rooms: before and after pictures of a living room and a bedroom, what makes a room ${name}, and four changes to start with.`,
     eyebrow: `${name} style`,
     h1: g.kw,
     lede: g.intro,
@@ -281,7 +281,7 @@ ${rooms.filter((r) => r !== "living-room").map((r) => h.fig(`/img/g/${r}-${p.id}
 </div>
 <p class="sample-note">Sample rooms, all AI-generated: no photo shows a real person's home. Designs are ideas, not exact products or measurements.</p>
 <section class="prose">
-  <h2 id="look">What makes a room ${esc(name.toLowerCase())}</h2>
+  <h2 id="look">What makes a room ${esc(name)}</h2>
   <ul>
 ${g.look.map((x) => `    <li>${x}</li>`).join("\n")}
   </ul>
@@ -291,7 +291,7 @@ ${g.start.map((x) => `    <li>${x}</li>`).join("\n")}
   </ol>
   <h2 id="fit">Where it works</h2>
   <p>${g.fit}</p>
-  <h2 id="your-room">See ${esc(name.toLowerCase())} on your own room</h2>
+  <h2 id="your-room">See ${esc(name)} style on your own room</h2>
   <p>Upload a photo to DecoHero and pick ${esc(name)} together with up to three other styles. The app keeps your walls, windows and floor plan and changes the furniture, colours, materials and lighting.</p>
 </section>`,
     faq: [],

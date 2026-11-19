@@ -29,7 +29,7 @@ export const guides = [
     eyebrow: "Christmas tree size",
     h1: "What size Christmas tree fits your ceiling?",
     lede: "Measure your ceiling, take off 12 inches, and you have the tallest tree to buy. That foot of space is for the stand under the tree and the star on top. Type your ceiling height below, or find it in the chart.",
-    og: "/img/rooms/xmas-living-room-classic.webp",
+    og: "/img/og-xmas-en.jpg",
     body: (h) => `
 ${h.calc()}
 <section class="prose">
@@ -62,8 +62,8 @@ ${h.sizeTable()}
       ["How wide is a 7 ft Christmas tree?", "A full farm-grown fir is usually about two thirds as wide as it is tall, so about 4.5 to 5 ft at the bottom. Slim and pencil trees are much narrower."],
       ["What size tree for a small apartment?", "Measure the ceiling and the floor space. A 5 or 6 ft tree suits most apartment living rooms. With very little floor, a 3 or 4 ft tree on a side table works."],
     ],
-    cta_h: "Try a tree in your own room",
-    cta_p: "Add a photo, enter your ceiling height and see the tree that fits, in up to four decorating styles. Your first design is free.",
+    cta_h: "See a tree in your room, sized to your ceiling",
+    cta_p: "DecoHero is a Christmas tree app: add a photo of your room, enter your ceiling height and see the tallest tree that fits, in up to four of six styles. Your first design is free.",
     related: ["tree-placement", "tree-themes", "room-design"],
   },
 
@@ -80,7 +80,7 @@ ${h.sizeTable()}
     eyebrow: "Tamaño del árbol de Navidad",
     h1: "¿De qué tamaño comprar el árbol de Navidad?",
     lede: "Mide el techo, réstale 30 cm y tienes la altura máxima del árbol. Esos 30 cm son para la base que levanta el árbol y para la estrella de arriba. Escribe la altura de tu techo o búscala en la tabla.",
-    og: "/img/rooms/sala-panama-xmas-tropical.webp",
+    og: "/img/og-xmas-es.jpg",
     body: (h) => `
 ${h.calc()}
 <section class="prose">
@@ -107,7 +107,7 @@ ${h.sizeTable()}
       ["¿Qué tamaño de árbol para un techo de 2,70 m?", "Hasta 2,40 m, es decir, un árbol de 7,5 pies (2,29 m)."],
       ["¿Cuánto mide de ancho un árbol de 7 pies?", "Un abeto frondoso suele medir unas dos terceras partes de su altura, es decir, entre 1,40 y 1,50 m abajo. Los árboles delgados son mucho más angostos."],
     ],
-    cta_h: "Prueba un árbol en tu propia sala",
+    cta_h: "Mira un árbol en tu sala, a la medida de tu techo",
     cta_p: "Sube una foto, escribe la altura del techo y mira el árbol que cabe, en hasta cuatro estilos de decoración. Tu primer diseño es gratis.",
     related: ["tree-placement-es", "room-design-es"],
   },
@@ -124,7 +124,7 @@ ${h.sizeTable()}
     eyebrow: "Christmas tree placement",
     h1: "Where to put your Christmas tree",
     lede: "The best spot is close to an outlet, at least 3 ft from heat, out of the walkway and in view from where you sit. In a small living room that usually means a corner, the side of a window, or the spot of a chair you move out for December.",
-    og: "/img/rooms/xmas-living-room-classic.webp",
+    og: "/img/og-xmas-en.jpg",
     body: (h) => `
 <section class="prose">
   <h2 id="checklist">Before you pick a spot</h2>
@@ -137,7 +137,7 @@ ${h.sizeTable()}
   <h2 id="corner">A corner</h2>
   <p>A corner takes up the least usable floor, hides the cable, and leaves the room's main paths alone. It also suits homes with toddlers or pets, because there are only two open sides to guard. If the corner is next to a door, use another corner: a tree that blocks a door swing gets knocked every time someone comes in.</p>
   <h2 id="window">Next to a window, or in front of it</h2>
-  <p>A tree in a window is seen from the street, which many people want. The trade-offs are less daylight, curtains you can't close, and in many homes a radiator under the window, which is too close to a real tree. Standing the tree beside the window instead keeps most of the light and still shows the lights from outside.</p>
+  <p>A tree in a window is seen from the street. The trade-offs are less daylight, curtains you can't close, and in many homes a radiator under the window, which is too close to a real tree. Standing the tree beside the window instead keeps most of the light and still shows the lights from outside.</p>
   ${h.pair("/img/rooms/xmas-living-room-before.webp", "/img/rooms/xmas-living-room-tropical.webp", XMAS_BEFORE_ALT, "The same living room with a Christmas tree in Tropical Christmas style in the gap between the sofa and the armchair, by the window: woven and blush ornaments, a rattan star and a basket base", "After, Tropical Christmas", "Sample apartment: the tree uses the gap between the sofa and the armchair, by the window. AI-generated ideas, not exact products or measurements.")}
   <h2 id="small-living-room">In a small living room, swap out a piece of furniture</h2>
   <p>In a small room the easiest floor to find is under something you can live without for a month: an armchair, a side table, a plant stand, a stack of extra chairs. Move it to a bedroom or storage and give the tree its spot. In the sample below the tree stands where a stack of plastic chairs used to be, and the rest of the room is unchanged.</p>
@@ -156,7 +156,7 @@ ${h.sizeTable()}
       ["How far should a Christmas tree be from a fireplace or radiator?", "At least 3 ft, according to the US National Fire Protection Association. Water a real tree every day as well."],
       ["Where do you put a Christmas tree in an open floor plan?", "Against a wall or a large piece of furniture that faces the seating area, out of the path between the kitchen and the sofa."],
     ],
-    cta_h: "See the tree in your room before you move a thing",
+    cta_h: "See a tree in your room, sized to your ceiling",
     cta_p: "Add a photo of your room and tap where the tree should stand. Compare up to four decorating styles side by side. Your first design is free.",
     related: ["tree-size", "tree-themes", "room-design"],
   },
@@ -173,7 +173,7 @@ ${h.sizeTable()}
     eyebrow: "Dónde poner el árbol",
     h1: "Dónde poner el árbol de Navidad",
     lede: "El mejor lugar está cerca de un tomacorriente, a 90 cm de cualquier fuente de calor, fuera del paso y a la vista desde donde te sientas. En una sala pequeña eso suele ser una esquina, un lado de la ventana o el lugar de un mueble que sacas en diciembre.",
-    og: "/img/rooms/sala-panama-xmas-tropical.webp",
+    og: "/img/og-xmas-es.jpg",
     body: (h) => `
 <section class="prose">
   <h2 id="antes">Antes de elegir el lugar</h2>
@@ -203,7 +203,7 @@ ${h.sizeTable()}
       ["¿A qué distancia del calor debe ir el árbol?", "Al menos 90 cm (3 pies), según la NFPA de Estados Unidos. Un árbol natural necesita agua todos los días."],
       ["¿Se puede poner el árbol frente a la ventana?", "Sí, y se ve desde la calle. Entra menos luz y no puedes cerrar la cortina; a un lado de la ventana es un buen punto medio."],
     ],
-    cta_h: "Mira el árbol en tu sala antes de mover nada",
+    cta_h: "Mira un árbol en tu sala, a la medida de tu techo",
     cta_p: "Sube una foto de tu sala y toca dónde quieres el árbol. Compara hasta cuatro estilos de decoración. Tu primer diseño es gratis.",
     related: ["tree-size-es", "room-design-es"],
   },
@@ -250,8 +250,8 @@ ${h.sizeTable()}
       ["How many colours should a Christmas tree theme have?", "Two or three, plus the light colour. Fewer colours look calmer and make a theme easier to recognise."],
       ["What Christmas tree theme suits a small room?", "Light themes with fewer ornaments, such as Nordic minimal, keep a small room from looking crowded. A seagrass collar takes less floor than a wide skirt."],
     ],
-    cta_h: "Compare themes on a photo of your room",
-    cta_p: "Pick up to four of the six themes and see each one on your own room, side by side. Your first design is free.",
+    cta_h: "See a tree in your room, sized to your ceiling",
+    cta_p: "Pick up to four of the six themes and see each one on a photo of your own room, sized to your ceiling. Your first design is free.",
     related: ["tree-size", "tree-placement", "styles"],
   },
 
