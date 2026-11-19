@@ -1,0 +1,42 @@
+{
+ "decor-living-classic": {
+  "pass": false,
+  "note": "Baseline prompt. Sofa shifted right and enlarged, armchair pushed to the edge of the frame."
+ },
+ "decor-sala-tropical": {
+  "pass": false,
+  "note": "Baseline prompt. Tree not on the tapped spot, stacked chairs gone, both sofas redrawn further right."
+ },
+ "decor-dining-tartan": {
+  "pass": false,
+  "note": "Baseline prompt. A seventh chair appears in the corner to carry the tartan throw; plates on the sideboard replaced by garland."
+ },
+ "decor-kids-winter": {
+  "pass": true,
+  "note": "Baseline prompt. Bed, bookcase, desk and chair in place; the tree hides the foot of the bed."
+ },
+ "decor-bedroom-nordic": {
+  "pass": false,
+  "note": "Baseline prompt. Slightly wider framing and a new wall shelf above the clothes rail; bed and nightstand in place."
+ },
+ "decor-office-coquette": {
+  "pass": false,
+  "note": "Baseline prompt. Room reframed (frame 0.23), tree stands through the desk, laptop and storage box gone."
+ },
+ "xremove-kids-desk": {
+  "pass": false,
+  "note": "Baseline prompt. Desk gone, but the unmarked chair went with it."
+ },
+ "xremove-sala-loveseat": {
+  "pass": true,
+  "note": "Baseline prompt. Loveseat gone, back sofa kept. Tree is right of the tapped spot (placement, not removal)."
+ },
+ "xremove-dining-chair": {
+  "pass": true,
+  "note": "Baseline prompt. Borderline: marked chair gone, table and remaining chairs partly behind a very large tree."
+ },
+ "room-dining-chair-farmhouse": {
+  "pass": false,
+  "note": "Baseline prompt. The marked chair is back at the table end and a seventh chair stands against the wall."
+ }
+}

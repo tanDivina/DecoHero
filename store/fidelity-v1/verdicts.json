@@ -1,0 +1,30 @@
+{
+ "decor-living-classic": {
+  "pass": false,
+  "note": "v1 (furniture lock + final check). Still zoomed: sofa cut off behind the TV, armchair shifted right."
+ },
+ "decor-sala-tropical": {
+  "pass": false,
+  "note": "v1. Sofas hold, but the tree stands on the stacked chairs instead of the tapped spot and the chairs are gone."
+ },
+ "decor-dining-tartan": {
+  "pass": false,
+  "note": "v1. Extra armchair in the corner again, and a radiator invented under the window."
+ },
+ "decor-kids-winter": {
+  "pass": true,
+  "note": "v1. All four pieces in place."
+ },
+ "xremove-kids-desk": {
+  "pass": false,
+  "note": "v1 (hidden-part + count wording). Chair still removed, tree slid to the middle of the room."
+ },
+ "xremove-dining-chair": {
+  "pass": false,
+  "note": "v1. Marked chair gone, but a front chair and half the table vanish behind the tree."
+ },
+ "room-dining-chair-farmhouse": {
+  "pass": false,
+  "note": "v1. Marked chair back, plus two spare chairs against the walls. Worse than baseline."
+ }
+}

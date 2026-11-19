@@ -22,3 +22,6 @@ web-dist/
 .vercel-web/
 .vercel/
 store/xmas/raw/
+
+# side-by-side sheets the fidelity test writes for judging (the index.html uses the -sent and -out files)
+store/fidelity-*/*-pair.jpg

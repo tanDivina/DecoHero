@@ -2,6 +2,7 @@
 // Style ids must match mobile/src/stylePresets.ts.
 import { CLEARANCE_CM, productForHeight, recommendTree, SPECIES_PROMPT, type TreeProduct } from "./treeCatalog.js";
 import type { Place } from "./marker.js";
+import type { MarkedPiece } from "./gemini.js";
 
 const BASE = `Redesign the room in this photo as a professional interior designer would.
 Keep the room's architecture exactly as it is: same walls, windows, doors, floor plan, ceiling height,
@@ -37,7 +38,10 @@ and about the same size in the new style, standing exactly where the old one sto
 armchair, bed, cabinet, desk, table) anywhere, and never move other furniture into the freed space.
 Count check: a marked piece is never redrawn as a new piece of the same type in the same spot. If the room has two sofas and one
 has a cyan X, the result has exactly one sofa, in the place of the unmarked one; if a table has six chairs and one has a cyan X,
-the result has five chairs and an empty place where the marked chair stood. Never merge separate pieces into one (two sofas never
+the result has five chairs and an empty place where the marked chair stood. A marked chair of a dining set is taken away, not
+swapped: the side or end of the table where it stood has no chair at all, the other chairs keep their own places and are not
+spread out to fill the gap, and no spare chair, stool or bench stands at the table end, against a wall or in a corner. The
+result never has more seats than the photo has unmarked ones. Never merge separate pieces into one (two sofas never
 become one corner sofa). Never remove doors, windows, walls, radiators, built-ins or ceiling lights, even if
 a cyan X is on them. Remove all cyan circles and X marks: the final image must contain no cyan marks or tint.`;
 
@@ -77,11 +81,16 @@ furniture that has a cyan X on it completely, together with anything standing on
 before the photo was taken: no leg, cushion, edge or shadow of it may remain or show behind or through the tree, and the floor,
 rug and wall it covered must continue exactly like the floor, rug and wall around them. Remove ONLY pieces with a cyan X: every
 piece of furniture without one stays exactly as it is, even when it touches or stands right next to a marked piece (a chair
-next to a marked desk stays if the chair itself has no X). Never remove doors, windows, walls, radiators, built-ins or ceiling
+next to a marked desk stays if the chair itself has no X). A marked piece often hides part of an unmarked one: a chair pushed
+under a marked desk, a sofa behind a marked armchair, a table behind a marked chair. That unmarked piece stays where it is, and
+the part of it that was hidden is drawn in full, as it would look with the marked piece gone. Never remove doors, windows, walls, radiators, built-ins or ceiling
 lights, even if a cyan X is on them. Before editing, decide for each cyan X the one single piece it sits on; that is
 the only piece that X removes. Then check every other piece near the tree and near each X: if it has no X of its own it stays,
 complete and unchanged, and where the tree reaches it, the tree stands in front of or behind it the way a real tree
-would. Never remove an unmarked piece to make the tree fit. Remove all cyan circles and X marks: the final image must contain
+would. Never remove an unmarked piece to make the tree fit, and never let one vanish behind the tree: whatever part
+of it the tree does not cover stays visible, at the same place and size as in the photo. Count check: count the pieces of
+furniture in the photo (every chair counts on its own). The final image has exactly that number minus the number of cyan X
+marks: with one X exactly one piece is gone, with two X marks exactly two. Remove all cyan circles and X marks: the final image must contain
 no cyan marks or tint. Add nothing to the room except the tree and the decor described below.`;
 
 /** Goes into PLACE_AUTO right before "Keep it well clear" when the clearing rule is on. */
@@ -139,18 +148,44 @@ shadow on the floor, and light and reflections that match the room. Match the ti
 lights are on but faint and cast no glow on the walls; in an evening photo they cast a soft warm glow on the nearby floor and
 walls. There is a soft contact shadow under the skirt, falling away from the main window. Photorealistic. No people, no pets, no text, no watermarks.`;
 
+// Server 1.0.9 (Nov 19 2026, scripts/xmas-fidelity-test.ts): with whole-room decor the model treated the photo as a brief
+// and redrew the room (zoomed in, sofas shifted, an extra chair, plates swapped for garland). The lock names the framing,
+// an inventory and a count, and is repeated as the last paragraph of the prompt (FINAL_LOCK_DECOR).
+const FURNITURE_LOCK = `Furniture lock: the result is the same photograph with a tree and decorations added, not a new picture of the room. Keep the
+framing and crop exactly: do not zoom, pan, widen or re-compose, so every wall edge, window, door and piece of furniture is at
+the same position in the frame and has the same size as in the photo. Before editing, go through the photo piece by piece
+(every sofa, armchair, chair, table, bed, cabinet, shelf unit, TV and lamp) and note where each one stands. The final image
+has exactly those pieces: the same number, each in the same place, with the same size, shape, material and colour, facing
+the same way. No piece is moved, turned, stretched, shrunk, swapped for a different model or left out, and no furniture is
+added anywhere. Never shift furniture to make room for the tree or the decorations: the gap between two pieces is exactly
+as wide as in the photo. If that gap is too narrow for the tree, the tree stands on open floor somewhere else, or it stands
+in front of a piece and hides part of it; the piece itself stays where it is and stays in the picture. The walls, floor, ceiling, windows, doors, rugs and curtains stay exactly as they are too.`;
+/** Follows the intro when the whole room is decorated, so the edit framing comes before any decoration text. */
+const DECOR_EDIT = `The Christmas decorations of the room decoration rule below belong to the same careful edit: small objects laid on top of
+this exact photo. Whatever the tree and those objects do not cover stays as it is in the photo, at the same position in the
+frame. The result is compared with the photo, and a result in which a piece of furniture has moved, changed size, changed
+model, vanished or appeared, or in which the room is framed differently, is rejected.`;
+const FINAL_LOCK_DECOR = `Final check before you answer: compare your image with the photo. Same framing, and every piece of furniture of the photo
+is still there, in the same place, at the same size, the same model and colour; nothing was added except the tree, its gifts
+and the small decorations listed above. If a piece moved, changed, disappeared or appeared, undo that.`;
+
 // "Decorate whole room" (app 1.0.8+, ROOM_DECOR=on): the modest-decor sentence of TREE_REST is swapped for this, and
 // the theme's ROOM_DECOR_PROMPTS line follows the tree theme. Only common, widely stocked items, so shops sell them.
-const TREE_REST_ROOM = TREE_REST.replace(MODEST_DECOR, `Decorate the tree as described below, and also decorate the rest of the room to match
-it, as described in the room decoration rule below.`);
+const TREE_REST_ROOM = TREE_REST.replace(MODEST_DECOR, `Decorate the tree as described below, and add the few small room decorations of the
+room decoration rule below. They are additions to this photo, not a restyle of the room.`);
 
 const ROOM_DECOR = `Room decoration rule: besides the tree, add matching Christmas decorations to the room, the way a person would decorate
-their own home in one afternoon. Use only the items listed below, placed on or against what is already there: garland
-along a mantel, shelf, console or windowsill, stockings on a mantel or shelf edge, a wreath on a wall, window or mirror,
-pillows and a throw on the existing sofa or chairs, candles on tables and shelves. Keep it tasteful and not overloaded.
-The walls, floor, windows, doors, ceiling, furniture and its layout, rugs and curtains, the camera position and perspective
-all stay exactly as they are; decorations never replace or hide furniture. Keep every walkway, doorway and door completely
-clear and every door fully visible, and never cover a TV or screen. No decorations on the floor except the gifts under the tree.`;
+their own home in one afternoon without moving a single piece of furniture. Use only the items listed below, and only as
+small additions laid on, hung on or leaned against what is already in the photo: garland along an existing mantel, shelf,
+console, sideboard or windowsill, stockings on an existing mantel or shelf edge, a wreath on a free piece of wall, a window
+or a mirror, pillows and a throw on the existing sofa, armchairs or bed, candles on existing tables and shelves. If the room
+has no fitting place for an item, leave that item out: never add a mantel, shelf, table, chair, armchair, bench or any other
+furniture to carry decorations. Pillows and throws only go on a sofa, armchair or bed that is in the photo; a room without
+one (a dining room, an office) gets no pillows and no throw, and dining chairs and office chairs stay bare. Things that already stand on a surface (plates, books, toys, a lamp, a laptop, remote controls) stay
+where they are, and decorations go beside or around them. Keep it tasteful and not overloaded.
+${FURNITURE_LOCK}
+Decorations never replace or hide furniture. Keep every walkway, doorway and door completely clear and every door fully
+visible, and never cover a TV or screen. No decorations on the floor except the gifts under the tree.`;
 
 export const ROOM_DECOR_PROMPTS: Record<string, string> = {
   "xmas-classic": "Room decor: a lush pine garland with warm amber fairy lights, deep red velvet stockings, a red-and-gold wreath, red and gold throw pillows, warm ivory pillar candles.",
@@ -296,6 +331,9 @@ export const flagOn = (name: string) => ON.has((process.env[name] ?? "").trim().
 const DOOR_FIX_AUTO = `Correction: an earlier attempt at this edit hid, removed or changed a door or doorway of the room. That is not allowed. In this image every door and doorway of the original photo stays fully visible and exactly as it is, so stand the tree at a different spot, well away from all of them.`;
 const DOOR_FIX_MARKED = `Correction: an earlier attempt at this edit removed or changed a door or doorway of the room. That is not allowed. Keep the tree on the marked spot, and draw every door and doorway of the original photo exactly as it is.`;
 
+/** Added to the prompt of the one silent retry after the frame check (see app.ts and frame.ts) found the room redrawn. */
+const FRAME_FIX = `Correction: an earlier attempt at this edit redrew the whole room from a different distance or angle, and the furniture ended up in other places. That is not allowed. This time keep the photo itself: the same crop, camera position and zoom, with every wall edge, window, door and piece of furniture at exactly the same position in the frame as in the photo. Change only what the rules above ask for.`;
+
 /** "on the right side, near the front": the same spot in room words, for the correction after a missed spot. */
 function spotWords(p: Place): string {
   const side = p.x < 0.36 ? "on the left side" : p.x > 0.64 ? "on the right side" : "around the middle from left to right";
@@ -321,15 +359,50 @@ function placeFix(target: Place, cameOut: Place): string {
     `Do not centre the tree in the picture, in front of a window or on open floor: the marked spot is the only allowed position.`;
 }
 
+const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/**
+ * REMOVE_NAMES (server 1.0.9): the removal rules again in the room's own words. Tests on Nov 19 2026 (scripts/
+ * xmas-fidelity-test.ts): the generic rule lost a chair that touched a marked desk and brought back a marked dining chair.
+ * A neighbour is only kept "unless it has an X of its own", because the namer can list the second marked piece as one.
+ * Counts are only used for sets of three or more (dining chairs), where the namer is reliable.
+ */
+function namedPieces(pieces: MarkedPiece[], tree: boolean): string {
+  const lines = pieces.map((p) => {
+    const count = p.sameKind !== undefined && p.sameKind >= 3
+      ? tree
+        ? ` The photo shows ${p.sameKind} pieces of this kind; the final image shows exactly ${p.sameKind - 1}, each of the others where it stands now.`
+        : ` The photo shows ${p.sameKind} pieces of this kind; the redesigned room shows exactly ${p.sameKind - 1} of them, each where one stands now, and no extra one anywhere in the room.`
+      : "";
+    const keep = p.neighbours.filter((n) => !pieces.some((q) => same(q.piece, n)));
+    const stay = !keep.length
+      ? ""
+      : tree
+      ? ` Right next to it: ${keep.join("; ")}. Unless it carries a cyan X of its own, each of these is in the final image: complete, in the same place and at the same size as in the photo, with any part that was hidden behind the removed piece now drawn in full. If the tree and one of these compete for the same floor, the furniture wins: it stays exactly where it is and the tree is drawn directly behind or beside it, its branches touching it, as in a crowded real room.`
+      : ` Right next to it: ${keep.join("; ")}. Unless it carries a cyan X of its own, each of these is still in the redesigned room, restyled, in the same place.`;
+    return tree
+      ? `A cyan X is on ${p.piece}: that piece, and only that piece, is taken out.${count}${stay}`
+      : `A cyan X is on ${p.piece}: the redesigned room has no such piece at that spot, in any style. Where it stood you see bare floor and the uncovered side of whatever stood next to it.${count}${stay}`;
+  });
+  return `The marked pieces by name, so there is no mistake about what goes and what stays. ${lines.join(" ")}`;
+}
+
 export type PromptOptions = {
   /** Clearing rule (TREE_CLEAR). Off: the 1.0.5 intro and placement text. */
   clear?: boolean;
   /** The retry after a failed door check. */
   doorFix?: boolean;
+  /** The retry after a failed frame check (Christmas styles). */
+  frameFix?: boolean;
   /** The retry after a failed place check: where the tree's base came out in the first attempt. Needs a spot in `marked`. */
   placeFix?: Place;
   /** The photo carries cyan X markers on furniture the user lets us take out (TREE_REMOVE: needs a spot in `marked`; STYLE_REMOVE for regular styles). */
   remove?: boolean;
+  /**
+   * With `remove`: what a vision model saw under the cyan X markers and right next to them (REMOVE_NAMES, see
+   * nameMarkedPieces in gemini.ts, which strips the text down to plain words). The prompt then names what goes and what stays.
+   */
+  pieces?: MarkedPiece[];
   /** Christmas styles: decorate the whole room to match the tree (ROOM_DECOR). */
   decorateRoom?: boolean;
 };
@@ -351,9 +424,15 @@ export function buildPrompt(styleId: string, size: TreeSize = {}, marked: boolea
     const fix = opts.doorFix ? `\n\n${marked ? DOOR_FIX_MARKED : DOOR_FIX_AUTO}` : "";
     const moved = opts.placeFix && spot ? `\n\n${placeFix(spot, opts.placeFix)}` : "";
     const rest = opts.decorateRoom ? TREE_REST_ROOM : TREE_REST;
+    const edit = opts.decorateRoom ? `\n${DECOR_EDIT}` : "";
+    const named = remove && opts.pieces?.length ? `${namedPieces(opts.pieces, true)}\n` : "";
     const room = opts.decorateRoom ? `\n\n${ROOM_DECOR}\n${ROOM_DECOR_PROMPTS[styleId]}` : "";
-    return `${intro}\n${place}${rest}\n\n${themeText(styleId, size.species)}${room}\n\n${scaleLine(size, !!marked)}${fix}${moved}`;
+    const lock = `${opts.decorateRoom ? `\n\n${FINAL_LOCK_DECOR}` : ""}${opts.frameFix ? `\n\n${FRAME_FIX}` : ""}`;
+    return `${intro}${edit}\n${place}${named}${rest}\n\n${themeText(styleId, size.species)}${room}\n\n${scaleLine(size, !!marked)}${fix}${moved}${lock}`;
   }
   if (!isStyle(styleId)) return null;
-  return `${BASE}\n\n${STYLE_PROMPTS[styleId]}${opts.remove ? `\n\n${STYLE_REMOVE}` : ""}`;
+  // The names come first and last: a redesign otherwise draws the complete set it knows (a chair at every side of a table).
+  const named = opts.remove && opts.pieces?.length ? namedPieces(opts.pieces, false) : "";
+  const first = named ? `This redesign also takes furniture out of the room, as the removal rule further down explains. ${named}\n\n` : "";
+  return `${first}${BASE}\n\n${STYLE_PROMPTS[styleId]}${opts.remove ? `\n\n${STYLE_REMOVE}${named ? `\n${named}` : ""}` : ""}`;
 }
