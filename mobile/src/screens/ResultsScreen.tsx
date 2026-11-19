@@ -26,6 +26,8 @@ export type Result = {
   place?: Place | null;
   /** Christmas only (1.0.7+): furniture taken out in this attempt. */
   remove?: Place[];
+  /** Christmas only (1.0.8+): made with "Decorate whole room". */
+  decor?: boolean;
   /** Christmas only: the server's id for this design, sent back as moveOf by "Move tree". */
   designId?: string;
   /** The design's one free move is still unused. */

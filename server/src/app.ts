@@ -8,7 +8,7 @@ import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
-import { drawMarker, drawRemoveMarkers, markerLeaked, parsePlace, parseRemovals, removeMarkerLeaked, type Place } from "./marker.js";
+import { drawMarker, drawRemoveMarkers, markerLeaked, parsePlace, parseRemovals, removeMarkerLeaked, removeMarkerLeakedAt, type Place } from "./marker.js";
 import { firebaseVerifier, isKeyFetchFailure, type VerifiedToken, type VerifyIdToken } from "./auth.js";
 import {
   addDesign, addReport, claimFreeMove, deletedAt, deleteWebAccount, failuresToday, getCredits, getOrCreateUser,
@@ -404,12 +404,16 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       treeClear: flagOn("TREE_CLEAR"),
       // treeRemove (app 1.0.7+): the "Take out furniture" option is offered (TREE_REMOVE=on).
       treeRemove: flagOn("TREE_REMOVE"),
+      // styleRemove (app 1.0.8+): "Take out furniture" on regular room redesigns too (STYLE_REMOVE=on).
+      styleRemove: flagOn("STYLE_REMOVE"),
+      // roomDecor (app 1.0.8+): the "Decorate whole room" checkbox in Christmas mode (ROOM_DECOR=on).
+      roomDecor: flagOn("ROOM_DECOR"),
     });
   });
 
   app.post("/api/redesign", async (req, res) => {
     const installId = userIdOf(req);
-    const { image, styleId, ceilingCm, treeCm, place: rawPlace, moveOf, remove: rawRemove } = req.body ?? {};
+    const { image, styleId, ceilingCm, treeCm, place: rawPlace, moveOf, remove: rawRemove, decorateRoom: rawDecor } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
@@ -432,18 +436,40 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       res.status(400).json({ error: "BAD_PLACE" });
       return;
     }
-    // "Take out furniture" (app 1.0.7+): up to two pieces the user lets us remove. Only with TREE_REMOVE=on and a
-    // tapped tree spot; anything else is refused before a credit is touched, so the user never pays for a room
-    // that was silently left as it was.
-    const removals = tree ? parseRemovals(rawRemove) : undefined;
-    if (removals === null || (removals && (!place || !flagOn("TREE_REMOVE")))) {
-      res.status(400).json({ error: "BAD_REMOVE" });
+    // "Take out furniture": up to two pieces the user lets us remove. Christmas (app 1.0.7+, TREE_REMOVE=on) needs a
+    // tapped tree spot; regular styles (app 1.0.8+, STYLE_REMOVE=on) need no spot. Anything else is refused before a
+    // credit is touched, so the user never pays for a room that was silently left as it was. With STYLE_REMOVE off,
+    // regular styles ignore a malformed field as before 1.0.8 (no released client sends one there).
+    let removals: ReturnType<typeof parseRemovals>;
+    if (tree) {
+      removals = parseRemovals(rawRemove);
+      if (removals === null || (removals && (!place || !flagOn("TREE_REMOVE")))) {
+        res.status(400).json({ error: "BAD_REMOVE" });
+        return;
+      }
+    } else {
+      const parsed = parseRemovals(rawRemove);
+      const styleRemove = flagOn("STYLE_REMOVE");
+      if ((styleRemove && parsed === null) || (!styleRemove && parsed)) {
+        res.status(400).json({ error: "BAD_REMOVE" });
+        return;
+      }
+      removals = styleRemove ? parsed ?? undefined : undefined;
+    }
+    // "Decorate whole room" (app 1.0.8+, ROOM_DECOR=on): Christmas styles only, default off; regular styles ignore it.
+    if (tree && rawDecor !== undefined && rawDecor !== null && typeof rawDecor !== "boolean") {
+      res.status(400).json({ error: "BAD_DECOR" });
+      return;
+    }
+    const decorateRoom = tree && rawDecor === true;
+    if (decorateRoom && !flagOn("ROOM_DECOR")) {
+      res.status(400).json({ error: "BAD_DECOR" });
       return;
     }
     const remove = !!removals;
     // TREE_CLEAR=on lets the model take a plant, lamp or small table off the tree's spot; off keeps the 1.0.5 wording.
     const clear = tree && flagOn("TREE_CLEAR");
-    const prompt = buildPrompt(styleId, size, place ?? false, { clear, remove });
+    const prompt = buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom });
     if (!prompt) {
       res.status(400).json({ error: "BAD_STYLE" });
       return;
@@ -543,7 +569,8 @@ export function createApp(generate: Generate, model: string, options: AppOptions
 
     // A design that still shows the magenta tree marker or a cyan remove marker is never served.
     const leaked = async (img: Buffer) =>
-      (!!place && (await markerLeaked(input, img))) || (remove && (await removeMarkerLeaked(input, img)));
+      (!!place && (await markerLeaked(input, img))) ||
+      (remove && (tree ? await removeMarkerLeaked(input, img) : await removeMarkerLeakedAt(input, img, removals!)));
 
     let produced = false;
     try {
@@ -567,7 +594,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           doorStats.retried++;
           let retryProduced = false;
           try {
-            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, doorFix: true })!);
+            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, doorFix: true })!);
             retryProduced = true;
             if (await leaked(again)) served = "first attempt (marker left in the retry)";
             else {
@@ -609,7 +636,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             try {
               const again = await generate(
                 sentToModel.toString("base64"),
-                buildPrompt(styleId, size, place, { clear, remove, doorFix: doorFixed, placeFix: first })!
+                buildPrompt(styleId, size, place, { clear, remove, decorateRoom, doorFix: doorFixed, placeFix: first })!
               );
               retryProduced = true;
               if (await leaked(again)) served = "first attempt (marker left in the retry)";

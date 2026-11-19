@@ -111,7 +111,11 @@ async function send<T>(path: string, installId: string | null, init: RequestInit
 export type Me = { credits: number; paid: boolean; freeDenied?: boolean; userId?: string };
 
 /** Settings the server can change without an app release. Older servers don't have the endpoint (404). */
-export type AppConfig = { christmas: boolean; treeShopUrl: string; shopLinks: unknown; treeCatalog: unknown; treeRemove: boolean };
+export type AppConfig = {
+  christmas: boolean; treeShopUrl: string; shopLinks: unknown; treeCatalog: unknown; treeRemove: boolean;
+  /** 1.0.8+: "Take out furniture" on regular redesigns, and the "Decorate whole room" checkbox. */
+  styleRemove?: boolean; roomDecor?: boolean;
+};
 
 /**
  * A "Shop this look" link for one Christmas theme. "amazon" and "partner" are affiliate links and are shown
@@ -148,21 +152,23 @@ export const api = {
    * requestId lets the server refund the credit if this design never reaches the phone.
    * size is for Christmas styles only: ceiling and tree height in cm, so the tree is drawn to scale.
    * place (Christmas only, optional): where the user tapped for the tree, as fractions of the photo.
-   * tree.remove (1.0.7+, needs place): furniture the user lets us take out. tree.moveOf: the designId being moved;
+   * tree.remove (1.0.7+ with place; 1.0.8+ also for regular styles): furniture the user lets us take out. tree.moveOf: the designId being moved;
    * the server makes the first move of a design free. Christmas designs come back with their own designId.
    */
   redesign: (
     installId: string, image: string, styleId: string, requestId: string,
     size?: { ceilingCm: number; treeCm?: number },
     place?: { x: number; y: number } | null,
-    tree: { remove?: { x: number; y: number }[]; moveOf?: string } = {}
+    tree: { remove?: { x: number; y: number }[]; moveOf?: string; decorateRoom?: boolean } = {}
   ) =>
     call<{ image: string; credits: number; designId?: string; freeMove?: boolean }>("/api/redesign", installId, {
       method: "POST",
       body: JSON.stringify(identityBody(installId, {
         image, styleId, requestId, ...size,
         ...(place ? { place: { x: place.x, y: place.y } } : {}),
-        ...(place && tree.remove?.length ? { remove: tree.remove.map((r) => ({ x: r.x, y: r.y })) } : {}),
+        // Christmas removal needs the tree spot; regular styles (1.0.8+) send it without one.
+        ...(tree.remove?.length ? { remove: tree.remove.map((r) => ({ x: r.x, y: r.y })) } : {}),
+        ...(tree.decorateRoom ? { decorateRoom: true } : {}),
         ...(tree.moveOf ? { moveOf: tree.moveOf } : {}),
       })),
     }),

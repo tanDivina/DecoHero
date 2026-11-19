@@ -30,6 +30,12 @@ type Props = {
   onRemovals: (removals: Place[]) => void;
   /** The server offers "Take out furniture" (TREE_REMOVE). */
   canRemove: boolean;
+  /** The server offers "Take out furniture" on regular redesigns (STYLE_REMOVE, 1.0.8+). */
+  canStyleRemove: boolean;
+  /** The server offers "Decorate whole room" (ROOM_DECOR, 1.0.8+), and its checkbox. */
+  canDecorate: boolean;
+  decorateRoom: boolean;
+  onDecorateRoom: (on: boolean) => void;
   /** The partner's trees, for the live recommendation. */
   treeCatalog: TreeProduct[];
   /** False when the server switched the tree shop off: sizes are shown without product names or prices. */
@@ -56,7 +62,7 @@ type Props = {
 };
 
 export function HomeScreen({
-  credits, freeDenied, photo, onPhoto, place, onPlace, removals, onRemovals, canRemove, treeCatalog, treeShop, mode, onMode, selected, onSelect, ceiling, onCeiling,
+  credits, freeDenied, photo, onPhoto, place, onPlace, removals, onRemovals, canRemove, canStyleRemove, canDecorate, decorateRoom, onDecorateRoom, treeCatalog, treeShop, mode, onMode, selected, onSelect, ceiling, onCeiling,
   treeChoice, onTreeChoice, onRedesign, onViewResults, onOpenShop, onOpenAbout, onOpenLooks, onNotice,
 }: Props) {
   const christmas = mode === "christmas";
@@ -70,9 +76,10 @@ export function HomeScreen({
   // What a tap on the photo does in Christmas mode: set the tree spot, or mark furniture to take out.
   const [tapMode, setTapMode] = useState<"tree" | "remove">("tree");
   const removing = christmas && canRemove && tapMode === "remove";
-  // Marked furniture only counts in Christmas mode with the option on; it needs a tree spot to make room at.
-  const marked = christmas && canRemove ? removals : [];
-  const needsSpot = marked.length > 0 && !place;
+  // Marked furniture counts when the option is on for this mode; in Christmas mode it needs a tree spot to make room at.
+  const canMark = christmas ? canRemove : canStyleRemove;
+  const marked = canMark ? removals : [];
+  const needsSpot = christmas && marked.length > 0 && !place;
   // Web: adjustsFontSizeToFit does nothing in a browser, so long names ("Tropical moderno") wrap to two
   // lines there, in slightly smaller type on narrow phones.
   const { width } = useWindowDimensions();
@@ -144,10 +151,16 @@ export function HomeScreen({
               onPlace={christmas ? onPlace : undefined}
               removals={marked}
               tapMode={removing ? "remove" : "tree"}
-              onRemovals={christmas && canRemove ? onRemovals : undefined}
+              onRemovals={canMark ? onRemovals : undefined}
             />
-            {christmas && canRemove && (
-              <RemoveControls tapMode={tapMode} onTapMode={setTapMode} count={marked.length} onKeepAll={() => onRemovals([])} />
+            {canMark && (
+              <RemoveControls
+                tree={christmas}
+                tapMode={christmas ? tapMode : "remove"}
+                onTapMode={setTapMode}
+                count={marked.length}
+                onKeepAll={() => onRemovals([])}
+              />
             )}
             {christmas && !removing && (
               <View style={styles.placeRow}>
@@ -261,6 +274,22 @@ export function HomeScreen({
             );
           })}
         </View>
+
+        {christmas && canDecorate && (
+          <Pressable
+            onPress={() => onDecorateRoom(!decorateRoom)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: decorateRoom }}
+            accessibilityLabel={`${t.decorateRoom}. ${t.decorateRoomHint}`}
+            style={styles.checkRow}
+          >
+            <View style={[styles.checkBox, decorateRoom && styles.checkBoxOn]}>{decorateRoom && <View style={styles.checkTick} />}</View>
+            <View style={styles.checkTexts}>
+              <Text style={styles.checkLabel} maxFontSizeMultiplier={MAX_SCALE}>{t.decorateRoom}</Text>
+              <Text style={styles.checkHint} maxFontSizeMultiplier={MAX_SCALE}>{t.decorateRoomHint}</Text>
+            </View>
+          </Pressable>
+        )}
 
         {christmas && (
           <View>
@@ -400,6 +429,13 @@ const styles = StyleSheet.create({
   },
   freeDeniedText: { fontSize: 15, lineHeight: 21, color: color.ink },
   placeRow: { marginTop: space(2) },
+  checkRow: { flexDirection: "row", alignItems: "flex-start", gap: space(3), marginTop: space(4), minHeight: 44 },
+  checkBox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: color.olive, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  checkBoxOn: { backgroundColor: color.olive },
+  checkTick: { width: 10, height: 10, borderRadius: 2, backgroundColor: color.white },
+  checkTexts: { flex: 1, gap: 2 },
+  checkLabel: { color: color.ink, fontSize: 16, fontWeight: "600" },
+  checkHint: { color: color.stone, fontSize: 14, lineHeight: 20 },
   placeText: { color: color.stone, fontSize: 14, lineHeight: 20 },
   prices: { marginTop: space(1), fontSize: 12, lineHeight: 16, color: color.stone },
   changeRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: space(4) },

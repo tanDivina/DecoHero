@@ -37,17 +37,19 @@ function pressPoint(e: GestureResponderEvent): { x: number; y: number } | null {
 export function TreeSpotPhoto({ photo, place, onPlace, removals = [], tapMode = "tree", onRemovals }: Props) {
   const [view, setView] = useState({ width: 0, height: 0 });
   const at = place && onPlace && view.width ? placeToView(place, view, photo) : null;
-  const marks = onPlace && view.width ? removals.map((r) => placeToView(r, view, photo)) : [];
-  const removing = tapMode === "remove" && !!onRemovals;
+  // Regular redesigns (1.0.8+) have no tree spot: without onPlace, taps only mark furniture when onRemovals is given.
+  const removing = !!onRemovals && (tapMode === "remove" || !onPlace);
+  const tappable = !!onPlace || removing;
+  const marks = tappable && view.width ? removals.map((r) => placeToView(r, view, photo)) : [];
   return (
     <Pressable
-      disabled={!onPlace}
+      disabled={!tappable}
       onLayout={(e) => setView({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
       onPress={(e) => {
-        if (!onPlace || !view.width) return;
+        if (!tappable || !view.width) return;
         const at = pressPoint(e);
         if (!at) return;
-        if (!removing) {
+        if (!removing && onPlace) {
           onPlace(viewToPlace(at.x, at.y, view, photo));
           return;
         }
@@ -56,7 +58,7 @@ export function TreeSpotPhoto({ photo, place, onPlace, removals = [], tapMode = 
         if (hit >= 0) onRemovals!(removals.filter((_, i) => i !== hit));
         else if (removals.length < MAX_REMOVALS) onRemovals!([...removals, viewToPlace(at.x, at.y, view, photo)]);
       }}
-      accessibilityLabel={onPlace ? (removing ? t.removeHint : t.placeHint) : undefined}
+      accessibilityLabel={removing ? (onPlace ? t.removeHint : t.removeHintRoom) : onPlace ? t.placeHint : undefined}
       style={styles.frame}
     >
       <Image source={{ uri: photo.uri }} style={[styles.photo, { aspectRatio: photo.aspect }]} resizeMode="cover" />
