@@ -75,24 +75,24 @@
           <p class="hero-note">{{hero_note_xmas}}</p>
         </div>
 
-        <figure class="ba ba-{{hero_shape}}" id="compare" data-xmas-before="{{ba_before_xmas_img}}" data-xmas-after="{{ba_after_xmas_img}}" data-xmas-before-alt="{{ba_before_xmas_alt}}" data-xmas-after-alt="{{ba_after_xmas_alt}}" data-xmas-tag="{{ba_after_xmas}}">
+        <figure class="ba ba-{{hero_shape}} ba-xmas" id="compare" data-start="xmas" data-rooms-before="{{ba_before_img}}" data-rooms-after="{{ba_after_img}}" data-rooms-before-alt="{{ba_before_alt}}" data-rooms-after-alt="{{ba_after_alt}}" data-rooms-tag="{{ba_after}}" data-xmas-before="{{ba_before_xmas_img}}" data-xmas-after="{{ba_after_xmas_img}}" data-xmas-before-alt="{{ba_before_xmas_alt}}" data-xmas-after-alt="{{ba_after_xmas_alt}}" data-xmas-tag="{{ba_after_xmas}}">
           <div class="ba-toggle" role="group" aria-label="{{hero_toggle_label}}">
-            <button type="button" data-pair="rooms" aria-pressed="true">{{hero_toggle_rooms}}</button>
-            <button type="button" data-pair="xmas" aria-pressed="false">{{hero_toggle_xmas}}</button>
+            <button type="button" data-pair="xmas" aria-pressed="true">{{hero_toggle_xmas}}</button>
+            <button type="button" data-pair="rooms" aria-pressed="false">{{hero_toggle_rooms}}</button>
           </div>
           <div class="ba-stage">
             <div class="ba-pane ba-before">
-              <img src="{{ba_before_img}}" width="{{ba_w}}" height="{{ba_h}}" fetchpriority="high" decoding="async" alt="{{ba_before_alt}}">
+              <img src="{{ba_before_xmas_img}}" width="{{ba_w}}" height="{{ba_h}}" fetchpriority="high" decoding="async" alt="{{ba_before_xmas_alt}}">
               <span class="ba-tag">{{ba_before}}</span>
             </div>
             <div class="ba-pane ba-after">
-              <img src="{{ba_after_img}}" width="{{ba_w}}" height="{{ba_h}}" decoding="async" alt="{{ba_after_alt}}">
-              <span class="ba-tag ba-tag-after">{{ba_after}}</span>
+              <img src="{{ba_after_xmas_img}}" width="{{ba_w}}" height="{{ba_h}}" decoding="async" alt="{{ba_after_xmas_alt}}">
+              <span class="ba-tag ba-tag-after">{{ba_after_xmas}}</span>
             </div>
             <span class="ba-handle" aria-hidden="true" hidden>
               <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9.5 7.5 5 12l4.5 4.5M14.5 7.5 19 12l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            <input class="ba-range" type="range" min="0" max="100" step="1" value="50" aria-label="{{ba_slider}}" hidden>
+            <input class="ba-range" type="range" min="0" max="100" step="1" value="28" aria-label="{{ba_slider}}" hidden>
           </div>
           <figcaption>{{sample_note}}</figcaption>
         </figure>

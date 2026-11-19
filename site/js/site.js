@@ -28,10 +28,12 @@
       var afterTag = compare.querySelector(".ba-tag-after");
       var data = compare.dataset;
       var pairs = {
-        rooms: { before: imgs[0].getAttribute("src"), after: imgs[1].getAttribute("src"), beforeAlt: imgs[0].alt, afterAlt: imgs[1].alt, tag: afterTag.textContent },
+        rooms: { before: data.roomsBefore, after: data.roomsAfter, beforeAlt: data.roomsBeforeAlt, afterAlt: data.roomsAfterAlt, tag: data.roomsTag },
         xmas: { before: data.xmasBefore, after: data.xmasAfter, beforeAlt: data.xmasBeforeAlt, afterAlt: data.xmasAfterAlt, tag: data.xmasTag }
       };
-      var wanted = "rooms";
+      // The page renders the data-start pair (Christmas in season); the other one loads on hover or focus.
+      var wanted = data.start === "rooms" ? "rooms" : "xmas";
+      var other = wanted === "xmas" ? "rooms" : "xmas";
       var load = function (src) {
         return new Promise(function (resolve) {
           var im = new Image();
@@ -39,7 +41,7 @@
           im.src = src;
         });
       };
-      var warm = function () { load(pairs.xmas.before); load(pairs.xmas.after); };
+      var warm = function () { load(pairs[other].before); load(pairs[other].after); };
       var show = function (name) {
         if (!pairs[name] || name === wanted) return;
         wanted = name;
@@ -61,7 +63,7 @@
       };
       Array.prototype.forEach.call(buttons, function (b) {
         b.addEventListener("click", function () { show(b.dataset.pair); });
-        if (b.dataset.pair === "xmas") {
+        if (b.dataset.pair === other) {
           b.addEventListener("pointerenter", warm, { once: true });
           b.addEventListener("focus", warm, { once: true });
         }

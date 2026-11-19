@@ -28,9 +28,14 @@ export const strings = {
     nav_faq: "FAQ",
     nav_cta: "Open the app",
     lang_label: "Language",
-    eyebrow: "AI room redesign",
-    h1: "See your room in a new style <em>before</em> you buy a thing.",
-    hero_sub: "Take a photo of any room and pick up to four styles. DecoHero redesigns your own space in seconds, with your walls, windows and layout left where they are.",
+    // Christmas hero until Dec 26. Year-round copy, to put back in January:
+    //   eyebrow: "AI room redesign"
+    //   h1: "See your room in a new style <em>before</em> you buy a thing."
+    //   hero_sub: "Take a photo of any room and pick up to four styles. DecoHero redesigns your own space in seconds, with your walls, windows and layout left where they are."
+    //   and in index.tpl.html: hero_start "rooms"
+    eyebrow: "Christmas Tree AI",
+    h1: "See the Christmas tree in your room <em>before</em> you buy it.",
+    hero_sub: "Take a photo of your room and tap the spot. DecoHero puts a real-looking tree there, sized to your ceiling, in one of six themes. Your walls and windows stay where they are.",
     cta_primary: "Try it in your browser",
     cta_secondary: "Get it on Google Play",
     hero_note: "1 free design when you sign in with Google. No subscription.",
@@ -85,7 +90,7 @@ export const strings = {
     ba_before_xmas_alt: "Sample living room in Panama before: brown sofas, tiled floor, barred windows, a ceiling fan and stacked plastic chairs next to the TV",
     ba_after_xmas_alt: "The same room with a Christmas tree in Tropical Christmas style where the stacked chairs stood: woven ornaments, a rattan star and a basket base. Sofas, TV, windows and floor are unchanged",
     // Seasonal replacement for hero_note. The template uses this one; put hero_note back in January.
-    hero_note_xmas: "New: Christmas mode. Try a tree in your own room. 1 free design when you sign in with Google.",
+    hero_note_xmas: "Also redesigns any room in 12 interior styles. 1 free design when you sign in with Google.",
     styles_eyebrow: "The styles",
     styles_h2: "{{style_count}} styles for the same four walls.",
     styles_sub: "One sample room, every style, same walls and windows. Pick another room to see it change. There is no prompt box: you pick, tap and compare.",
@@ -167,9 +172,13 @@ export const strings = {
     nav_faq: "Preguntas",
     nav_cta: "Abrir la app",
     lang_label: "Idioma",
-    eyebrow: "Rediseño de interiores con IA",
-    h1: "Mira tu espacio con otro estilo <em>antes</em> de comprar nada.",
-    hero_sub: "Toma una foto de cualquier ambiente y elige hasta cuatro estilos. DecoHero rediseña tu propio espacio en segundos, con tus paredes, ventanas y distribución en su lugar.",
+    // Hero de Navidad hasta el 26 de diciembre. Texto de todo el año, para enero:
+    //   eyebrow: "Rediseño de interiores con IA"
+    //   h1: "Mira tu espacio con otro estilo <em>antes</em> de comprar nada."
+    //   hero_sub: "Toma una foto de cualquier ambiente y elige hasta cuatro estilos. DecoHero rediseña tu propio espacio en segundos, con tus paredes, ventanas y distribución en su lugar."
+    eyebrow: "Árbol de Navidad con IA",
+    h1: "Mira el árbol de Navidad en tu sala <em>antes</em> de comprarlo.",
+    hero_sub: "Toma una foto de tu sala y toca el lugar. DecoHero pone ahí un árbol realista, a la medida de tu techo, en uno de seis estilos. Tus paredes y ventanas quedan en su lugar.",
     cta_primary: "Pruébalo en tu navegador",
     cta_secondary: "Descárgala en Google Play",
     hero_note: "1 diseño gratis al iniciar sesión con Google. Sin suscripción.",
@@ -224,7 +233,7 @@ export const strings = {
     ba_before_xmas_alt: "Sala de muestra en Panamá antes: sofás marrones, piso de baldosas, ventanas con rejas, abanico de techo y sillas plásticas apiladas junto al televisor",
     ba_after_xmas_alt: "La misma sala con un árbol de Navidad en estilo Navidad tropical donde estaban las sillas apiladas: adornos tejidos, estrella de ratán y base de canasta. Los sofás, el televisor, las ventanas y el piso no cambian",
     // Reemplazo de temporada para hero_note. La plantilla usa este; en enero vuelve hero_note.
-    hero_note_xmas: "Nuevo: modo Navidad. Prueba un árbol en tu propia sala. 1 diseño gratis al iniciar sesión con Google.",
+    hero_note_xmas: "También rediseña cualquier espacio en 12 estilos de interiorismo. 1 diseño gratis al iniciar sesión con Google.",
     styles_eyebrow: "Los estilos",
     styles_h2: "{{style_count}} estilos para las mismas cuatro paredes.",
     styles_sub: "Una habitación de muestra, todos los estilos, mismas paredes y ventanas. Elige otra habitación para verla cambiar. No hay que escribir instrucciones: eliges, tocas y comparas.",
