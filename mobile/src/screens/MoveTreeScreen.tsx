@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
-import { RemoveControls } from "../components/RemoveControls";
+import { KeepAllPill, RemoveControls } from "../components/RemoveControls";
 import { TreeSpotPhoto } from "../components/TreeSpotPhoto";
 import { styleName, t } from "../i18n";
 import type { Photo, Place } from "../photoShape";
@@ -43,16 +43,19 @@ export function MoveTreeScreen({ photo, styleId, initial, initialRemovals, canRe
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.title}>{t.moveTreeTitle}</Text>
         <Text style={styles.style}>{styleName(styleId)}</Text>
-        <TreeSpotPhoto
-          photo={photo}
-          place={place}
-          onPlace={setPlace}
-          removals={removals}
-          tapMode={canRemove ? tapMode : "tree"}
-          onRemovals={canRemove ? setRemovals : undefined}
-        />
+        <View>
+          <TreeSpotPhoto
+            photo={photo}
+            place={place}
+            onPlace={setPlace}
+            removals={removals}
+            tapMode={canRemove ? tapMode : "tree"}
+            onRemovals={canRemove ? setRemovals : undefined}
+          />
+          {canRemove && removals.length > 0 && <KeepAllPill onPress={() => setRemovals([])} />}
+        </View>
         {canRemove && (
-          <RemoveControls tapMode={tapMode} onTapMode={setTapMode} count={removals.length} onKeepAll={() => setRemovals([])} />
+          <RemoveControls tapMode={tapMode} onTapMode={setTapMode} count={removals.length} />
         )}
         <Text style={styles.text}>{free ? t.moveTreeHintFree : t.moveTreeHint}</Text>
       </ScrollView>
