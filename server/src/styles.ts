@@ -29,8 +29,16 @@ const STYLE_REMOVE = `Removal rule: the photo also has one or two bright cyan ci
 on a piece of furniture that the user wants gone from the room. Before redesigning, name to yourself the one piece under each
 cyan X and the patch of floor it stands on. The redesigned room must not contain that piece, in any style, and nothing new
 may stand on that patch of floor: no sofa, chair, bench, bed, desk, table, cabinet or plant goes there. Show that patch as open
-floor (a rug may continue across it), so the room clearly has more free space than before. Every other piece is redesigned as
-described above, in about the same place. Never remove doors, windows, walls, radiators, built-ins or ceiling lights, even if
+floor (a rug may continue across it), so the room clearly has more free space than before.
+Layout lock: this is a restyle in place, not a rearrangement. Every piece without a cyan X keeps its exact position, footprint,
+orientation and wall: a sofa against a wall stays against that same wall, a TV stays on the same wall at the same height and
+spot, a bed keeps its headboard wall, a table stays where it stood. Replace each unmarked piece with a piece of the same type
+and about the same size in the new style, standing exactly where the old one stood. Do not add any new large furniture (sofa,
+armchair, bed, cabinet, desk, table) anywhere, and never move other furniture into the freed space.
+Count check: a marked piece is never redrawn as a new piece of the same type in the same spot. If the room has two sofas and one
+has a cyan X, the result has exactly one sofa, in the place of the unmarked one; if a table has six chairs and one has a cyan X,
+the result has five chairs and an empty place where the marked chair stood. Never merge separate pieces into one (two sofas never
+become one corner sofa). Never remove doors, windows, walls, radiators, built-ins or ceiling lights, even if
 a cyan X is on them. Remove all cyan circles and X marks: the final image must contain no cyan marks or tint.`;
 
 // Christmas mode (app 1.0.3+): add one tree, leave the room alone. Ids must match mobile/src/stylePresets.ts.
