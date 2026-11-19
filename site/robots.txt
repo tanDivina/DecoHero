@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /__/
+
+Sitemap: https://deco.hero-apps.com/sitemap.xml
