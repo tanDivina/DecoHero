@@ -103,9 +103,40 @@ const pct = (v: number) => Math.round(v * 100);
  * Server 1.0.6: the spot now beats composition and nearby furniture. In 1.0.5 a tap on or beside a side table made
  * the model slide the tree back toward open floor, because nothing may be moved and the tree may not pass through furniture.
  */
+/** From this far down the picture a spot counts as "in the foreground", and this close to a side as "at the edge". */
+const FRONT_Y = 0.78;
+const EDGE_X = 0.2;
+
+/**
+ * Server 1.0.9 (Nov 19 2026): spots near the bottom or a side of the photo. The model likes to show the whole tree, so
+ * it slid the tree back into the room (0.42,0.90 came out at 0.55,0.74) or in from the side (x 0.90 came out at 0.58).
+ * Saying up front that such a tree is big, hides what is behind it and is cut off by the frame takes that reason away.
+ * Measured with server/scripts/xmas-place-test.ts; sheet in store/xmas-place.
+ */
+export function spotFraming(p: Place): string {
+  const lines: string[] = [];
+  if (p.y >= FRONT_Y) {
+    lines.push(`The marked spot is in the foreground of the photo, close to the camera: the foot of the trunk is in the lowest part ` +
+      `of the picture, only about ${Math.max(1, 100 - pct(p.y))}% of the image height above the bottom edge. A tree that close to the camera ` +
+      `looks big: draw it larger than it would be further back in the room. It simply covers whatever lies behind it in the picture, ` +
+      `be it open floor, a wall, a window or furniture, and it does not have to stand next to or in front of any furniture. The front of the skirt and the gifts reach the bottom edge of the photo and may be cut off by it, and ` +
+      `if the top of the tree does not fit in the picture at that size, the top edge of the photo cuts it off. All of that is correct. ` +
+      `Do not stand the tree further back in the room, and do not slide it sideways, to show the whole tree, the whole skirt or what is behind it.`);
+  }
+  const left = p.x <= EDGE_X;
+  if (left || p.x >= 1 - EDGE_X) {
+    const side = left ? "left" : "right";
+    lines.push(`The marked spot is close to the ${side} edge of the photo: the foot of the trunk is only about ` +
+      `${Math.max(1, left ? pct(p.x) : 100 - pct(p.x))}% of the image width from that edge. A tree standing there is partly outside ` +
+      `the picture, so the ${side} edge of the photo cuts off the branches on its ${side} side. That is correct. Do not move the tree ` +
+      `toward the middle of the picture to show all of it.`);
+  }
+  return lines.length ? ` ${lines.join(" ")}` : "";
+}
+
 function placeMarked(place: Place | undefined, clear: boolean, remove = false): string {
   const where = place
-    ? ` The centre dot is about ${pct(place.x)}% of the image width from the left edge and about ${pct(place.y)}% of the image height from the top.`
+    ? ` The centre dot is about ${pct(place.x)}% of the image width from the left edge and about ${pct(place.y)}% of the image height from the top (${spotWords(place)}).`
     : "";
   const occupied = remove
     ? `If a piece of furniture with a cyan X stands on the spot, it is taken out as the removal rule below says and the tree stands where it was; any piece without a cyan X on or next to the spot stays, and the tree stands in front of or behind it.`
@@ -118,7 +149,7 @@ the floor exactly on the centre dot of the magenta marker and the skirt is centr
 the middle of the tree, not beside it or at the edge of the skirt. If the marker is not on the floor, use the floor spot directly below it.
 The marked spot decides where the tree stands, not the composition: do not slide the tree toward open floor, a rug, a corner or
 the middle of the room, and do not choose a spot of your own. In the final image the foot of the trunk is at the same position
-across the width of the picture as the dot. ${occupied} Use this spot
+across the width of the picture as the dot, and at the same height above the bottom edge of the picture.${place ? spotFraming(place) : ""} ${occupied} Use this spot
 even if it is close to a door, a window or furniture, but every door must stay exactly as it is (an open door stays open and
 fully visible, a closed door stays closed): never remove, hide or redraw a door to make room for the tree. Remove the marker
 completely: the final image must contain no magenta circle, no magenta dot and no magenta tint anywhere. Wherever the tree,
@@ -314,10 +345,17 @@ function placeFix(target: Place, cameOut: Place): string {
     dx !== 0 ? `${dx > 0 ? "to the right" : "to the left"} by about ${Math.abs(dx)}% of the image width` : "",
     Math.abs(dy) >= 5 ? `${dy > 0 ? "toward the camera (lower in the picture)" : "toward the back of the room (higher in the picture)"} by about ${Math.abs(dy)}% of the image height` : "",
   ].filter(Boolean).join(" and ");
-  return `Correction: an earlier attempt at this edit put the tree in the wrong place. The foot of the tree came out at about ` +
+  // Server 1.0.9: the miss also in plain words first; the numbers alone were often read the wrong way round.
+  const off = [
+    Math.abs(dx) >= 5 ? (dx > 0 ? "too far to the left" : "too far to the right") : "",
+    Math.abs(dy) >= 5 ? (dy > 0 ? "too far back in the room (too high in the picture)" : "too close to the camera (too low in the picture)") : "",
+  ].filter(Boolean).join(" and ");
+  return `Correction: an earlier attempt at this edit put the tree in the wrong place${off ? `: ${off}` : ""}. The foot of the tree came out at about ` +
     `${pct(cameOut.x)}% from the left and about ${pct(cameOut.y)}% from the top (${spotWords(cameOut)}); it must stand at about ` +
     `${pct(target.x)}% from the left and about ${pct(target.y)}% from the top (${spotWords(target)}), exactly on the magenta marker. ` +
     (moves ? `Compared with that attempt, the whole tree moves ${moves}. ` : "") +
+    (Math.abs(dx) >= 5 ? `The trunk ends up clearly ${dx > 0 ? "right" : "left"} of where it stood in that attempt, even if the tree then ` +
+      `stands close to furniture, a wall or the edge of the photo. ` : "") +
     `Do not centre the tree in the picture, in front of a window or on open floor: the marked spot is the only allowed position.`;
 }
 

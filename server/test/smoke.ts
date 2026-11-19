@@ -1657,6 +1657,27 @@ await test("place check: no retry at the daily cap, and a client that leaves dur
   }
 });
 
+await test("tapped spot: foreground and edge spots say the tree may be big and cut off by the frame", async () => {
+  const { buildPrompt, spotFraming } = await import("../src/styles.js");
+  // Middle of the room: no extra text.
+  assert.equal(spotFraming({ x: 0.5, y: 0.6 }), "");
+  const front = buildPrompt("xmas-classic", {}, { x: 0.42, y: 0.9 }, { clear: true })!;
+  assert.ok(front.includes("in the foreground of the photo, close to the camera"));
+  assert.ok(front.includes("only about 10% of the image height above the bottom edge"));
+  assert.ok(front.includes("(around the middle from left to right, near the front, close to the camera)"));
+  assert.ok(!/close to the (left|right) edge of the photo/.test(front));
+  const side = buildPrompt("xmas-classic", {}, { x: 0.9, y: 0.6 })!;
+  assert.ok(side.includes("close to the right edge of the photo: the foot of the trunk is only about 10% of the image width from that edge"));
+  assert.ok(!side.includes("in the foreground of the photo"));
+  const corner = spotFraming({ x: 0.05, y: 0.95 });
+  assert.ok(corner.includes("in the foreground") && corner.includes("close to the left edge"));
+  // The retry names the miss in plain words as well.
+  const fix = buildPrompt("xmas-classic", {}, { x: 0.25, y: 0.88 }, { placeFix: { x: 0.51, y: 0.6 } })!;
+  assert.ok(fix.includes("put the tree in the wrong place: too far to the right and too far back in the room (too high in the picture)."));
+  assert.ok(fix.includes("The trunk ends up clearly left of where it stood in that attempt"));
+  assert.ok(!/[\u2014]/.test(front + side + fix));
+});
+
 await test("place check: the locator's answer is parsed defensively", async () => {
   const { parseTreeBase } = await import("../src/gemini.js");
   assert.deepEqual(parseTreeBase('{"found": true, "x": 590, "y": 850}'), { x: 0.59, y: 0.85 });
