@@ -8,7 +8,7 @@ import { describeError } from "./gemini.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
-import { drawMarker, markerLeaked, parsePlace, type Place } from "./marker.js";
+import { drawMarker, drawRemoveMarkers, markerLeaked, parsePlace, parseRemovals, removeMarkerLeaked, type Place } from "./marker.js";
 import { firebaseVerifier, isKeyFetchFailure, type VerifiedToken, type VerifyIdToken } from "./auth.js";
 import {
   addDesign, addReport, claimFreeMove, deletedAt, deleteWebAccount, failuresToday, getCredits, getOrCreateUser,
@@ -402,12 +402,14 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       christmas: !isOff(process.env.CHRISTMAS_MODE), treeShopUrl: shopUrl, shopLinks: shopLinks(), treeCatalog: treeCatalog(shopUrl),
       // treeClear (app 1.0.6+): the clearing rule is on, so the app says a plant or lamp on the spot is taken out.
       treeClear: flagOn("TREE_CLEAR"),
+      // treeRemove (app 1.0.7+): the "Take out furniture" option is offered (TREE_REMOVE=on).
+      treeRemove: flagOn("TREE_REMOVE"),
     });
   });
 
   app.post("/api/redesign", async (req, res) => {
     const installId = userIdOf(req);
-    const { image, styleId, ceilingCm, treeCm, place: rawPlace, moveOf } = req.body ?? {};
+    const { image, styleId, ceilingCm, treeCm, place: rawPlace, moveOf, remove: rawRemove } = req.body ?? {};
     if (!installId) {
       res.status(400).json({ error: "BAD_INSTALL_ID" });
       return;
@@ -430,9 +432,18 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       res.status(400).json({ error: "BAD_PLACE" });
       return;
     }
+    // "Take out furniture" (app 1.0.7+): up to two pieces the user lets us remove. Only with TREE_REMOVE=on and a
+    // tapped tree spot; anything else is refused before a credit is touched, so the user never pays for a room
+    // that was silently left as it was.
+    const removals = tree ? parseRemovals(rawRemove) : undefined;
+    if (removals === null || (removals && (!place || !flagOn("TREE_REMOVE")))) {
+      res.status(400).json({ error: "BAD_REMOVE" });
+      return;
+    }
+    const remove = !!removals;
     // TREE_CLEAR=on lets the model take a plant, lamp or small table off the tree's spot; off keeps the 1.0.5 wording.
     const clear = tree && flagOn("TREE_CLEAR");
-    const prompt = buildPrompt(styleId, size, place ?? false, { clear });
+    const prompt = buildPrompt(styleId, size, place ?? false, { clear, remove });
     if (!prompt) {
       res.status(400).json({ error: "BAD_STYLE" });
       return;
@@ -457,6 +468,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
         .jpeg({ quality: 85 })
         .toBuffer();
       sentToModel = place ? await drawMarker(input, place) : input;
+      if (removals) sentToModel = await drawRemoveMarkers(sentToModel, removals);
     } catch {
       res.status(400).json({ error: "BAD_IMAGE" });
       return;
@@ -529,12 +541,16 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       return;
     }
 
+    // A design that still shows the magenta tree marker or a cyan remove marker is never served.
+    const leaked = async (img: Buffer) =>
+      (!!place && (await markerLeaked(input, img))) || (remove && (await removeMarkerLeaked(input, img)));
+
     let produced = false;
     try {
       let output = await generate(sentToModel.toString("base64"), prompt);
       produced = true;
       // The marker may never reach the user: an image that still shows it counts as a failed design (credit refunded).
-      if (place && (await markerLeaked(input, output))) throw new Error("placement marker still visible in the result");
+      if (await leaked(output)) throw new Error("placement marker still visible in the result");
 
       // The served image was made with the door correction, so a place retry keeps that correction.
       let doorFixed = false;
@@ -551,9 +567,9 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           doorStats.retried++;
           let retryProduced = false;
           try {
-            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, doorFix: true })!);
+            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, doorFix: true })!);
             retryProduced = true;
-            if (place && (await markerLeaked(input, again))) served = "first attempt (marker left in the retry)";
+            if (await leaked(again)) served = "first attempt (marker left in the retry)";
             else {
               // Fixed, or flagged again, or not checkable: the retry was made with the correction, so it is served.
               const still = await doorChanged(input, again, !!place);
@@ -593,10 +609,10 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             try {
               const again = await generate(
                 sentToModel.toString("base64"),
-                buildPrompt(styleId, size, place, { clear, doorFix: doorFixed, placeFix: first })!
+                buildPrompt(styleId, size, place, { clear, remove, doorFix: doorFixed, placeFix: first })!
               );
               retryProduced = true;
-              if (await markerLeaked(input, again)) served = "first attempt (marker left in the retry)";
+              if (await leaked(again)) served = "first attempt (marker left in the retry)";
               else {
                 const second = await treeBase(again);
                 if (second === "error") {
