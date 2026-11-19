@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
-import { RemoveControls } from "../components/RemoveControls";
+import { KeepAllPill, RemoveControls } from "../components/RemoveControls";
 import { TreeSpotPhoto } from "../components/TreeSpotPhoto";
 import { t, styleName, treeAdvice, treeDescription, treeSizeLabel } from "../i18n";
 import { MAX_STYLES_PER_RUN, STYLE_PRESETS, TREE_PRESETS } from "../stylePresets";
@@ -153,13 +153,15 @@ export function HomeScreen({
               tapMode={removing ? "remove" : "tree"}
               onRemovals={canMark ? onRemovals : undefined}
             />
+            {canMark && marked.length > 0 && (
+              <KeepAllPill onPress={() => onRemovals([])} />
+            )}
             {canMark && (
               <RemoveControls
                 tree={christmas}
                 tapMode={christmas ? tapMode : "remove"}
                 onTapMode={setTapMode}
                 count={marked.length}
-                onKeepAll={() => onRemovals([])}
               />
             )}
             {christmas && !removing && (
@@ -432,7 +434,8 @@ const styles = StyleSheet.create({
   checkRow: { flexDirection: "row", alignItems: "flex-start", gap: space(3), marginTop: space(4), minHeight: 44 },
   checkBox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: color.olive, alignItems: "center", justifyContent: "center", marginTop: 1 },
   checkBoxOn: { backgroundColor: color.olive },
-  checkTick: { width: 10, height: 10, borderRadius: 2, backgroundColor: color.white },
+  // A real tick: the bottom-right corner of a narrow box, turned 45 degrees.
+  checkTick: { width: 7, height: 13, borderRightWidth: 2.5, borderBottomWidth: 2.5, borderColor: color.white, transform: [{ rotate: "45deg" }], marginTop: -3 },
   checkTexts: { flex: 1, gap: 2 },
   checkLabel: { color: color.ink, fontSize: 16, fontWeight: "600" },
   checkHint: { color: color.stone, fontSize: 14, lineHeight: 20 },

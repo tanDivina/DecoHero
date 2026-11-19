@@ -7,27 +7,22 @@ type Props = {
   onTapMode: (mode: "tree" | "remove") => void;
   /** Pieces marked so far. */
   count: number;
-  onKeepAll: () => void;
   /** False on regular redesigns (1.0.8+): no tree spot, so no toggle; every tap on the photo marks a piece. */
   tree?: boolean;
 };
 
 /**
  * "Take out furniture" (app 1.0.7+, server TREE_REMOVE): what a tap on the photo does, tree spot or X mark,
- * plus the honest warning that a piece touching a marked one can go too.
+ * plus the honest warning (and, on room redesigns, that one chair of a set can come back) that a piece touching a marked one can go too.
  */
-export function RemoveControls({ tapMode, onTapMode, count, onKeepAll, tree = true }: Props) {
+export function RemoveControls({ tapMode, onTapMode, count, tree = true }: Props) {
   const removing = tapMode === "remove";
   if (!tree) {
     return (
       <View style={styles.wrap}>
         <Text style={styles.heading}>{count ? `${t.tapRemove} (${count})` : t.tapRemove}</Text>
         <Text style={styles.text}>{count ? t.removeSet(count) : t.removeHintRoom}</Text>
-        {count > 0 && (
-          <Pressable onPress={onKeepAll} style={styles.linkTarget} accessibilityRole="button">
-            <Text style={styles.link}>{t.removeKeepAll}</Text>
-          </Pressable>
-        )}
+        <Text style={styles.tip}>{t.removeTipRoom}</Text>
       </View>
     );
   }
@@ -54,12 +49,19 @@ export function RemoveControls({ tapMode, onTapMode, count, onKeepAll, tree = tr
           <Text style={styles.tip}>{t.removeTip}</Text>
         </>
       )}
-      {count > 0 && (
-        <Pressable onPress={onKeepAll} style={styles.linkTarget} accessibilityRole="button">
-          <Text style={styles.link}>{t.removeKeepAll}</Text>
-        </Pressable>
-      )}
     </View>
+  );
+}
+
+/**
+ * "Keep all furniture", drawn on the photo's top-right corner (1.0.9). Below the photo it sat off screen while
+ * people were tapping, so they could not find how to undo. Place it inside the View that wraps the photo.
+ */
+export function KeepAllPill({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.pill} accessibilityRole="button" hitSlop={8}>
+      <Text style={styles.pillText} maxFontSizeMultiplier={1.3}>{t.removeKeepAll}</Text>
+    </Pressable>
   );
 }
 
@@ -72,7 +74,7 @@ const styles = StyleSheet.create({
   optionTextOn: { color: color.white },
   heading: { color: color.ink, fontSize: 15, fontWeight: "600" },
   text: { color: color.stone, fontSize: 14, lineHeight: 20 },
+  pill: { position: "absolute", top: space(2), right: space(2), minHeight: 36, justifyContent: "center", paddingHorizontal: space(3), borderRadius: 18, backgroundColor: "rgba(31,36,30,0.78)" },
+  pillText: { color: color.white, fontSize: 14, fontWeight: "600" },
   tip: { color: color.ink, fontSize: 14, lineHeight: 20, backgroundColor: color.brassWash, borderRadius: radius.chip, padding: space(3) },
-  linkTarget: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
-  link: { color: color.olive, fontWeight: "600", fontSize: 15 },
 });
