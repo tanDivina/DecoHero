@@ -4,7 +4,8 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import sharp from "sharp";
 import { buildPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
-import { describeError } from "./gemini.js";
+import { describeError, type MarkedPiece } from "./gemini.js";
+import { FRAME_MIN, frameMatch } from "./frame.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
@@ -183,7 +184,14 @@ const placeMiss = (at: Place, spot: Place, tolerance: number) =>
   Math.max(Math.abs(at.x - spot.x) / tolerance, Math.abs(at.y - spot.y) / PLACE_TOLERANCE_Y);
 const at = (p: Place) => `x=${p.x.toFixed(2)},y=${p.y.toFixed(2)}`;
 
+/** Names the furniture under the `count` cyan X markers of the photo sent to the model. Rejects when the call fails. */
+export type NameMarkedPieces = (sentJpegBase64: string, count: number) => Promise<MarkedPiece[]>;
+// Naming (REMOVE_NAMES=on) runs before the image call, so it gets less time than the checks that run after it.
+const REMOVE_NAMES_TIMEOUT_MS = 12_000;
+
 export type AppOptions = {
+  /** Vision model that names the marked furniture and its neighbours before a removal (REMOVE_NAMES=on). */
+  nameMarkedPieces?: NameMarkedPieces;
   /** Yes/no vision check used by the door check (DOOR_CHECK=on). */
   askYesNo?: AskYesNo;
   /** Tree locator used by the place check (PLACE_CHECK=on). */
@@ -209,6 +217,21 @@ export function createApp(generate: Generate, model: string, options: AppOptions
   const app = express();
   // Since the last restart; printed with every flagged or failed door check. No install ids, no IPs.
   const doorStats = { checked: 0, flagged: 0, retried: 0, fixed: 0, errors: 0 };
+  // Since the last restart; printed with every redrawn room (FRAME_CHECK). No install ids, no IPs.
+  // checked = designs measured, redrawn = first attempt off the photo's framing, fixed = retry back on it.
+  const frameStats = { checked: 0, redrawn: 0, retried: 0, fixed: 0, errors: 0 };
+  /** Share of the photo that is still in place in the design, null when the photo cannot be judged or the measuring failed. */
+  const framed = async (photo: Buffer, design: Buffer): Promise<number | null> => {
+    try {
+      return await frameMatch(photo, design);
+    } catch (err) {
+      frameStats.errors++;
+      console.warn(`frame check failed, design served unchecked: ${describeError(err)}; totals ${JSON.stringify(frameStats)}`);
+      return null;
+    }
+  };
+  // Since the last restart; printed with every failed naming (REMOVE_NAMES). No install ids, no IPs.
+  const nameStats = { asked: 0, named: 0, errors: 0 };
   const forCheck = (img: Buffer) =>
     sharp(img).resize({ width: 768, height: 768, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
   /** true = a door was hidden, removed or changed; false = doors are fine; null = the check itself failed. */
@@ -572,12 +595,74 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       (!!place && (await markerLeaked(input, img))) ||
       (remove && (tree ? await removeMarkerLeaked(input, img) : await removeMarkerLeakedAt(input, img, removals!)));
 
+    // REMOVE_NAMES=on (server 1.0.9): a cheap vision model names the piece under each cyan X and the unmarked pieces
+    // touching it, and the prompt repeats the removal rule in those words (styles.ts namedPieces). The user never
+    // waits long for it or gets an error from it: a failed or slow naming sends the prompt without names.
+    let pieces: MarkedPiece[] | undefined;
+    if (removals && extras.nameMarkedPieces && flagOn("REMOVE_NAMES") && !gone) {
+      nameStats.asked++;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        pieces = await Promise.race([
+          extras.nameMarkedPieces(sentToModel.toString("base64"), removals.length),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("remove names timed out")), REMOVE_NAMES_TIMEOUT_MS); }),
+        ]);
+        nameStats.named++;
+      } catch (err) {
+        nameStats.errors++;
+        console.warn(`remove names failed, prompt sent without names: ${describeError(err)}; totals ${JSON.stringify(nameStats)}`);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    const firstPrompt = pieces ? buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, pieces })! : prompt;
+
     let produced = false;
     try {
-      let output = await generate(sentToModel.toString("base64"), prompt);
+      let output = await generate(sentToModel.toString("base64"), firstPrompt);
       produced = true;
       // The marker may never reach the user: an image that still shows it counts as a failed design (credit refunded).
       if (await leaked(output)) throw new Error("placement marker still visible in the result");
+
+      // Frame check (FRAME_CHECK=on, Christmas only): a Christmas design is an edit, so the photo must still line up with
+      // it. A room that was redrawn from another distance or angle (frame.ts measures it locally, no model call) buys
+      // one silent second attempt with the problem named; the one closer to the photo is served. The user never pays
+      // for it and never gets an error from it.
+      let frameFixed = false;
+      if (tree && flagOn("FRAME_CHECK") && !gone) {
+        const first = await framed(input, output);
+        if (first !== null) frameStats.checked++;
+        if (first !== null && first < FRAME_MIN) {
+          frameStats.redrawn++;
+          let served = "first attempt";
+          // The retry is a second paid image: it takes a slot of the global daily cap, never of the free cap.
+          if (gone) served = "nothing (client left)";
+          else if (reserveGeneration(true, day) !== "OK") served = "first attempt (daily cap reached, no retry)";
+          else {
+            frameStats.retried++;
+            let retryProduced = false;
+            try {
+              const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, pieces, frameFix: true })!);
+              retryProduced = true;
+              if (await leaked(again)) served = "first attempt (marker left in the retry)";
+              else {
+                const second = await framed(input, again);
+                if (second !== null && second >= FRAME_MIN) frameStats.fixed++;
+                if (second !== null && second > first) {
+                  output = again;
+                  frameFixed = true;
+                }
+                served = `${frameFixed ? "retry" : "first attempt"} (retry ${second === null ? "not measured" : second.toFixed(2)})`;
+              }
+            } catch (err) {
+              if (!retryProduced) releaseGeneration(true, day);
+              served = "first attempt (retry failed)";
+              console.warn(`frame check retry failed (${styleId}): ${describeError(err)}`);
+            }
+          }
+          console.log(`frame check (${styleId}${decorateRoom ? ", whole room" : ""}): room redrawn (${first.toFixed(2)}), served ${served}; totals ${JSON.stringify(frameStats)}`);
+        }
+      }
 
       // The served image was made with the door correction, so a place retry keeps that correction.
       let doorFixed = false;
@@ -594,7 +679,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           doorStats.retried++;
           let retryProduced = false;
           try {
-            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, doorFix: true })!);
+            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, pieces, frameFix: frameFixed, doorFix: true })!);
             retryProduced = true;
             if (await leaked(again)) served = "first attempt (marker left in the retry)";
             else {
@@ -636,7 +721,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             try {
               const again = await generate(
                 sentToModel.toString("base64"),
-                buildPrompt(styleId, size, place, { clear, remove, decorateRoom, doorFix: doorFixed, placeFix: first })!
+                buildPrompt(styleId, size, place, { clear, remove, decorateRoom, pieces, frameFix: frameFixed, doorFix: doorFixed, placeFix: first })!
               );
               retryProduced = true;
               if (await leaked(again)) served = "first attempt (marker left in the retry)";

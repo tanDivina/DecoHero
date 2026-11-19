@@ -1,0 +1,26 @@
+{
+ "decor-living-classic": {
+  "pass": false,
+  "note": "v2 (edit framing). Sofa, TV and chest hold, but the armchair is pushed to the right edge to make room for the tree."
+ },
+ "decor-sala-tropical": {
+  "pass": false,
+  "note": "v2. Sofas hold; tree again on the stacked chairs, which are gone."
+ },
+ "decor-dining-tartan": {
+  "pass": false,
+  "note": "v2. Plates stay, but the extra corner chair is back, carrying the pillows."
+ },
+ "xremove-kids-desk": {
+  "pass": false,
+  "note": "v2 (named pieces: desk goes, chair stays). Tree on the spot, chair still removed."
+ },
+ "xremove-dining-chair": {
+  "pass": true,
+  "note": "v2 (named pieces). Marked chair gone; table, five chairs and sideboard intact."
+ },
+ "room-dining-chair-farmhouse": {
+  "pass": false,
+  "note": "v2 (named pieces + count). No spare chairs this time, but the marked chair is still at the table end (six chairs)."
+ }
+}

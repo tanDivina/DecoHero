@@ -143,3 +143,80 @@ export async function locateTree(designJpegBase64: string): Promise<{ x: number;
   });
   return parseTreeBase(response.text ?? "");
 }
+
+// Cheap vision model that names the furniture under the cyan X markers before a removal (REMOVE_NAMES, see app.ts).
+export const REMOVE_NAMES_MODEL = process.env.REMOVE_NAMES_MODEL || DOOR_CHECK_MODEL;
+
+/** One cyan X: the piece under it, how many pieces of that kind the photo shows, and unmarked pieces touching it. */
+export type MarkedPiece = { piece: string; sameKind?: number; neighbours: string[] };
+
+const NAMES_QUESTION =
+  "This photo of a room has one or two bright cyan circles with a cyan X inside drawn on top of it. Each marks ONE piece of " +
+  "furniture that will be taken out of the room. For each cyan X give: \"piece\": the single piece of furniture directly under " +
+  "the centre of the X, in a few words with its colour and where it stands (for example \"the white desk on the right\" or " +
+  "\"the dining chair at the right-hand end of the table\"); \"sameKind\": how many pieces of that same kind the whole photo " +
+  "shows, the marked one included (6 for one of six dining chairs, 2 for one of two sofas, 1 for the only desk); " +
+  "\"neighbours\": up to three OTHER pieces of furniture that touch it, stand right next to it or are partly hidden behind it, " +
+  "each in a few words with colour and position (for example \"the white chair at the desk\"). Never list as a neighbour a " +
+  "piece that has a cyan X of its own, and list nothing that is not furniture. " +
+  'Answer as JSON: {"marks": [{"piece": "...", "sameKind": 1, "neighbours": ["..."]}]}.';
+
+/** Model text that goes into a prompt: letters, digits, spaces and plain punctuation only, one line, capped. */
+const plainWords = (v: unknown, max: number): string =>
+  typeof v === "string" ? v.replace(/[^\p{L}\p{N} ,'()-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
+
+/** Reads the namer's answer. Throws unless it holds 1 to `max` marks with a named piece each. */
+export function parseMarkedPieces(text: string, max = 2): MarkedPiece[] {
+  const body = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new Error(`remove names gave no JSON (${body.slice(0, 40) || "empty"})`);
+  }
+  const marks = (parsed as { marks?: unknown } | null)?.marks;
+  if (!Array.isArray(marks) || marks.length < 1 || marks.length > max) throw new Error("remove names gave no usable list of marks");
+  return marks.map((m) => {
+    const o = (typeof m === "object" && m !== null ? m : {}) as Record<string, unknown>;
+    const piece = plainWords(o.piece, 80);
+    if (!piece) throw new Error("remove names gave a mark without a piece");
+    const n = o.sameKind;
+    const sameKind = typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= 12 ? n : undefined;
+    const neighbours = (Array.isArray(o.neighbours) ? o.neighbours : []).map((x) => plainWords(x, 80)).filter(Boolean).slice(0, 3);
+    return { piece, sameKind, neighbours };
+  });
+}
+
+/**
+ * Names the furniture under the cyan X markers of the photo that goes to the image model (`count` markers) and the
+ * unmarked pieces touching them, so the prompt can say in words what goes and what stays. API errors, timeouts and
+ * unreadable answers throw; the caller then sends the prompt without names.
+ */
+export async function nameMarkedPieces(sentJpegBase64: string, count: number): Promise<MarkedPiece[]> {
+  const response = await ai.models.generateContent({
+    model: REMOVE_NAMES_MODEL,
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: sentJpegBase64 } }, { text: NAMES_QUESTION }] }],
+    config: {
+      temperature: 0,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          marks: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: { piece: { type: Type.STRING }, sameKind: { type: Type.INTEGER }, neighbours: { type: Type.ARRAY, items: { type: Type.STRING } } },
+              required: ["piece", "neighbours"],
+            },
+          },
+        },
+        required: ["marks"],
+      },
+      httpOptions: { timeout: 15_000 },
+    },
+  });
+  const marks = parseMarkedPieces(response.text ?? "");
+  if (marks.length !== count) throw new Error(`remove names found ${marks.length} marks, expected ${count}`);
+  return marks;
+}
