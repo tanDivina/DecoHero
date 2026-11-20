@@ -1,0 +1,58 @@
+{
+  "living-classic-r1": {
+    "pass": true,
+    "note": "Sofa, armchair, glass table, TV and chest in place; tree in the corner between sofa and armchair. Wreath, garland, pillows, candles."
+  },
+  "living-classic-r2": {
+    "pass": false,
+    "note": "Borderline, counted as fail: framing and the other pieces hold, but the tree stands in front of the armchair and hides all of it except one arm."
+  },
+  "sala-tropical-r1": {
+    "pass": true,
+    "note": "Tree on the tapped spot (front left), both sofas, TV unit and stacked chairs in place. Wreath, pillows, throw, lanterns."
+  },
+  "sala-tropical-r2": {
+    "pass": true,
+    "note": "Tree on the tapped spot, all furniture in place. Wreaths, pillows, lanterns."
+  },
+  "dining-tartan-r1": {
+    "pass": false,
+    "note": "Borderline, counted as fail: framing, table, sideboard and five chairs hold, but the tree stands on the place of the chair at the left end of the table."
+  },
+  "dining-tartan-r2": {
+    "pass": false,
+    "note": "Tree step perfect (six chairs, sideboard). The decor step then invented a second sideboard on the left wall to carry a garland."
+  },
+  "kids-winter-r1": {
+    "pass": true,
+    "note": "Bed, bookcase, desk and chair in place; tree at the foot of the bed. Wreath, garland, pillows, throw, candles."
+  },
+  "kids-winter-r2": {
+    "pass": true,
+    "note": "All four pieces in place. Wreath, garland, stockings, pillows, candles."
+  },
+  "bedroom-nordic-r1": {
+    "pass": true,
+    "note": "Bed, nightstand, lamp and clothes rail in place; tree in the window corner. Hoop wreath, garland, pillows, throw, stockings."
+  },
+  "bedroom-nordic-r2": {
+    "pass": true,
+    "note": "All pieces in place, same framing. Garland, pillows, candles, small wreath."
+  },
+  "office-coquette-r1": {
+    "pass": false,
+    "note": "Tree step redrew the room (0.20); its retry kept the chair but narrowed the desk, moved lamp and laptop and lost the boxes."
+  },
+  "office-coquette-r2": {
+    "pass": true,
+    "note": "Desk, chair, shelf, lamp and laptop in place; tree in front of the right half of the desk. Wreath, garland, stockings, candles."
+  },
+  "terrace-classic-r1": {
+    "pass": true,
+    "note": "Tree near the tapped spot after the place retry (0.34 for 0.30). Chairs, stool, plants and door in place. Wreath, garland, stockings, candles."
+  },
+  "terrace-classic-r2": {
+    "pass": true,
+    "note": "Tree on the tapped spot, large in the foreground. Chairs, stool, plants and door in place. Wreath, garland, stockings, throw."
+  }
+}

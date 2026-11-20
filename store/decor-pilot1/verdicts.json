@@ -1,0 +1,18 @@
+{
+  "sala-tropical-r1": {
+    "pass": true,
+    "note": "Pilot: plain tree prompt, then decor step. Tree on the tap, sofas, TV unit and stacked chairs in place."
+  },
+  "bedroom-nordic-r1": {
+    "pass": false,
+    "note": "Pilot (plain tree prompt). The tree step took out the nightstand and lamp. The decor step itself kept everything."
+  },
+  "office-coquette-r1": {
+    "pass": false,
+    "note": "Pilot (plain tree prompt). Tree step redrew the room (0.03), its retry dropped the office chair and invented a radiator. Decor step fine."
+  },
+  "living-classic-r1": {
+    "pass": false,
+    "note": "Pilot (plain tree prompt). The tree step swapped the armchair for the tree. Decor step fine."
+  }
+}

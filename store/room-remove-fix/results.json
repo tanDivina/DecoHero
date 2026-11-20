@@ -1,0 +1,132 @@
+{
+ "dining-chair-farmhouse-c": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the wooden dining chair on the right side of the table",
+    "sameKind": 6,
+    "neighbours": [
+     "the wooden dining table",
+     "the wooden side cabinet against the back wall"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-final",
+  "first": {
+   "frame": 0.9019607843137255,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.6043213567335333
+   ]
+  },
+  "leak": false,
+  "midMs": 1596,
+  "frameOut": 0.5294117647058824,
+  "ms": 10334
+ },
+ "dining-chair-farmhouse-d": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the wooden dining chair on the right side of the table",
+    "sameKind": 6,
+    "neighbours": [
+     "the wooden dining table",
+     "the wooden side cabinet at the back"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-final",
+  "first": {
+   "frame": 0.9019607843137255,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.6043213567335333
+   ]
+  },
+  "leak": false,
+  "midMs": 1111,
+  "frameOut": 0.5196078431372549,
+  "ms": 11400
+ },
+ "dining-chair-farmhouse-e": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the wooden dining chair on the right side of the table",
+    "sameKind": 6,
+    "neighbours": [
+     "the wooden dining table",
+     "the wooden side cabinet against the back wall"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-final",
+  "first": {
+   "frame": 0.9803921568627451,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.7049490214999949
+   ]
+  },
+  "leak": false,
+  "midMs": 1458,
+  "frameOut": 0.7058823529411765,
+  "ms": 11013
+ },
+ "terrace-table-chair-tropical-e": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the small white plastic table",
+    "sameKind": 1,
+    "neighbours": [
+     "the white plastic chair",
+     "the other white plastic chair"
+    ]
+   },
+   {
+    "piece": "the white plastic chair in the foreground",
+    "sameKind": 2,
+    "neighbours": [
+     "the small white plastic table",
+     "the white plastic chair behind it"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-final",
+  "first": {
+   "frame": 0.9324324324324325,
+   "gone": [
+    true,
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.573609235478203,
+    0.2563432940743188
+   ]
+  },
+  "leak": false,
+  "midMs": 1879,
+  "frameOut": 0.013513513513513514,
+  "ms": 9946
+ }
+}

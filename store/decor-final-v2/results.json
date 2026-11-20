@@ -1,0 +1,82 @@
+[
+  {
+    "key": "living-classic-r1",
+    "name": "living-classic",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.711864406779661,
+    "seconds": 18,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "living-classic-r2",
+    "name": "living-classic",
+    "run": 2,
+    "status": 200,
+    "images": 3,
+    "frame": 0.7796610169491526,
+    "seconds": 28,
+    "steps": [
+      "tree",
+      "decor step",
+      "decor step (retry)"
+    ]
+  },
+  {
+    "key": "dining-tartan-r1",
+    "name": "dining-tartan",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7941176470588235,
+    "seconds": 16,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "dining-tartan-r2",
+    "name": "dining-tartan",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7941176470588235,
+    "seconds": 21,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "office-coquette-r1",
+    "name": "office-coquette",
+    "run": 1,
+    "status": 200,
+    "images": 3,
+    "frame": 0.8260869565217391,
+    "seconds": 27,
+    "steps": [
+      "tree",
+      "decor step",
+      "decor step (retry)"
+    ]
+  },
+  {
+    "key": "office-coquette-r2",
+    "name": "office-coquette",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.5652173913043478,
+    "seconds": 19,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  }
+]

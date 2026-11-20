@@ -1,0 +1,595 @@
+{
+ "living-armchair-japandi-a": {
+  "mode": "two",
+  "names": false,
+  "images": 1,
+  "reusedMid": "room-remove-v1",
+  "first": {
+   "frame": 0.940677966101695,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.2014004085145383
+   ]
+  },
+  "leak": false,
+  "midMs": 35,
+  "frameOut": 0.4830508474576271,
+  "ms": 10082
+ },
+ "sala-loveseat-industrial-a": {
+  "mode": "two",
+  "names": false,
+  "images": 1,
+  "reusedMid": "room-remove-v1",
+  "first": {
+   "frame": 0.8561643835616438,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    -0.029323014176196316
+   ]
+  },
+  "leak": false,
+  "midMs": 47,
+  "frameOut": 0.6986301369863014,
+  "ms": 9697
+ },
+ "office-chair-box-minimal-a": {
+  "mode": "two",
+  "names": false,
+  "images": 1,
+  "reusedMid": "room-remove-v1",
+  "first": {
+   "frame": 0.7130434782608696,
+   "gone": [
+    true,
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.008501881427171218,
+    0.6136030406134397
+   ]
+  },
+  "leak": false,
+  "midMs": 70,
+  "frameOut": 0.43478260869565216,
+  "ms": 10586
+ },
+ "living-table-boho-a": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the clear glass coffee table in the middle of the room",
+    "sameKind": 1,
+    "neighbours": [
+     "the beige sofa on the left",
+     "the brown armchair on the right"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-v1",
+  "first": {
+   "frame": 0.8728813559322034,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    -0.3891181054317177
+   ]
+  },
+  "leak": false,
+  "midMs": 1591,
+  "frameOut": 0.288135593220339,
+  "ms": 10238
+ },
+ "sala-chairs-tropical-a": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the white plastic chair in the corner",
+    "sameKind": 1,
+    "neighbours": [
+     "the brown television stand",
+     "the brown sofa against the wall"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-v1",
+  "first": {
+   "frame": 0.9931506849315068,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.574793885389694
+   ]
+  },
+  "leak": false,
+  "midMs": 1328,
+  "frameOut": 0.4931506849315068,
+  "ms": 11021
+ },
+ "dining-chair-farmhouse-a": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the wooden dining chair on the right side of the table",
+    "sameKind": 6,
+    "neighbours": [
+     "the wooden dining table",
+     "the wooden dining chair at the front of the table"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-v1",
+  "first": {
+   "frame": 0.9019607843137255,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.6043321322359038
+   ]
+  },
+  "leak": false,
+  "midMs": 1478,
+  "frameOut": 0.6764705882352942,
+  "ms": 11275
+ },
+ "terrace-table-chair-tropical-a": {
+  "mode": "two",
+  "names": true,
+  "images": 1,
+  "pieces": [
+   {
+    "piece": "the small white plastic table",
+    "sameKind": 1,
+    "neighbours": [
+     "the white plastic chair",
+     "the other white plastic chair"
+    ]
+   },
+   {
+    "piece": "the white plastic chair in the foreground",
+    "sameKind": 2,
+    "neighbours": [
+     "the small white plastic table",
+     "the white plastic chair behind it"
+    ]
+   }
+  ],
+  "reusedMid": "room-remove-v1",
+  "first": {
+   "frame": 0.9391891891891891,
+   "gone": [
+    true,
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.5601413905278398,
+    0.2466822321777054
+   ]
+  },
+  "leak": false,
+  "midMs": 1575,
+  "frameOut": 0.02702702702702703,
+  "ms": 12999
+ },
+ "bedroom-nightstand-scandi-a": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the white bedside table with a black lamp on the left",
+    "sameKind": 1,
+    "neighbours": [
+     "the black metal bed"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.9135802469135802,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.23689983958435604
+   ]
+  },
+  "leak": false,
+  "midMs": 10398,
+  "frameOut": 0.30864197530864196,
+  "ms": 20840
+ },
+ "kids-desk-coastal-a": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the white table on the right",
+    "sameKind": 1,
+    "neighbours": [
+     "the white chair under the table"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.8279569892473119,
+   "gone": [
+    null
+   ],
+   "leak": false,
+   "patch": [
+    null
+   ]
+  },
+  "leak": false,
+  "midMs": 9416,
+  "frameOut": 0.2903225806451613,
+  "ms": 18401
+ },
+ "kids-desk-chair-japandi-a": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the white chair in front of the table",
+    "sameKind": 1,
+    "neighbours": [
+     "the white table on the right"
+    ]
+   },
+   {
+    "piece": "the white table on the right",
+    "sameKind": 1,
+    "neighbours": [
+     "the white chair in front of the table"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.8172043010752689,
+   "gone": [
+    null,
+    true
+   ],
+   "leak": false,
+   "patch": [
+    null,
+    -0.29443481663788845
+   ]
+  },
+  "leak": false,
+  "midMs": 9263,
+  "frameOut": 0.20430107526881722,
+  "ms": 18184
+ },
+ "living-armchair-japandi-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the brown armchair on the right",
+    "sameKind": 1,
+    "neighbours": [
+     "the glass coffee table in front"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.940677966101695,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.21337488283983458
+   ]
+  },
+  "leak": false,
+  "midMs": 8157,
+  "frameOut": 0.3644067796610169,
+  "ms": 17997
+ },
+ "living-table-boho-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the clear glass coffee table in the middle of the room",
+    "sameKind": 1,
+    "neighbours": [
+     "the beige sofa behind the coffee table",
+     "the brown armchair near the window",
+     "the wooden TV stand on the left"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.8728813559322034,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    -0.3819141739917081
+   ]
+  },
+  "leak": false,
+  "midMs": 10153,
+  "frameOut": 0.423728813559322,
+  "ms": 19429
+ },
+ "sala-chairs-tropical-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the white plastic chair in the background",
+    "sameKind": 1,
+    "neighbours": []
+   }
+  ],
+  "first": {
+   "frame": 0.9931506849315068,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.5759825886634082
+   ]
+  },
+  "leak": false,
+  "midMs": 9704,
+  "frameOut": 0.2191780821917808,
+  "ms": 18970
+ },
+ "sala-loveseat-industrial-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the brown leather sofa in the foreground",
+    "sameKind": 2,
+    "neighbours": [
+     "the brown leather sofa in the background"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.8561643835616438,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    -0.017806829779435235
+   ]
+  },
+  "leak": false,
+  "midMs": 11143,
+  "frameOut": 0.678082191780822,
+  "ms": 19341
+ },
+ "bedroom-nightstand-scandi-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the white bedside table with open shelf on the left",
+    "sameKind": 1,
+    "neighbours": [
+     "the black metal bed frame with grey bedding on the right"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.9135802469135802,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.2226306209372385
+   ]
+  },
+  "leak": false,
+  "midMs": 8650,
+  "frameOut": 0.4567901234567901,
+  "ms": 17032
+ },
+ "dining-chair-farmhouse-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the dining chair at the right-hand end of the table",
+    "sameKind": 6,
+    "neighbours": [
+     "the wooden dining table in the centre of the room",
+     "the wooden sideboard against the back wall"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.9803921568627451,
+   "gone": [
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.7051730492302217
+   ]
+  },
+  "leak": false,
+  "midMs": 9679,
+  "frameOut": 0.5588235294117647,
+  "ms": 18889
+ },
+ "kids-desk-coastal-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the white table on the right",
+    "sameKind": 1,
+    "neighbours": [
+     "the white chair at the table"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.8172043010752689,
+   "gone": [
+    null
+   ],
+   "leak": false,
+   "patch": [
+    null
+   ]
+  },
+  "leak": false,
+  "midMs": 8999,
+  "frameOut": 0.17204301075268819,
+  "ms": 17642
+ },
+ "office-chair-box-minimal-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the cardboard box under the left side of the desk",
+    "sameKind": 1,
+    "neighbours": [
+     "the white desk above it",
+     "the wooden bookshelf to the left"
+    ]
+   },
+   {
+    "piece": "the black office chair on the right",
+    "sameKind": 1,
+    "neighbours": []
+   }
+  ],
+  "first": {
+   "frame": 0.7130434782608696,
+   "gone": [
+    true,
+    true
+   ],
+   "leak": false,
+   "patch": [
+    -0.08621058884636036,
+    0.6045944091327693
+   ]
+  },
+  "leak": false,
+  "midMs": 9475,
+  "frameOut": 0.33043478260869563,
+  "ms": 18998
+ },
+ "terrace-table-chair-tropical-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the small white plastic table in the centre of the porch",
+    "sameKind": 1,
+    "neighbours": [
+     "the white plastic chair behind the small table"
+    ]
+   },
+   {
+    "piece": "the white plastic chair in the foreground",
+    "sameKind": 2,
+    "neighbours": [
+     "the white plastic chair behind it",
+     "the small white plastic table"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.9324324324324325,
+   "gone": [
+    true,
+    true
+   ],
+   "leak": false,
+   "patch": [
+    0.5745279362803472,
+    0.2568379461725716
+   ]
+  },
+  "leak": false,
+  "midMs": 10028,
+  "frameOut": 0.033783783783783786,
+  "ms": 20600
+ },
+ "kids-desk-chair-japandi-b": {
+  "mode": "two",
+  "names": true,
+  "images": 2,
+  "pieces": [
+   {
+    "piece": "the white chair in front of the desk",
+    "sameKind": 2,
+    "neighbours": [
+     "the white desk on the right"
+    ]
+   },
+   {
+    "piece": "the white desk on the right",
+    "sameKind": 1,
+    "neighbours": [
+     "the white chair in front of the desk"
+    ]
+   }
+  ],
+  "first": {
+   "frame": 0.8172043010752689,
+   "gone": [
+    null,
+    true
+   ],
+   "leak": false,
+   "patch": [
+    null,
+    -0.3010760747375005
+   ]
+  },
+  "leak": false,
+  "midMs": 7540,
+  "frameOut": 0.3010752688172043,
+  "ms": 17268
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "dining-chair-farmhouse-c": {
+  "pass": false,
+  "note": "Restyle told which piece was taken out and where: a chair is back at the right-hand end."
+ },
+ "dining-chair-farmhouse-d": {
+  "pass": false,
+  "note": "Same: chair back at the right-hand end, and a doorway invented in the back wall."
+ },
+ "dining-chair-farmhouse-e": {
+  "pass": false,
+  "note": "Same: chair at the right-hand end, a corner cabinet added."
+ },
+ "terrace-table-chair-tropical-e": {
+  "pass": false,
+  "note": "Same: the unmarked chair is gone too."
+ }
+}

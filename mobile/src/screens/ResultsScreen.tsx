@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator, FlatList, Image, NativeScrollEvent, NativeSyntheticEvent,
   Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions,
@@ -72,6 +72,34 @@ const WEB = Platform.OS === "web";
 // Web: from this window width up, designs sit side by side instead of one per row.
 const TWO_COLUMNS_FROM = 900;
 
+// A one-step design takes about 10 s. Past this it is usually the server retrying an image that came out wrong.
+const STILL_WORKING_AFTER_MS = 15_000;
+// Two-step designs (1.0.10) take longer by design; "still working" only shows once their own estimate has passed.
+const STILL_WORKING_REMOVE_MS = 25_000;
+const STILL_WORKING_DECOR_MS = 35_000;
+
+/** What a design in progress shows over the photo: what is being made, how long a two-step design takes, and a calm line when it runs long. */
+function LoadingOverlay({ item }: { item: Result }) {
+  const christmas = isTreeStyle(item.styleId);
+  // The two slower kinds: whole-room Christmas decor, and a room redesign with furniture taken out.
+  const decor = christmas && !!item.decor;
+  const removing = !christmas && !!item.remove?.length;
+  const [late, setLate] = useState(false);
+  useEffect(() => {
+    const after = decor ? STILL_WORKING_DECOR_MS : removing ? STILL_WORKING_REMOVE_MS : STILL_WORKING_AFTER_MS;
+    const timer = setTimeout(() => setLate(true), after);
+    return () => clearTimeout(timer);
+  }, [decor, removing]);
+  const steps = decor ? t.designingDecor : removing ? t.designingRemove : null;
+  return (
+    <View style={styles.overlay} accessibilityLiveRegion="polite">
+      <ActivityIndicator color={color.white} size="large" />
+      <Text style={styles.overlayText}>{t.designing(styleName(item.styleId))}</Text>
+      {late ? <Text style={styles.overlayNote}>{t.stillWorking}</Text> : steps && <Text style={styles.overlayNote}>{steps}</Text>}
+    </View>
+  );
+}
+
 export function ResultsScreen({
   originalUri, aspect, results, tree, startAt, treeShopUrl, shopLinks, onOpenLink, onBack, onSave, onShare, onReport, onRetry,
   onMoveTree, onOpenShop,
@@ -135,10 +163,8 @@ export function ResultsScreen({
             </View>
           )}
           {item.status === "loading" && (
-            <View style={styles.overlay}>
-              <ActivityIndicator color={color.white} size="large" />
-              <Text style={styles.overlayText}>{t.designing(styleName(item.styleId))}</Text>
-            </View>
+            // Keyed by attempt: a retry or a move starts its wait from zero.
+            <LoadingOverlay key={item.requestId} item={item} />
           )}
         </Pressable>
 
@@ -311,6 +337,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: space(3),
+    paddingHorizontal: space(5),
   },
   badge: {
     position: "absolute",
@@ -323,6 +350,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: color.white, fontSize: 13, fontWeight: "700", letterSpacing: 0.4 },
   overlayText: { color: color.white, fontSize: 16, fontWeight: "600" },
+  overlayNote: { color: color.white, fontSize: 14, lineHeight: 20, textAlign: "center" },
   styleTitle: { fontFamily: font.display, fontSize: 32, color: color.ink, marginTop: space(2), marginBottom: space(2) },
   error: { color: color.danger, fontSize: 15, lineHeight: 21 },
   actions: { gap: space(3) },

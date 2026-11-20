@@ -1,0 +1,54 @@
+{
+ "decor-living-classic": {
+  "pass": true,
+  "note": "Final prompt. Sofa, armchair, glass table, TV and chest all in place; tree tucked between sofa and armchair. Frame 0.80."
+ },
+ "decor-sala-tropical": {
+  "pass": false,
+  "note": "Final prompt. Whole room redrawn from a different distance (frame 0.07): chair unstacked and moved, sofas moved. FRAME_CHECK would retry."
+ },
+ "decor-dining-tartan": {
+  "pass": true,
+  "note": "Final prompt. Table, six chairs and sideboard in place, plates kept, no extra chair, no pillows. Frame 0.84."
+ },
+ "decor-kids-winter": {
+  "pass": true,
+  "note": "Final prompt. Bed, bookcase, desk and chair in place. Frame 0.71."
+ },
+ "decor-bedroom-nordic": {
+  "pass": false,
+  "note": "Final prompt. Room redrawn from a new camera angle (frame 0.00). FRAME_CHECK would retry; see fidelity-v3-framefix for that retry."
+ },
+ "decor-office-coquette": {
+  "pass": false,
+  "note": "Final prompt. Room reframed (frame 0.17); office chair and boxes gone, radiator invented. FRAME_CHECK would retry."
+ },
+ "decor-sala-classic-auto": {
+  "pass": false,
+  "note": "Final prompt. Reframed (frame 0.22): sofas shifted right, tree on the stacked chairs, chairs gone. FRAME_CHECK would retry."
+ },
+ "xremove-kids-desk": {
+  "pass": false,
+  "note": "Final prompt + names. Desk gone, chair gone too, and a small new table appears behind the tree. The tree's footprint covers the chair's place, so this case has no clean answer."
+ },
+ "xremove-kids-desk-tree-away": {
+  "pass": true,
+  "note": "Final prompt + names. Desk gone, chair kept and drawn in full (turned a little). Tree right of the tapped spot."
+ },
+ "xremove-sala-loveseat": {
+  "pass": true,
+  "note": "Final prompt + names. Loveseat gone; back sofa kept, left half behind the tree."
+ },
+ "xremove-living-armchair": {
+  "pass": true,
+  "note": "Final prompt + names. Armchair gone; sofa, glass table, TV and chest untouched. Frame 0.82."
+ },
+ "xremove-dining-chair": {
+  "pass": false,
+  "note": "Final prompt + names. Furniture is right (marked chair gone, table and other chairs kept), but the open doorway on the left became a closed white door. DOOR_CHECK exists for this."
+ },
+ "room-dining-chair-farmhouse": {
+  "pass": false,
+  "note": "Final prompt + names first and last. No spare chairs, layout kept, but the marked chair is still at the table end (six chairs)."
+ }
+}
