@@ -3,9 +3,9 @@ import net from "node:net";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import sharp from "sharp";
-import { buildPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
+import { buildDecorPrompt, buildPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
 import { describeError, type MarkedPiece } from "./gemini.js";
-import { FRAME_MIN, frameMatch } from "./frame.js";
+import { DECOR_FRAME_MIN, FRAME_MIN, frameMatch } from "./frame.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
@@ -230,6 +230,9 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       return null;
     }
   };
+  // Since the last restart; printed whenever the decor step (DECOR_STEP) needed its retry or served the tree alone.
+  // asked = whole-room designs, done = served with decor, redrawn = decor attempts off the tree image's framing.
+  const decorStats = { asked: 0, done: 0, redrawn: 0, retried: 0, fixed: 0, errors: 0 };
   // Since the last restart; printed with every failed naming (REMOVE_NAMES). No install ids, no IPs.
   const nameStats = { asked: 0, named: 0, errors: 0 };
   const forCheck = (img: Buffer) =>
@@ -492,7 +495,11 @@ export function createApp(generate: Generate, model: string, options: AppOptions
     const remove = !!removals;
     // TREE_CLEAR=on lets the model take a plant, lamp or small table off the tree's spot; off keeps the 1.0.5 wording.
     const clear = tree && flagOn("TREE_CLEAR");
-    const prompt = buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom });
+    // DECOR_STEP=on (server 1.0.10): the room decor is a second, small edit of the finished tree image (see below), so the
+    // tree itself is made with the plain tree prompt. Off: tree and decor in one prompt, as in 1.0.8.
+    const decorStep = decorateRoom && flagOn("DECOR_STEP");
+    const decorInPrompt = decorateRoom && !decorStep;
+    const prompt = buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep });
     if (!prompt) {
       res.status(400).json({ error: "BAD_STYLE" });
       return;
@@ -615,7 +622,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
         clearTimeout(timer);
       }
     }
-    const firstPrompt = pieces ? buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, pieces })! : prompt;
+    const firstPrompt = pieces ? buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces })! : prompt;
 
     let produced = false;
     try {
@@ -642,7 +649,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             frameStats.retried++;
             let retryProduced = false;
             try {
-              const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, pieces, frameFix: true })!);
+              const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: true })!);
               retryProduced = true;
               if (await leaked(again)) served = "first attempt (marker left in the retry)";
               else {
@@ -679,7 +686,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           doorStats.retried++;
           let retryProduced = false;
           try {
-            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom, pieces, frameFix: frameFixed, doorFix: true })!);
+            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: frameFixed, doorFix: true })!);
             retryProduced = true;
             if (await leaked(again)) served = "first attempt (marker left in the retry)";
             else {
@@ -721,7 +728,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             try {
               const again = await generate(
                 sentToModel.toString("base64"),
-                buildPrompt(styleId, size, place, { clear, remove, decorateRoom, pieces, frameFix: frameFixed, doorFix: doorFixed, placeFix: first })!
+                buildPrompt(styleId, size, place, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: frameFixed, doorFix: doorFixed, placeFix: first })!
               );
               retryProduced = true;
               if (await leaked(again)) served = "first attempt (marker left in the retry)";
@@ -749,6 +756,47 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           if (gone) served = "nothing (client left)";
           console.log(`place check (${styleId}): spot ${at(place)}, tree at ${at(first)}, served ${served}; totals ${JSON.stringify(placeStats)}`);
         }
+      }
+
+      // Decor step (DECOR_STEP=on, "Decorate whole room"): the finished tree image goes back to the model with a short
+      // prompt that only adds the room decor. Its result must still line up with the tree image (frame.ts, local, no
+      // model call); a redrawn room buys one retry with the problem named, and if that is redrawn too the tree image is
+      // served without room decor. The user never pays for it and never gets an error from it.
+      if (decorStep && !gone) {
+        decorStats.asked++;
+        const treeOnly = output;
+        let served = "tree only";
+        try {
+          const treeJpeg = (await sharp(treeOnly).jpeg({ quality: 92 }).toBuffer()).toString("base64");
+          for (const fix of [false, true]) {
+            // A second (or third) paid image: it takes a slot of the global daily cap, never of the free cap.
+            if (gone) { served = "nothing (client left)"; break; }
+            if (reserveGeneration(true, day) !== "OK") { served = "tree only (daily cap reached)"; break; }
+            let decorated: Buffer;
+            try {
+              decorated = await generate(treeJpeg, buildDecorPrompt(styleId, fix)!);
+            } catch (err) {
+              releaseGeneration(true, day);
+              throw err;
+            }
+            if (fix) decorStats.retried++;
+            const kept = await framed(treeOnly, decorated);
+            if (kept === null || kept >= DECOR_FRAME_MIN) {
+              output = decorated;
+              decorStats.done++;
+              if (fix) decorStats.fixed++;
+              served = `decorated${fix ? " (retry)" : ""}${kept === null ? ", not measured" : ` ${kept.toFixed(2)}`}`;
+              break;
+            }
+            decorStats.redrawn++;
+            served = `tree only (decor step redrew the room${fix ? " twice" : ""}, ${kept.toFixed(2)})`;
+          }
+        } catch (err) {
+          decorStats.errors++;
+          served = "tree only (decor step failed)";
+          console.warn(`decor step failed (${styleId}): ${describeError(err)}`);
+        }
+        if (output === treeOnly || served.includes("retry")) console.log(`decor step (${styleId}): served ${served}; totals ${JSON.stringify(decorStats)}`);
       }
 
       if (!user.paid) output = await watermark(output);

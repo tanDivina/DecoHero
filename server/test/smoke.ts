@@ -47,13 +47,14 @@ const fakeGenerate = async (img: string, prompt: string): Promise<Buffer> => {
   lastImage = img;
   if (mode === "fail") throw new Error("Gemini returned no image (SAFETY)");
   const fixed = outputs.shift();
+  if (fixed instanceof Error) throw fixed;
   if (fixed) return fixed;
   if (mode === "echo") return Buffer.from(img, "base64");
   if (mode === "slow") await new Promise((r) => setTimeout(r, 400));
   return sharp({ create: { width: 640, height: 480, channels: 3, background: colours.shift() ?? "#a08060" } }).png().toBuffer();
 };
 // The next fake designs, served as they are (frame check tests); empty = the usual flat colour.
-let outputs: Buffer[] = [];
+let outputs: (Buffer | Error)[] = [];
 // Background colour of the next fake designs, so a test can tell which attempt was served; empty = the usual brown.
 let colours: string[] = [];
 
@@ -977,6 +978,128 @@ await test("decorate whole room (ROOM_DECOR): Christmas only, validated, flag, p
     delete process.env.ROOM_DECOR;
     delete process.env.TREE_REMOVE;
   }
+});
+
+await test("decor step (DECOR_STEP): tree first, room decor as a second edit, never a redrawn room", async () => {
+  const { buildDecorPrompt, buildPrompt, ROOM_DECOR_PROMPTS } = await import("../src/styles.js");
+  const { frameMatch, DECOR_FRAME_MIN } = await import("../src/frame.js");
+  // The second prompt: a small edit that keeps the tree, with the theme's items; only for Christmas styles.
+  for (const style of Object.keys(ROOM_DECOR_PROMPTS)) {
+    const p = buildDecorPrompt(style)!;
+    assert.ok(p.startsWith("Edit this photo: add a few small Christmas decorations"), style);
+    assert.ok(p.includes(ROOM_DECOR_PROMPTS[style].replace("Room decor: ", "")), style);
+    assert.ok(p.includes("do not add a second tree") && !p.includes("Correction:") && !p.includes("magenta"), style);
+    assert.ok(buildDecorPrompt(style, true)!.includes("Correction: an earlier attempt at this edit redrew the room"), style);
+  }
+  for (const bad of ["japandi", "constructor", ""]) assert.equal(buildDecorPrompt(bad), null);
+  // The first prompt of such a design: the plain tree prompt plus the furniture rule, and no room decor.
+  const treeFirst = buildPrompt("xmas-nordic", {}, false, { decorTree: true })!;
+  assert.ok(treeFirst.startsWith(buildPrompt("xmas-nordic", {}, false, {})!.split("\n\nScale:")[0]));
+  assert.ok(treeFirst.includes("Furniture rule for this design") && treeFirst.includes("Add only the modest decor described below"));
+  assert.ok(!treeFirst.includes("Room decoration rule"));
+
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: "GPA.decorstep" });
+  const room = (seed: number) => {
+    let v = seed;
+    const next = () => (v = (v * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const boxes = Array.from({ length: 220 }, () => {
+      const g = Math.floor(next() * 256);
+      return `<rect x="${Math.floor(next() * 760)}" y="${Math.floor(next() * 560)}" width="${30 + Math.floor(next() * 60)}" height="${30 + Math.floor(next() * 60)}" fill="rgb(${g},${g},${g})"/>`;
+    });
+    return sharp(Buffer.from(`<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="600" fill="#888"/>${boxes.join("")}</svg>`)).jpeg({ quality: 90 }).toBuffer();
+  };
+  const block = (w: number, h: number, background: string) => sharp({ create: { width: w, height: h, channels: 3, background } }).png().toBuffer();
+  const photo = await room(1);
+  const withTree = await sharp(photo).composite([{ input: await block(200, 480, "#0b5d2a"), left: 500, top: 100 }]).jpeg({ quality: 90 }).toBuffer();
+  // The "decor": a red wreath-sized square top left, where neither the photo nor the tree is red.
+  const decorated = await sharp(withTree).composite([{ input: await block(60, 60, "#e00000"), left: 40, top: 40 }]).jpeg({ quality: 90 }).toBuffer();
+  const redrawn = await room(7);
+  assert.ok((await frameMatch(withTree, decorated))! > 0.9 && (await frameMatch(withTree, redrawn))! < DECOR_FRAME_MIN);
+  /** The served design has the red square. */
+  const hasDecor = async (imageBase64: string) => {
+    const px = await sharp(Buffer.from(imageBase64, "base64")).extract({ left: 60, top: 60, width: 8, height: 8 }).raw().toBuffer();
+    return px[0] > 180 && px[1] < 80 && px[2] < 80;
+  };
+  const post = (body: Record<string, unknown> = {}) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: photo.toString("base64"), styleId: "xmas-tartan", decorateRoom: true, ...body }, ip });
+  mode = "ok";
+  const start = await credits(id);
+  const total = () => today()?.total ?? 0;
+  process.env.ROOM_DECOR = "on";
+  delete process.env.DECOR_STEP;
+  try {
+    // Off (the default): one image, tree and decor in one prompt, as before.
+    let before = calls;
+    outputs = [decorated];
+    assert.equal((await post()).status, 200);
+    assert.equal(calls, before + 1);
+    assert.ok(lastPrompt.includes("Room decoration rule") && !lastPrompt.includes("Furniture rule for this design"));
+
+    process.env.DECOR_STEP = "on";
+    // Two images: the tree, then the decor on top of that tree image. One credit, two slots of the daily cap.
+    before = calls;
+    let slots = total();
+    outputs = [withTree, decorated];
+    const seen = lastImage;
+    const ok = await post();
+    assert.equal(ok.status, 200);
+    assert.equal(calls, before + 2);
+    assert.equal(total(), slots + 2);
+    assert.ok(lastPrompt.startsWith("Edit this photo: add a few small Christmas decorations") && lastPrompt.includes("plaid wool stockings"));
+    assert.ok(lastImage !== seen && (await frameMatch(withTree, Buffer.from(lastImage, "base64")))! > 0.95, "the decor step edits the tree image");
+    assert.ok(await hasDecor(ok.json.image));
+    // Without the checkbox nothing changes: one image, the plain tree prompt.
+    before = calls;
+    outputs = [withTree];
+    assert.equal((await post({ decorateRoom: false })).status, 200);
+    assert.equal(calls, before + 1);
+    assert.ok(!lastPrompt.includes("Furniture rule for this design") && !lastPrompt.includes("Room decoration rule"));
+    // The decor step redrew the room: one retry with the problem named, and the retry is served.
+    before = calls;
+    outputs = [withTree, redrawn, decorated];
+    const fixedRes = await post();
+    assert.equal(fixedRes.status, 200);
+    assert.equal(calls, before + 3);
+    assert.ok(lastPrompt.includes("Correction: an earlier attempt at this edit redrew the room"));
+    assert.ok(await hasDecor(fixedRes.json.image));
+    // Redrawn twice: the tree image is served without room decor, never the redrawn room, and no fourth image.
+    before = calls;
+    outputs = [withTree, redrawn, redrawn];
+    const treeOnly = await post();
+    assert.equal(treeOnly.status, 200);
+    assert.equal(calls, before + 3);
+    assert.ok((await frameMatch(withTree, Buffer.from(treeOnly.json.image, "base64")))! > 0.95);
+    // The decor step fails (refusal, timeout): the tree image is served, the credit stays spent, the slot goes back.
+    before = calls;
+    slots = total();
+    outputs = [withTree, new Error("Gemini returned no image (SAFETY)")];
+    const failed = await post();
+    assert.equal(failed.status, 200);
+    assert.equal(calls, before + 2);
+    assert.equal(total(), slots + 1);
+    assert.ok((await frameMatch(withTree, Buffer.from(failed.json.image, "base64")))! > 0.95 && !(await hasDecor(failed.json.image)));
+    // The first step still runs its own frame check: a redrawn tree image is retried before any decor is added.
+    process.env.FRAME_CHECK = "on";
+    before = calls;
+    outputs = [redrawn, withTree, decorated];
+    const both = await post();
+    assert.equal(both.status, 200);
+    assert.equal(calls, before + 3);
+    assert.ok(await hasDecor(both.json.image));
+    // Room redesigns never get a decor step.
+    before = calls;
+    outputs = [redrawn];
+    assert.equal((await post({ styleId: "japandi" })).status, 200);
+    assert.equal(calls, before + 1);
+  } finally {
+    delete process.env.ROOM_DECOR;
+    delete process.env.DECOR_STEP;
+    delete process.env.FRAME_CHECK;
+    outputs = [];
+  }
+  assert.equal(await credits(id), start - 8);
 });
 
 await test("watermark: text sits clear of the bottom-right corner", async () => {

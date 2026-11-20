@@ -1,0 +1,26 @@
+{
+  "living-classic-r1": {
+    "pass": false,
+    "note": "Second auto-spot wording (not shipped). Tree stands where the armchair stood; only a sliver of it at the right edge."
+  },
+  "living-classic-r2": {
+    "pass": false,
+    "note": "Second auto-spot wording (not shipped). Armchair gone behind the tree. Decor step redrew once (0.25), its retry held (0.91)."
+  },
+  "dining-tartan-r1": {
+    "pass": false,
+    "note": "Second auto-spot wording (not shipped). Tree step shortened the table and lost two chairs."
+  },
+  "dining-tartan-r2": {
+    "pass": false,
+    "note": "Second auto-spot wording (not shipped). Six chairs at the table, but the tree step added a large chair in the bottom left corner."
+  },
+  "office-coquette-r1": {
+    "pass": true,
+    "note": "Desk, chair, shelf, lamp, laptop and boxes in place; tree in front of the desk. Decor step redrew once (0.56), its retry held (0.97)."
+  },
+  "office-coquette-r2": {
+    "pass": false,
+    "note": "Second auto-spot wording (not shipped). Tree step reframed the room a little: shelf and desk shifted (frame 0.57)."
+  }
+}

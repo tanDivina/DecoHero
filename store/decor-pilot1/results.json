@@ -1,0 +1,55 @@
+[
+  {
+    "key": "living-classic-r1",
+    "name": "living-classic",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7372881355932204,
+    "seconds": 19,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "sala-tropical-r1",
+    "name": "sala-tropical",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.6164383561643836,
+    "seconds": 27,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "bedroom-nordic-r1",
+    "name": "bedroom-nordic",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7037037037037037,
+    "seconds": 19,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "office-coquette-r1",
+    "name": "office-coquette",
+    "run": 1,
+    "status": 200,
+    "images": 3,
+    "frame": 0.4782608695652174,
+    "seconds": 27,
+    "steps": [
+      "tree",
+      "tree (frame retry)",
+      "decor step"
+    ]
+  }
+]

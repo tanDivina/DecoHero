@@ -227,6 +227,61 @@ export const ROOM_DECOR_PROMPTS: Record<string, string> = {
   "xmas-tropical": "Room decor: a garland of palm and monstera leaves mixed with pine and warm fairy lights, small rattan and seagrass accents, a wreath of palm leaves and seashells, linen and coral pillows, candles in rattan lanterns. Nothing snowy, no fake snow.",
 };
 
+// Two-step whole-room decor (DECOR_STEP=on, server 1.0.10, Nov 19 2026, scripts/xmas-decor-test.ts). Asked for the tree and
+// the room decor in one prompt, the model redrew the room in 4 of 7 tests (new camera distance, furniture moved) or pushed
+// furniture aside to fit both. So the tree is made first with the plain tree prompt (the proven path, placement included),
+// and this short prompt then adds the decor to that finished image as a second, small edit.
+const DECOR_STEP_HEAD = `Edit this photo: add a few small Christmas decorations to this room. This is a light retouch of this exact photo, not a new
+picture of the room. The result must line up with the photo edge to edge: the same crop, camera position, zoom and
+perspective, with every wall edge, window, door and piece of furniture at exactly the same position in the frame and at the
+same size. Nothing in the photo is moved, turned, resized, removed, restyled or replaced, and no furniture is added.
+
+The decorated Christmas tree, its skirt or collar and the gifts under it are already in the photo and are finished. Leave them
+exactly as they are, in the same place and at the same size, and do not add a second tree.`;
+const DECOR_STEP_RULES = `Where they go: only on, along or against what is already in the photo. Garland along an existing mantel, shelf, console,
+sideboard, cabinet top, headboard or windowsill. Stockings on an existing mantel or shelf edge. The wreath on a free piece
+of wall, on a window or on a mirror. Pillows and a throw only on a sofa, armchair or bed that is in the photo; dining
+chairs and office chairs stay bare. Candles on existing tables, shelves and sills. If the room has no fitting place for
+an item, leave that item out, and never add a mantel, shelf, table, chair or any other furniture to carry decorations.
+The room has exactly the same furniture after the edit as before: no sideboard, console, cabinet, shelf, mantel, table,
+chair or bench appears that is not in the photo, and an empty stretch of wall stays empty apart from the wreath.
+Every room has a wall or a window, so the wreath is always there; the garland goes on a sill, shelf or cabinet top that
+is already in the photo. The decorations must be easy to see at first glance, but stay tasteful and not overloaded.
+Things that already stand or lie on a surface (plates, books, toys, a lamp, a laptop, cables, boxes) stay where they are;
+decorations go beside or around them. Decorations never replace or hide furniture, never cover a TV or screen, and never
+hang on or block a door or doorway. Nothing goes on the floor. Light and shadows of the new decorations match the photo.
+Photorealistic. No people, no pets, no text, no watermarks.`;
+/** Added to the one retry of the decor step after the frame check found its result redrawn (see app.ts). */
+const DECOR_STEP_FIX = `Correction: an earlier attempt at this edit redrew the room from a different distance or angle, and the furniture and the
+tree ended up in other places. That is not allowed. Change as little as possible this time: add only a wreath, one garland
+and one or two more of the items above, each small, and leave every other part of the photo exactly as it is, in the same
+position in the frame.`;
+
+/**
+ * Last paragraph of the tree prompt of a two-step whole-room design (the first step). The plain tree prompt, left to
+ * choose its own spot in a full room, swapped an armchair, an office chair and a nightstand for the tree (store/decor-pilot1).
+ * "Decorate whole room" promises the room as it is, so here nothing is cleared away for the tree except plants and lamps.
+ */
+const DECOR_TREE_KEEP = `Furniture rule for this design: every piece of furniture of the photo is still in the final image, in the same place, at the
+same size and facing the same way: every sofa, armchair, chair, office chair, table, desk, nightstand, bed, cabinet, shelf
+unit and TV. None of them is taken out, moved or swapped to make room for the tree, and the clearing rule never applies to
+them. That includes a piece in the foreground or one partly cut off by the edge of the photo, such as an office chair
+close to the camera: it stays in front, complete, and the tree stands behind it or somewhere else.`;
+// Nov 19 2026: a second wording for designs without a tapped spot ("choose floor that is free ... never most of a piece")
+// did worse on the three hard rooms (1 of 6 against 2 of 6, store/decor-final-v2), so one wording serves both.
+const DECOR_TREE_PLACE = `Wherever the tree stands, it does not take the place of furniture: in a full room it stands in front of a piece and
+hides part of it, or between two pieces with its branches touching them, as in a crowded real home, and those pieces stay
+exactly where they are.`;
+const DECOR_TREE_FRAME = `Keep the framing of the photo too: do not zoom out, step back, widen the view or change the camera
+angle to fit the tree in. The top or one side of the tree may be cut off by the edge of the photo instead.`;
+
+/** The prompt of the second step of a whole-room design: `photo with tree` in, the same photo with room decor out. */
+export function buildDecorPrompt(styleId: string, fix = false): string | null {
+  if (!isTreeStyle(styleId)) return null;
+  const items = ROOM_DECOR_PROMPTS[styleId].replace(/^Room decor: /, "");
+  return `${DECOR_STEP_HEAD}\n\nAdd only these decorations, matching the tree: ${items}\n${DECOR_STEP_RULES}${fix ? `\n\n${DECOR_STEP_FIX}` : ""}`;
+}
+
 // The six agreed themes. No brand names in ids or prompts.
 export const TREE_PROMPTS: Record<string, string> = {
   "xmas-classic": "Theme: classic nostalgic warmth. Tree: a full, lush Fraser fir with warm amber-white string lights and traditional glossy glass ball ornaments in deep red and gold, evenly spaced, with a glowing many-pointed Moravian star on top. The tree gives off a soft warm glow. Skirt: deep red velvet. Decor: a few gifts wrapped in red, gold and cream paper under the tree.",
@@ -443,6 +498,11 @@ export type PromptOptions = {
   pieces?: MarkedPiece[];
   /** Christmas styles: decorate the whole room to match the tree (ROOM_DECOR). */
   decorateRoom?: boolean;
+  /**
+   * Christmas styles: this tree is the first step of a two-step whole-room design (DECOR_STEP); the room decor follows
+   * as a second edit (buildDecorPrompt). Adds the furniture rule of whole-room designs to the plain tree prompt.
+   */
+  decorTree?: boolean;
 };
 
 /**
@@ -465,7 +525,7 @@ export function buildPrompt(styleId: string, size: TreeSize = {}, marked: boolea
     const edit = opts.decorateRoom ? `\n${DECOR_EDIT}` : "";
     const named = remove && opts.pieces?.length ? `${namedPieces(opts.pieces, true)}\n` : "";
     const room = opts.decorateRoom ? `\n\n${ROOM_DECOR}\n${ROOM_DECOR_PROMPTS[styleId]}` : "";
-    const lock = `${opts.decorateRoom ? `\n\n${FINAL_LOCK_DECOR}` : ""}${opts.frameFix ? `\n\n${FRAME_FIX}` : ""}`;
+    const lock = `${opts.decorateRoom ? `\n\n${FINAL_LOCK_DECOR}` : opts.decorTree ? `\n\n${DECOR_TREE_KEEP} ${DECOR_TREE_PLACE} ${DECOR_TREE_FRAME}` : ""}${opts.frameFix ? `\n\n${FRAME_FIX}` : ""}`;
     return `${intro}${edit}\n${place}${named}${rest}\n\n${themeText(styleId, size.species)}${room}\n\n${scaleLine(size, !!marked)}${fix}${moved}${lock}`;
   }
   if (!isStyle(styleId)) return null;

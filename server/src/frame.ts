@@ -12,8 +12,17 @@ const MIN_VARIANCE = 150;
 const MIN_BLOCKS = 12;
 /** Blocks count as "still the same" from this correlation up. */
 const SAME = 0.7;
-/** Below this share of matching blocks the design is taken for a redrawn room. */
-export const FRAME_MIN = 0.4;
+/**
+ * Below this share of matching blocks the design is taken for a redrawn room. 0.4 until server 1.0.10; raised after an
+ * office came back reframed with its chair on the other side of the desk at 0.48 (store/decor-treelock2b). No design
+ * that kept the framing has scored below 0.58 so far.
+ */
+export const FRAME_MIN = 0.5;
+/**
+ * The same for the decor step (DECOR_STEP, app.ts), which is measured against the tree image it was given: only small
+ * decorations are added, so far more must stay in place. Good decor steps scored 0.86 to 0.93 (store/decor-pilot1).
+ */
+export const DECOR_FRAME_MIN = 0.6;
 
 const grey = (img: Buffer) => sharp(img).resize(W, H, { fit: "fill" }).greyscale().raw().toBuffer();
 

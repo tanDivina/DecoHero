@@ -1,0 +1,186 @@
+[
+  {
+    "key": "living-classic-r1",
+    "name": "living-classic",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.8305084745762712,
+    "seconds": 16,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "living-classic-r2",
+    "name": "living-classic",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.6779661016949152,
+    "seconds": 17,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "sala-tropical-r1",
+    "name": "sala-tropical",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.6917808219178082,
+    "seconds": 20,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "sala-tropical-r2",
+    "name": "sala-tropical",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.6986301369863014,
+    "seconds": 21,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "dining-tartan-r1",
+    "name": "dining-tartan",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.8627450980392157,
+    "seconds": 20,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "dining-tartan-r2",
+    "name": "dining-tartan",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.6862745098039216,
+    "seconds": 18,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "kids-winter-r1",
+    "name": "kids-winter",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7956989247311828,
+    "seconds": 20,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "kids-winter-r2",
+    "name": "kids-winter",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7204301075268817,
+    "seconds": 17,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "bedroom-nordic-r1",
+    "name": "bedroom-nordic",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.5679012345679012,
+    "seconds": 17,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "bedroom-nordic-r2",
+    "name": "bedroom-nordic",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.5802469135802469,
+    "seconds": 17,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "office-coquette-r1",
+    "name": "office-coquette",
+    "run": 1,
+    "status": 200,
+    "images": 3,
+    "frame": 0.6086956521739131,
+    "seconds": 27,
+    "steps": [
+      "tree",
+      "tree (frame retry)",
+      "decor step"
+    ]
+  },
+  {
+    "key": "office-coquette-r2",
+    "name": "office-coquette",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.6434782608695652,
+    "seconds": 21,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  },
+  {
+    "key": "terrace-classic-r1",
+    "name": "terrace-classic",
+    "run": 1,
+    "status": 200,
+    "images": 3,
+    "frame": 0.7162162162162162,
+    "seconds": 29,
+    "steps": [
+      "tree",
+      "tree (place retry)",
+      "decor step"
+    ]
+  },
+  {
+    "key": "terrace-classic-r2",
+    "name": "terrace-classic",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.6283783783783784,
+    "seconds": 22,
+    "steps": [
+      "tree",
+      "decor step"
+    ]
+  }
+]
