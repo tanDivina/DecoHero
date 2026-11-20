@@ -1,0 +1,352 @@
+{
+ "dining-chair-farmhouse-a": {
+  "mode": "app",
+  "names": false,
+  "images": 3,
+  "steps": [
+   "edit",
+   "restyle",
+   "repair (fill)"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "dining chair",
+     "before": 6,
+     "after": 5
+    }
+   ],
+   [
+    {
+     "kind": "dining chair",
+     "before": 6,
+     "after": 6,
+     "box": {
+      "x0": 0.591,
+      "y0": 0.542,
+      "x1": 0.755,
+      "y1": 0.847
+     }
+    }
+   ],
+   [
+    {
+     "kind": "dining chair",
+     "before": 6,
+     "after": 5
+    }
+   ]
+  ],
+  "frameOut": 0.5686274509803921,
+  "ms": 32776
+ },
+ "dining-chair-farmhouse-b": {
+  "mode": "app",
+  "names": false,
+  "images": 3,
+  "steps": [
+   "edit",
+   "restyle",
+   "repair (fill)"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "dining chair",
+     "before": 6,
+     "after": 5
+    }
+   ],
+   [
+    {
+     "kind": "chair",
+     "before": 6,
+     "after": 6,
+     "box": {
+      "x0": 0.583,
+      "y0": 0.516,
+      "x1": 0.777,
+      "y1": 0.856
+     }
+    }
+   ],
+   [
+    {
+     "kind": "dining chair",
+     "before": 6,
+     "after": 5
+    }
+   ]
+  ],
+  "frameOut": 0.5784313725490197,
+  "ms": 33403
+ },
+ "living-armchair-japandi-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "armchair",
+     "before": 1,
+     "after": 0
+    }
+   ],
+   [
+    {
+     "kind": "armchair",
+     "before": 1,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.13559322033898305,
+  "ms": 24878
+ },
+ "living-table-boho-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "coffee table",
+     "before": 1,
+     "after": 0
+    }
+   ],
+   [
+    {
+     "kind": "coffee table",
+     "before": 1,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.5254237288135594,
+  "ms": 25412
+ },
+ "sala-chairs-tropical-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "plastic chair",
+     "before": 1,
+     "after": 0
+    }
+   ],
+   [
+    {
+     "kind": "plastic chair",
+     "before": 1,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.6506849315068494,
+  "ms": 26350
+ },
+ "sala-loveseat-industrial-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "sofa",
+     "before": 2,
+     "after": 1
+    }
+   ],
+   [
+    {
+     "kind": "sofa",
+     "before": 2,
+     "after": 1
+    }
+   ]
+  ],
+  "frameOut": 0.273972602739726,
+  "ms": 23650
+ },
+ "bedroom-nightstand-scandi-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "nightstand",
+     "before": 1,
+     "after": 0
+    }
+   ],
+   [
+    {
+     "kind": "nightstand",
+     "before": 1,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.2962962962962963,
+  "ms": 24175
+ },
+ "kids-desk-coastal-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "desk",
+     "before": 1,
+     "after": 0
+    }
+   ],
+   [
+    {
+     "kind": "desk",
+     "before": 1,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.17204301075268819,
+  "ms": 30636
+ },
+ "office-chair-box-minimal-a": {
+  "mode": "app",
+  "names": false,
+  "images": 3,
+  "steps": [
+   "edit",
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "office chair",
+     "before": 1,
+     "after": 0
+    },
+    {
+     "kind": "cardboard box",
+     "before": 1,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.5304347826086957,
+  "ms": 29323
+ },
+ "terrace-table-chair-tropical-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "plastic chair",
+     "before": 2,
+     "after": 1
+    },
+    {
+     "kind": "coffee table",
+     "before": 1,
+     "after": 0
+    }
+   ],
+   [
+    {
+     "kind": "plastic chair",
+     "before": 2,
+     "after": 0,
+     "box": {
+      "x0": 0.579,
+      "y0": 0.555,
+      "x1": 0.821,
+      "y1": 0.903
+     }
+    },
+    {
+     "kind": "plastic chair",
+     "before": 2,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.0472972972972973,
+  "ms": 25273
+ },
+ "kids-desk-chair-japandi-a": {
+  "mode": "app",
+  "names": false,
+  "images": 2,
+  "steps": [
+   "edit",
+   "restyle"
+  ],
+  "checks": [
+   [
+    {
+     "kind": "desk",
+     "before": 1,
+     "after": 0
+    },
+    {
+     "kind": "chair",
+     "before": 1,
+     "after": 0
+    }
+   ],
+   [
+    {
+     "kind": "chair",
+     "before": 1,
+     "after": 0
+    },
+    {
+     "kind": "desk",
+     "before": 1,
+     "after": 0
+    }
+   ]
+  ],
+  "frameOut": 0.10752688172043011,
+  "ms": 25015
+ }
+}

@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { drawMarker } from "./marker.js";
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
@@ -219,5 +220,172 @@ export async function nameMarkedPieces(sentJpegBase64: string, count: number): P
   });
   const marks = parseMarkedPieces(response.text ?? "");
   if (marks.length !== count) throw new Error(`remove names found ${marks.length} marks, expected ${count}`);
+  return marks;
+}
+
+// Cheap vision model that chooses the tree's spot when the user tapped none (AUTO_SPOT, see app.ts).
+export const AUTO_SPOT_MODEL = process.env.AUTO_SPOT_MODEL || "gemini-3.5-flash";
+
+/** The pointing and comparing below need the larger flash model; with thinking at its minimum it answers in 1 to 2 s. */
+const spotThinking = () => ({ thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } });
+const SPOT_QUESTION =
+  "This is a photo of a room. A decorated Christmas tree, about 2 m tall and 1.3 m wide at its lowest branches, will be stood " +
+  "on the floor of this room, and no furniture will be moved for it. Choose the spot where the person who lives here would " +
+  "put it. The spot is a point on the floor surface itself, where the trunk touches down: bare floor that you can see in " +
+  "the photo and on which nothing stands. It is never a point up on a wall, a window or a piece of furniture. Good spots, " +
+  "best first: the floor in an empty corner (a little way out from the baseboards); the floor beside a window; the floor " +
+  "along a free stretch of wall; the largest patch of open floor. If other floor is free, avoid the strip of floor at the " +
+  "very bottom of the photo, right in front of the camera, because a tree there hides the room. The spot must NOT be on, " +
+  "under or inside a piece of furniture (sofa, armchair, chair, stool, table, desk, bed, cabinet, shelf unit, TV stand, " +
+  "boxes), not between a chair and its table or desk, not between a sofa and its coffee table, not in a doorway, not " +
+  "within about 1 m of a door or in the path from a door into the room, and not in front of a TV, a radiator or a " +
+  "cabinet's doors. Keep the point a little away from every piece of furniture, so the trunk stands on free floor; the " +
+  "branches may then reach over or in front of nearby furniture. " +
+  'Answer as JSON: {"found": true, "x": <0-1000>, "y": <0-1000>}, where x is the distance of the point where the trunk ' +
+  "meets the floor from the left edge and y its distance from the top edge, both scaled so that 1000 is the full image " +
+  'width or height. If the photo shows no free floor at all, answer {"found": false}.';
+
+const SPOT_FREE_QUESTION =
+  "This photo of a room has a bright magenta ring with a magenta dot in its centre drawn on top of it. Look at what is " +
+  "directly under the centre dot. Is the dot on bare floor (floor boards, tiles, carpet or a rug with nothing standing on " +
+  "it), and not on a piece of furniture (a bed, sofa, chair, table, desk, cabinet), not on a wall, window or door and not " +
+  "inside a doorway? Answer only yes or no.";
+
+/**
+ * A free floor spot for the tree in the user's photo, as fractions of the image (0,0 = top left), or null when the
+ * model finds none. API errors, timeouts and unreadable answers throw; the caller then leaves the spot to the image model.
+ */
+export async function pickTreeSpot(photoJpegBase64: string): Promise<{ x: number; y: number } | null> {
+  const spot = await proposeTreeSpot(photoJpegBase64);
+  if (!spot) return null;
+  return (await treeSpotIsFree(photoJpegBase64, spot)) ? spot : null;
+}
+
+/** First half of pickTreeSpot: the spot the vision model proposes, unchecked. */
+export async function proposeTreeSpot(photoJpegBase64: string): Promise<{ x: number; y: number } | null> {
+  const response = await ai.models.generateContent({
+    model: AUTO_SPOT_MODEL,
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: photoJpegBase64 } }, { text: SPOT_QUESTION }] }],
+    config: {
+      temperature: 0,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: { found: { type: Type.BOOLEAN }, x: { type: Type.INTEGER }, y: { type: Type.INTEGER } },
+        required: ["found"],
+      },
+      ...spotThinking(),
+      httpOptions: { timeout: 12_000 },
+    },
+  });
+  return parseTreeBase(response.text ?? "");
+}
+
+/**
+ * Second half of pickTreeSpot, a second look: the same model sees the spot drawn on the photo and says whether it is
+ * on bare floor. Now and then the first answer lands on a bed or a sofa.
+ */
+export async function treeSpotIsFree(photoJpegBase64: string, spot: { x: number; y: number }): Promise<boolean> {
+  const marked = await drawMarker(Buffer.from(photoJpegBase64, "base64"), spot);
+  const check = await ai.models.generateContent({
+    model: AUTO_SPOT_MODEL,
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: marked.toString("base64") } }, { text: SPOT_FREE_QUESTION }] }],
+    config: { temperature: 0, ...spotThinking(), httpOptions: { timeout: 12_000 } },
+  });
+  const answer = (check.text ?? "").trim().toLowerCase();
+  if (/^yes\b/.test(answer)) return true;
+  if (/^no\b/.test(answer)) return false;
+  throw new Error(`auto spot check gave no yes/no answer (${answer.slice(0, 40) || "empty"})`);
+}
+
+// Vision model that looks for a piece put back after a two-step removal (STYLE_REMOVE_CHECK, see app.ts).
+export const REMOVE_CHECK_MODEL = process.env.REMOVE_CHECK_MODEL || AUTO_SPOT_MODEL;
+
+/**
+ * One cyan X after the removal: the type of the marked piece, how many pieces of that type the photo shows (the marked
+ * one included) and how many the finished design shows, and, when a piece of that type stands where the marked one
+ * stood, the box around that piece in the design as fractions of the image.
+ */
+export type RemovedPiece = { kind: string; before: number; after: number; box?: { x0: number; y0: number; x1: number; y1: number } };
+
+const REMOVED_QUESTION =
+  "The first image is a photo of a room with one or two bright cyan circles with a cyan X inside drawn on top of it. Each X " +
+  "marks ONE piece of furniture that the owner wanted taken out of the room. The second image shows the same room from the " +
+  "same camera position after that, restyled: the furniture can have other colours, materials and models, but it should be " +
+  "the same pieces in the same places, without the marked ones. For each cyan X give: \"kind\": the type of the piece " +
+  "under the X in one or two plain words (dining chair, armchair, sofa, coffee table, desk, nightstand, plastic chair); " +
+  "\"before\": how many pieces of that type the first image shows, the marked one included; \"after\": how many pieces " +
+  "of that type the second image shows. Count one by one, going around a table side by side and end by end, and include " +
+  "pieces that are partly hidden. \"there\": true if in the second image a piece of that type stands on the place where " +
+  "the marked piece stood in the first image (for a chair at a table: at the same side or end of the table), false if that " +
+  "place is empty; \"box_2d\": only when \"there\" is true, the bounding box of that whole piece in the second image " +
+  "(for a chair: back, seat and all legs) as [ymin, xmin, ymax, xmax], scaled so that 1000 is the full image height or width. " +
+  'Answer as JSON: {"marks": [{"kind": "...", "before": 6, "after": 5, "there": false}]}.';
+
+/** Reads the removal check's answer. Throws unless it holds 1 to `max` marks with a type and two counts each. */
+export function parseRemovedPieces(text: string, max = 2): RemovedPiece[] {
+  const body = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new Error(`removal check gave no JSON (${body.slice(0, 40) || "empty"})`);
+  }
+  const marks = (parsed as { marks?: unknown } | null)?.marks;
+  if (!Array.isArray(marks) || marks.length < 1 || marks.length > max) throw new Error("removal check gave no usable list of marks");
+  const count = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 30 ? v : null);
+  return marks.map((m) => {
+    const o = (typeof m === "object" && m !== null ? m : {}) as Record<string, unknown>;
+    const kind = plainWords(o.kind, 40);
+    const before = count(o.before), after = count(o.after);
+    if (!kind || before === null || before < 1 || after === null) throw new Error("removal check gave a mark without a type or counts");
+    const b = Array.isArray(o.box_2d) && o.box_2d.length === 4 ? o.box_2d.map(thousandth) : [];
+    const [y0, x0, y1, x1] = b;
+    const box = o.there === true && b.length === 4 && b.every((v) => v !== null) && x1! > x0! && y1! > y0! ? { x0: x0!, y0: y0!, x1: x1!, y1: y1! } : undefined;
+    return { kind, before, after, box };
+  });
+}
+
+/**
+ * Compares the photo that carried the cyan X markers (`count` of them) with the finished design: per marker the type of
+ * the piece, how many of that type there were and are, and the box of a piece of that type that stands on the marked place again.
+ * API errors, timeouts and unreadable answers throw; the caller then serves the design unchecked.
+ */
+export async function checkRemovedPieces(sentJpegBase64: string, designJpegBase64: string, count: number): Promise<RemovedPiece[]> {
+  const response = await ai.models.generateContent({
+    model: REMOVE_CHECK_MODEL,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: sentJpegBase64 } },
+          { inlineData: { mimeType: "image/jpeg", data: designJpegBase64 } },
+          { text: REMOVED_QUESTION },
+        ],
+      },
+    ],
+    config: {
+      temperature: 0,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          marks: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: { kind: { type: Type.STRING }, before: { type: Type.INTEGER }, after: { type: Type.INTEGER }, there: { type: Type.BOOLEAN }, box_2d: { type: Type.ARRAY, items: { type: Type.INTEGER } } },
+              required: ["kind", "before", "after", "there"],
+            },
+          },
+        },
+        required: ["marks"],
+      },
+      ...spotThinking(),
+      httpOptions: { timeout: 20_000 },
+    },
+  });
+  const marks = parseRemovedPieces(response.text ?? "");
+  if (marks.length !== count) throw new Error(`removal check found ${marks.length} marks, expected ${count}`);
   return marks;
 }

@@ -1,0 +1,140 @@
+[
+  {
+    "key": "living-classic-r1",
+    "name": "living-classic",
+    "run": 1,
+    "status": 200,
+    "images": 3,
+    "frame": 0.7033898305084746,
+    "seconds": 36,
+    "steps": [
+      "tree",
+      "tree (place retry)",
+      "decor step"
+    ],
+    "autoSpot": {
+      "x": 0.932,
+      "y": 0.662
+    }
+  },
+  {
+    "key": "living-classic-r2",
+    "name": "living-classic",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.652542372881356,
+    "seconds": 23,
+    "steps": [
+      "tree",
+      "decor step"
+    ],
+    "autoSpot": {
+      "x": 0.932,
+      "y": 0.662
+    }
+  },
+  {
+    "key": "dining-tartan-r1",
+    "name": "dining-tartan",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.8137254901960784,
+    "seconds": 24,
+    "steps": [
+      "tree",
+      "decor step"
+    ],
+    "autoSpot": {
+      "x": 0.767,
+      "y": 0.709
+    }
+  },
+  {
+    "key": "dining-tartan-r2",
+    "name": "dining-tartan",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7843137254901961,
+    "seconds": 28,
+    "steps": [
+      "tree",
+      "decor step"
+    ],
+    "autoSpot": {
+      "x": 0.765,
+      "y": 0.662
+    }
+  },
+  {
+    "key": "kids-winter-r1",
+    "name": "kids-winter",
+    "run": 1,
+    "status": 200,
+    "images": 2,
+    "frame": 0.7956989247311828,
+    "seconds": 23,
+    "steps": [
+      "tree",
+      "decor step"
+    ],
+    "autoSpot": {
+      "x": 0.583,
+      "y": 0.725
+    }
+  },
+  {
+    "key": "kids-winter-r2",
+    "name": "kids-winter",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.5806451612903226,
+    "seconds": 25,
+    "steps": [
+      "tree",
+      "decor step"
+    ],
+    "autoSpot": {
+      "x": 0.343,
+      "y": 0.838
+    }
+  },
+  {
+    "key": "office-coquette-r1",
+    "name": "office-coquette",
+    "run": 1,
+    "status": 200,
+    "images": 3,
+    "frame": 0.6608695652173913,
+    "seconds": 30,
+    "steps": [
+      "tree",
+      "decor step",
+      "decor step (retry)"
+    ],
+    "autoSpot": {
+      "x": 0.58,
+      "y": 0.839
+    }
+  },
+  {
+    "key": "office-coquette-r2",
+    "name": "office-coquette",
+    "run": 2,
+    "status": 200,
+    "images": 2,
+    "frame": 0.5304347826086957,
+    "seconds": 25,
+    "steps": [
+      "tree",
+      "decor step"
+    ],
+    "autoSpot": {
+      "x": 0.583,
+      "y": 0.88
+    }
+  }
+]

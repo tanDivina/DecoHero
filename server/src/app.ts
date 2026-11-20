@@ -3,13 +3,13 @@ import net from "node:net";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import sharp from "sharp";
-import { buildDecorPrompt, buildPrompt, removeEditPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
-import { describeError, type MarkedPiece } from "./gemini.js";
+import { buildDecorPrompt, buildPrompt, removeEditPrompt, removeFillPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
+import { describeError, type MarkedPiece, type RemovedPiece } from "./gemini.js";
 import { DECOR_FRAME_MIN, FRAME_MIN, frameMatch, pieceGone } from "./frame.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
-import { drawMarker, drawRemoveMarkers, markerLeaked, parsePlace, parseRemovals, removeMarkerLeaked, removeMarkerLeakedAt, type Place } from "./marker.js";
+import { drawMarker, drawRemoveMarkers, paintOver, markerLeaked, parsePlace, parseRemovals, removeMarkerLeaked, removeMarkerLeakedAt, type Place } from "./marker.js";
 import { firebaseVerifier, isKeyFetchFailure, type VerifiedToken, type VerifyIdToken } from "./auth.js";
 import {
   addDesign, addReport, claimFreeMove, deletedAt, deleteWebAccount, failuresToday, getCredits, getOrCreateUser,
@@ -189,7 +189,32 @@ export type NameMarkedPieces = (sentJpegBase64: string, count: number) => Promis
 // Naming (REMOVE_NAMES=on) runs before the image call, so it gets less time than the checks that run after it.
 const REMOVE_NAMES_TIMEOUT_MS = 12_000;
 
+/**
+ * Compares the photo that carried the `count` cyan X markers with a later image of the room: per marker the type of the
+ * piece, how many of that type there were and are, and the box of one that stands on the marked place again. Rejects when the call fails.
+ */
+export type CheckRemovedPieces = (sentJpegBase64: string, designJpegBase64: string, count: number) => Promise<RemovedPiece[]>;
+// Removal check (STYLE_REMOVE_CHECK=on): runs after the restyle, so it gets the time of the other checks that do.
+const REMOVE_CHECK_TIMEOUT_MS = 20_000;
+/** A piece counts as "back on the marked place" only when the centre of its box is this close to the X (fraction of the image, both directions). */
+const REMOVE_CHECK_REACH = 0.2;
+/** A box larger than this share of the image is not painted over: that is no single piece of furniture, or a wrong answer. */
+const REMOVE_CHECK_MAX_BOX = 0.25;
+const centre = (b: { x0: number; y0: number; x1: number; y1: number }): Place => ({ x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 });
+
+/** Chooses a free floor spot for the tree in the user's photo (JPEG), null when it finds none. Rejects when the call fails. */
+export type PickTreeSpot = (photoJpegBase64: string) => Promise<Place | null>;
+// Auto spot (AUTO_SPOT=on) runs before the image call, like the naming, so it gets as little time.
+const AUTO_SPOT_TIMEOUT_MS = 12_000;
+/** A chosen spot higher in the picture than this is a wall, a window or the far end of a long room: not used. */
+const AUTO_SPOT_MIN_Y = 0.4;
+const AUTO_SPOT_EDGE = 0.06;
+
 export type AppOptions = {
+  /** Vision model that chooses the tree's spot when the user tapped none (AUTO_SPOT=on). */
+  pickTreeSpot?: PickTreeSpot;
+  /** Vision model that looks for a marked piece put back by the restyle of a two-step removal (STYLE_REMOVE_CHECK=on). */
+  checkRemovedPieces?: CheckRemovedPieces;
   /** Vision model that names the marked furniture and its neighbours before a removal (REMOVE_NAMES=on). */
   nameMarkedPieces?: NameMarkedPieces;
   /** Yes/no vision check used by the door check (DOOR_CHECK=on). */
@@ -254,6 +279,42 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       return 0;
     }
   };
+  // Since the last restart; printed whenever the removal check (STYLE_REMOVE_CHECK) found a piece back or failed.
+  // checked = restyles looked at, back = a marked piece stood there again, retried = second repair edits, repaired = served with it edited out,
+  // kept = restyle served as it was although a piece was back (cap reached, edit failed or unusable). No install ids, no IPs.
+  const removeCheckStats = { checked: 0, back: 0, retried: 0, repaired: 0, kept: 0, errors: 0 };
+  /** The removal check on one image, null when the check itself failed or timed out. */
+  const removedIn = async (sent: Buffer, image: Buffer, count: number): Promise<RemovedPiece[] | null> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const [a, b] = await Promise.all([forCheck(sent), forCheck(image)]);
+      return await Promise.race([
+        extras.checkRemovedPieces!(a.toString("base64"), b.toString("base64"), count),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("removal check timed out")), REMOVE_CHECK_TIMEOUT_MS); }),
+      ]);
+    } catch (err) {
+      removeCheckStats.errors++;
+      console.warn(`removal check failed, design served unchecked: ${describeError(err)}; totals ${JSON.stringify(removeCheckStats)}`);
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  /**
+   * The marks of a removal check whose piece is back: the image shows more pieces of that type than the photo had
+   * unmarked ones, and one of them stands on (close to) a marked place.
+   */
+  const piecesBack = (marks: RemovedPiece[], spots: Place[]): (RemovedPiece & { box: NonNullable<RemovedPiece["box"]> })[] =>
+    marks.filter((m): m is RemovedPiece & { box: NonNullable<RemovedPiece["box"]> } => {
+      const sameKind = marks.filter((o) => o.kind.toLowerCase() === m.kind.toLowerCase()).length;
+      if (m.after <= m.before - sameKind || !m.box) return false;
+      const c = centre(m.box);
+      const area = (m.box.x1 - m.box.x0) * (m.box.y1 - m.box.y0);
+      return area > 0.0005 && area <= REMOVE_CHECK_MAX_BOX &&
+        spots.some((s) => Math.abs(s.x - c.x) <= REMOVE_CHECK_REACH && Math.abs(s.y - c.y) <= REMOVE_CHECK_REACH);
+    });
+  // Since the last restart; printed whenever the auto spot (AUTO_SPOT) found no spot or failed. No install ids, no IPs.
+  const autoSpotStats = { asked: 0, placed: 0, none: 0, errors: 0 };
   // Since the last restart; printed with every failed naming (REMOVE_NAMES). No install ids, no IPs.
   const nameStats = { asked: 0, named: 0, errors: 0 };
   const forCheck = (img: Buffer) =>
@@ -618,9 +679,11 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       return;
     }
 
+    // Where the tree goes: the tapped spot, or the one AUTO_SPOT chooses further down.
+    let spot = place;
     // A design that still shows the magenta tree marker or a cyan remove marker is never served.
     const leaked = async (img: Buffer) =>
-      (!!place && (await markerLeaked(input, img))) ||
+      (!!spot && (await markerLeaked(input, img))) ||
       (remove && (tree ? await removeMarkerLeaked(input, img) : await removeMarkerLeakedAt(input, img, removals!)));
 
     // REMOVE_NAMES=on (server 1.0.9): a cheap vision model names the piece under each cyan X and the unmarked pieces
@@ -643,7 +706,37 @@ export function createApp(generate: Generate, model: string, options: AppOptions
         clearTimeout(timer);
       }
     }
-    const firstPrompt = pieces ? buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces })! : prompt;
+    // AUTO_SPOT=on (server 1.0.11, Christmas designs without a tapped spot): a vision model chooses a free floor spot in
+    // the photo and the design is then made exactly like one with a tapped spot (marker, wording, place check). Left to
+    // choose its own spot in a full room, the image model stood the tree on or in front of furniture. The user never
+    // waits long for it or gets an error from it: no spot, a failed or a slow call makes the design as before.
+    if (tree && !place && extras.pickTreeSpot && flagOn("AUTO_SPOT") && !gone) {
+      autoSpotStats.asked++;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const photo = await forCheck(input);
+        const found = await Promise.race([
+          extras.pickTreeSpot(photo.toString("base64")),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("auto spot timed out")), AUTO_SPOT_TIMEOUT_MS); }),
+        ]);
+        const usable = found !== null && parsePlace(found) != null && found.y >= AUTO_SPOT_MIN_Y && found.x >= AUTO_SPOT_EDGE && found.x <= 1 - AUTO_SPOT_EDGE;
+        if (usable) {
+          const marked = await drawMarker(input, found);
+          spot = found;
+          sentToModel = marked;
+          autoSpotStats.placed++;
+        } else {
+          autoSpotStats.none++;
+          console.log(`auto spot (${styleId}): ${found ? `spot ${at(found)} not usable` : "no free floor found"}, spot left to the image model; totals ${JSON.stringify(autoSpotStats)}`);
+        }
+      } catch (err) {
+        autoSpotStats.errors++;
+        console.warn(`auto spot failed, spot left to the image model: ${describeError(err)}; totals ${JSON.stringify(autoSpotStats)}`);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    const firstPrompt = pieces || spot !== place ? buildPrompt(styleId, size, spot ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces })! : prompt;
 
     let produced = false;
     try {
@@ -696,10 +789,74 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           console.warn(`two-step removal (${styleId}): single prompt used instead (${why}); totals ${JSON.stringify(twoStepStats)}`);
         }
       }
+      // Removal check (STYLE_REMOVE_CHECK=on, server 1.0.11): the restyle of the cleaned photo likes to complete a set again
+      // (a chair back at the empty end of a dining table, 7 times out of 7 on Nov 19 2026). A vision model compares the
+      // marked photo with the restyle; the same look at the cleaned photo runs while the restyle is being made, so that
+      // only a piece the restyle itself put back counts. Such a piece is painted over in the restyle and the image model
+      // fills the hole in (two attempts at most). The user never pays for it and never gets an error from it: whenever
+      // something cannot be done or the repair does not hold up, the restyle is served as it was.
+      const checkRemoval = !!cleaned && !!removals && !!extras.checkRemovedPieces && flagOn("STYLE_REMOVE_CHECK");
+      const cleanedMarks = checkRemoval ? removedIn(sentToModel, cleaned!, removals!.length) : null;
       let output = cleaned
         ? await generate(cleaned.toString("base64"), buildPrompt(styleId, size, false, { keepLayout: true })!)
         : await generate(sentToModel.toString("base64"), firstPrompt);
       produced = true;
+      if (checkRemoval && !gone) {
+        removeCheckStats.checked++;
+        const [inCleaned, inDesign] = await Promise.all([cleanedMarks, removedIn(sentToModel, output, removals!.length)]);
+        // Without a clean bill for the cleaned photo nothing is repaired: the X could sit on a piece that belongs there.
+        const back = inCleaned && inDesign && !piecesBack(inCleaned, removals!).length ? piecesBack(inDesign, removals!) : [];
+        if (back.length) {
+          removeCheckStats.back++;
+          let served = "restyle as it was";
+          if (gone) served = "nothing (client left)";
+          else if (reserveGeneration(true, day) !== "OK") served = "restyle as it was (daily cap reached)";
+          else {
+            let reserved = true;
+            try {
+              const boxes = back.map((b) => b.box);
+              const spots = boxes.map(centre);
+              const design = await sharp(output).resize({ width: 1280, height: 1280, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer();
+              const painted = await paintOver(design, boxes);
+              for (const second of [false, true]) {
+                if (second) {
+                  if (gone || reserveGeneration(true, day) !== "OK") break;
+                  reserved = true;
+                  removeCheckStats.retried++;
+                }
+                const repaired = await generate(painted.toString("base64"), removeFillPrompt(second));
+                reserved = false;
+                // The repair is a small edit of the restyle: no cyan left, the room still lines up, the spot changed,
+                // and the vision model no longer sees the piece.
+                const [leak, kept, changed] = await Promise.all([
+                  removeMarkerLeaked(design, repaired),
+                  framed(design, repaired),
+                  Promise.all(spots.map((s) => pieceGone(design, repaired, s))),
+                ]);
+                if (leak) served = "restyle as it was (cyan left in the repair)";
+                else if (kept !== null && kept < DECOR_FRAME_MIN) served = `restyle as it was (repair redrew the room, ${kept.toFixed(2)})`;
+                else if (changed.some((c) => c === false)) served = "restyle as it was (repair left the piece)";
+                else {
+                  const after = gone ? null : await removedIn(sentToModel, repaired, removals!.length);
+                  if (after && piecesBack(after, removals!).length) served = "restyle as it was (piece still there after the repair)";
+                  else {
+                    output = repaired;
+                    removeCheckStats.repaired++;
+                    served = second ? "repair (second attempt)" : "repair";
+                    break;
+                  }
+                }
+              }
+            } catch (err) {
+              if (reserved) releaseGeneration(true, day);
+              served = "restyle as it was (repair failed)";
+              console.warn(`removal check repair failed (${styleId}): ${describeError(err)}`);
+            }
+          }
+          if (!served.startsWith("repair")) removeCheckStats.kept++;
+          console.log(`removal check (${styleId}): ${back.map((b) => `${b.kind} back (${b.before} before, ${b.after} after) at ${at(centre(b.box))}`).join("; ")}, served ${served}; totals ${JSON.stringify(removeCheckStats)}`);
+        }
+      }
       // The marker may never reach the user: an image that still shows it counts as a failed design (credit refunded).
       // (The cleaned photo of the two-step removal carries no marker, so its restyle is not checked for one.)
       if (!cleaned && (await leaked(output))) throw new Error("placement marker still visible in the result");
@@ -722,7 +879,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             frameStats.retried++;
             let retryProduced = false;
             try {
-              const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: true })!);
+              const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, spot ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: true })!);
               retryProduced = true;
               if (await leaked(again)) served = "first attempt (marker left in the retry)";
               else {
@@ -759,7 +916,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
           doorStats.retried++;
           let retryProduced = false;
           try {
-            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, place ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: frameFixed, doorFix: true })!);
+            const again = await generate(sentToModel.toString("base64"), buildPrompt(styleId, size, spot ?? false, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: frameFixed, doorFix: true })!);
             retryProduced = true;
             if (await leaked(again)) served = "first attempt (marker left in the retry)";
             else {
@@ -783,13 +940,14 @@ export function createApp(generate: Generate, model: string, options: AppOptions
       // Off the spot buys one silent second attempt that names where the tree came out and where it has to go; the
       // closer of the two is served. The user never pays for it and never gets an error from it: a failed check
       // serves the design unchecked.
-      if (tree && place && extras.locateTree && flagOn("PLACE_CHECK") && !gone) {
+      // A spot chosen by AUTO_SPOT is checked like a tapped one.
+      if (tree && spot && extras.locateTree && flagOn("PLACE_CHECK") && !gone) {
         placeStats.checked++;
         const tolerance = placeTolerance();
         const first = await treeBase(output);
         if (first === null) {
           console.log(`place check (${styleId}): no tree base found, design served unchecked; totals ${JSON.stringify(placeStats)}`);
-        } else if (first !== "error" && placeMiss(first, place, tolerance) > 1) {
+        } else if (first !== "error" && placeMiss(first, spot, tolerance) > 1) {
           placeStats.off++;
           let served = "first attempt";
           // The retry is a second paid image: it takes a slot of the global daily cap, never of the free cap.
@@ -801,7 +959,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             try {
               const again = await generate(
                 sentToModel.toString("base64"),
-                buildPrompt(styleId, size, place, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: frameFixed, doorFix: doorFixed, placeFix: first })!
+                buildPrompt(styleId, size, spot, { clear, remove, decorateRoom: decorInPrompt, decorTree: decorStep, pieces, frameFix: frameFixed, doorFix: doorFixed, placeFix: first })!
               );
               retryProduced = true;
               if (await leaked(again)) served = "first attempt (marker left in the retry)";
@@ -813,8 +971,8 @@ export function createApp(generate: Generate, model: string, options: AppOptions
                   served = "retry (unchecked)";
                 } else if (second === null) served = "first attempt (no tree base found in the retry)";
                 else {
-                  const closer = placeMiss(second, place, tolerance) < placeMiss(first, place, tolerance);
-                  const onSpot = placeMiss(second, place, tolerance) <= 1;
+                  const closer = placeMiss(second, spot, tolerance) < placeMiss(first, spot, tolerance);
+                  const onSpot = placeMiss(second, spot, tolerance) <= 1;
                   if (onSpot) placeStats.fixed++;
                   if (closer) output = again;
                   served = `${closer ? "retry" : "first attempt"} (retry ${onSpot ? "on the spot" : "still off"} at ${at(second)})`;
@@ -827,7 +985,7 @@ export function createApp(generate: Generate, model: string, options: AppOptions
             }
           }
           if (gone) served = "nothing (client left)";
-          console.log(`place check (${styleId}): spot ${at(place)}, tree at ${at(first)}, served ${served}; totals ${JSON.stringify(placeStats)}`);
+          console.log(`place check (${styleId}): ${place ? "" : "auto "}spot ${at(spot)}, tree at ${at(first)}, served ${served}; totals ${JSON.stringify(placeStats)}`);
         }
       }
 

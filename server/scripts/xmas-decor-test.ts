@@ -5,7 +5,9 @@
 // Each design costs 1 to 4 Gemini images (~$0.07 each); the sheet says how many each one took.
 // Usage (key from Railway, never printed):
 //   cd ~/DecoHero-108/server && OUT_DIR=decor-v1 RUNS=2 railway run npx tsx <worktree>/server/scripts/xmas-decor-test.ts [case ...]
-//   DECOR_STEP=off tests the one-prompt path. Flags are otherwise set here to what production runs (see FLAGS).
+//   DECOR_STEP=off tests the one-prompt path. AUTO_SPOT=on lets a vision model choose the spot of designs without a
+//   tapped one (the sheet then shows the chosen spot on the photo). DECOR=off asks for the tree only (no "Decorate
+//   whole room"). Flags are otherwise set here to what production runs (see FLAGS).
 //   npx tsx scripts/xmas-decor-test.ts --index   rebuilds index.html from results.json + verdicts.json (no key)
 // Output: ../store/<OUT_DIR>/<case>-r<run>-{sent,out,pair}.jpg, every model image as <case>-r<run>-gen<n>.jpg,
 // results.json and index.html. Verdicts are judged by eye and kept in verdicts.json as
@@ -35,7 +37,7 @@ export const CASES: Case[] = [
   { name: "terrace-classic", file: `${BEFORE}/terrace.jpg`, style: "xmas-classic", tree: { x: 0.3, y: 0.8 }, note: "Classic, tapped front left on the open concrete. Two chairs, stool, plants, hose and door stay put; tree on the tap." },
 ];
 
-type Result = { key: string; name: string; run: number; status: number; images: number; frame: number | null; seconds: number; steps: string[] };
+type Result = { key: string; name: string; run: number; status: number; images: number; frame: number | null; seconds: number; steps: string[]; autoSpot?: Place | null };
 type Verdict = { pass: boolean; note: string };
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const readJson = <T>(file: string, fallback: T): T => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : fallback);
@@ -52,7 +54,7 @@ function writeIndex() {
     const gens = r.steps.map((s, i) => `<figure><img src="${r.key}-gen${i + 1}.jpg"><figcaption>Model image ${i + 1}: ${esc(s)}</figcaption></figure>`).join("");
     return `<h2>${r.key}</h2><p>${esc(c.note)}</p><p>${badge}</p>
 <p>frameMatch of the served image against the photo: <b>${r.frame === null ? "n/a" : r.frame.toFixed(2)}</b> | model images: <b>${r.images}</b> | ${r.seconds} s | HTTP ${r.status}</p>
-<div class=row><figure><img src="${r.key}-sent.jpg"><figcaption>Photo (with the tapped spot, if any)</figcaption></figure><figure><img src="${r.key}-out.jpg"><figcaption>Served</figcaption></figure></div>
+<div class=row><figure><img src="${r.key}-sent.jpg"><figcaption>Photo${c.tree ? " with the tapped spot" : r.autoSpot ? ` with the spot AUTO_SPOT chose (${r.autoSpot.x.toFixed(2)}, ${r.autoSpot.y.toFixed(2)})` : r.autoSpot === null ? " (AUTO_SPOT found no free floor)" : ""}</figcaption></figure><figure><img src="${r.key}-out.jpg"><figcaption>Served</figcaption></figure></div>
 <details><summary>Every model image of this design</summary><div class=row>${gens}</div></details>`;
   });
   fs.writeFileSync(path.join(outDir, "index.html"), `<!doctype html><meta charset=utf-8><title>Whole-room decor ${esc(path.basename(outDir))}</title>
@@ -75,12 +77,12 @@ process.env.REVENUECAT_WEBHOOK_SECRET = "local-test-secret";
 delete process.env.FIREBASE_PROJECT_ID;
 delete process.env.WEB_ORIGINS;
 // What production runs (Railway, Nov 19 2026) plus the flags under test.
-const FLAGS: Record<string, string> = { ROOM_DECOR: "on", TREE_CLEAR: "on", PLACE_CHECK: "on", FRAME_CHECK: "on", DECOR_STEP: process.env.DECOR_STEP ?? "on" };
+const FLAGS: Record<string, string> = { ROOM_DECOR: "on", TREE_CLEAR: "on", PLACE_CHECK: "on", FRAME_CHECK: "on", DECOR_STEP: process.env.DECOR_STEP ?? "on", AUTO_SPOT: process.env.AUTO_SPOT ?? "off" };
 for (const k of ["DOOR_CHECK", "REMOVE_NAMES", "TREE_REMOVE", "STYLE_REMOVE"]) delete process.env[k];
 Object.assign(process.env, FLAGS);
 
 const { createApp } = await import("../src/app.js");
-const { askYesNo, generateRedesign, IMAGE_MODEL, locateTree, nameMarkedPieces } = await import("../src/gemini.js");
+const { askYesNo, generateRedesign, IMAGE_MODEL, locateTree, nameMarkedPieces, pickTreeSpot } = await import("../src/gemini.js");
 const { frameMatch } = await import("../src/frame.js");
 const { drawMarker } = await import("../src/marker.js");
 
@@ -98,7 +100,9 @@ async function run(c: Case, n: number): Promise<Result> {
     fs.writeFileSync(path.join(outDir, `${key}-gen${steps.length}.jpg`), await sharp(out).jpeg({ quality: 85 }).toBuffer());
     return out;
   };
-  const server = createApp(generate, IMAGE_MODEL, { askYesNo, locateTree, nameMarkedPieces }).listen(0);
+  let autoSpot: Place | null | undefined;
+  const pick = async (img: string) => (autoSpot = await pickTreeSpot(img));
+  const server = createApp(generate, IMAGE_MODEL, { askYesNo, locateTree, nameMarkedPieces, pickTreeSpot: pick }).listen(0);
   await new Promise((r) => server.once("listening", r));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const id = crypto.randomUUID();
@@ -110,12 +114,13 @@ async function run(c: Case, n: number): Promise<Result> {
     const photo = fs.readFileSync(path.join(root, c.file));
     // What the server makes of the upload, for the sheet and the score.
     const input = await sharp(photo).rotate().resize({ width: 1280, height: 1280, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
-    const sent = c.tree ? await drawMarker(input, c.tree) : input;
-    fs.writeFileSync(path.join(outDir, `${key}-sent.jpg`), sent);
     const t0 = Date.now();
-    const res = await post("/api/redesign", { image: photo.toString("base64"), styleId: c.style, ceilingCm: 250, treeCm: 213, place: c.tree, decorateRoom: true }, { "x-install-id": id });
+    const res = await post("/api/redesign", { image: photo.toString("base64"), styleId: c.style, ceilingCm: 250, treeCm: 213, place: c.tree, decorateRoom: process.env.DECOR !== "off" }, { "x-install-id": id });
     const json: any = await res.json().catch(() => null);
     const seconds = Math.round((Date.now() - t0) / 1000);
+    // The photo as the image model got it: with the tapped spot, or with the one AUTO_SPOT chose.
+    const sent = c.tree ? await drawMarker(input, c.tree) : autoSpot ? await drawMarker(input, autoSpot) : input;
+    fs.writeFileSync(path.join(outDir, `${key}-sent.jpg`), sent);
     let frame: number | null = null;
     if (res.status === 200 && json?.image) {
       const out = Buffer.from(json.image, "base64");
@@ -127,8 +132,8 @@ async function run(c: Case, n: number): Promise<Result> {
         .composite([{ input: a.data, left: 0, top: 0 }, { input: b.data, left: a.info.width + 8, top: 0 }])
         .jpeg({ quality: 82 }).toFile(path.join(outDir, `${key}-pair.jpg`));
     }
-    console.log(`${key}: HTTP ${res.status}${json?.error ? ` ${json.error}` : ""} | ${steps.length} images (${steps.join(", ")}) | frame ${frame === null ? "n/a" : frame.toFixed(2)} | ${seconds} s`);
-    return { key, name: c.name, run: n, status: res.status, images: steps.length, frame, seconds, steps };
+    console.log(`${key}: ${autoSpot ? `auto spot ${autoSpot.x.toFixed(2)},${autoSpot.y.toFixed(2)} | ` : ""}HTTP ${res.status}${json?.error ? ` ${json.error}` : ""} | ${steps.length} images (${steps.join(", ")}) | frame ${frame === null ? "n/a" : frame.toFixed(2)} | ${seconds} s`);
+    return { key, name: c.name, run: n, status: res.status, images: steps.length, frame, seconds, steps, autoSpot };
   } finally {
     server.close();
   }
