@@ -534,6 +534,32 @@ export function removeEditPrompt(pieces?: MarkedPiece[]): string {
   return `${REMOVE_EDIT}${pieces?.length ? `\n${namedEdit(pieces)}` : ""}`;
 }
 
+// Removal check (STYLE_REMOVE_CHECK, server 1.0.11): the restyle of step two put a marked piece back (a chair at the empty
+// end of a dining table, every time). Marking it with a cyan X again and running the edit of step one on the restyle
+// worked 1 time in 5 on Nov 19 2026 (image handed back unchanged, chair swapped for a stool, table removed instead).
+// Painting the piece over with a solid cyan rectangle (marker.ts paintOver) and asking only for the hole to be filled
+// worked 2 times in 2 before it was built in: the model cannot leave what is no longer in the picture.
+const REMOVE_FILL = `Edit this photo of a room. This is a careful photo repair, not a redesign. One or two solid bright cyan rectangles have been
+painted on top of the photo. Each hides a place that the owner of the room has cleared: nothing stands there any more.
+Fill every cyan rectangle in so that the photo is complete again: the floor, the rug and the wall continue through it exactly
+like the floor, rug and wall around it, and any furniture that the rectangle cuts into (the end of a table and its legs, a
+neighbouring seat, a sofa, a cabinet) is completed the way it continues outside the rectangle. No chair, stool, bench,
+plant or any other object is drawn inside a rectangle: the place is empty, and where a rectangle covers an end or a side of
+a table, that end or side of the table has no chair. Change nothing outside the rectangles: every pixel there stays as it is,
+with the same camera, framing, furniture, light and colours. The final image must contain no cyan.`;
+const REMOVE_FILL_FIX = `Correction: an earlier attempt at this repair drew a piece of furniture inside a rectangle, or left cyan in the image. That
+is not allowed. Inside the rectangles there is only floor, rug, wall and the continuation of the furniture that the
+rectangle cuts into. Compared with that attempt, the room has one seat or piece fewer.`;
+
+/**
+ * The repair of the removal check: the prompt for filling the cyan rectangles painted over pieces that came back.
+ * The piece itself is never named: naming a missing dining chair brought it back (here 2 times out of 2, and in the
+ * restyle prompt 3 times out of 3). `fix` = second attempt.
+ */
+export function removeFillPrompt(fix = false): string {
+  return `${REMOVE_FILL}${fix ? `\n\n${REMOVE_FILL_FIX}` : ""}`;
+}
+
 function namedEdit(pieces: MarkedPiece[]): string {
   const lines = pieces.map((p) => {
     const count = p.sameKind !== undefined && p.sameKind >= 3

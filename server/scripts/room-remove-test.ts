@@ -3,6 +3,10 @@
 // Usage (key from Railway, never printed):
 //   cd server && railway run npx tsx scripts/room-remove-test.ts [case ...]
 //   GEMINI_API_KEY=none npx tsx scripts/room-remove-test.ts --index   rebuilds index.html only (no generation)
+//   MODE=app runs the server's own app locally (createApp, as index.ts does) with what production runs for removals
+//   (STYLE_REMOVE, STYLE_REMOVE_TWO_STEP, REMOVE_NAMES) plus STYLE_REMOVE_CHECK (CHECK=off switches it off), and posts
+//   to /api/redesign like the phone. Every model image is kept as <case>-<run>-gen<n>.jpg. REPLAY=<abs sheet dir> (with
+//   REPLAY_RUN=a) takes the edit and the restyle from that sheet, so only a repair is paid for.
 // Env: MODE=one (single prompt, STYLE_REMOVE as shipped) | two (remove edit, then restyle; default)
 //      RUNS=a,b   NAMES=1 (REMOVE_NAMES pre-pass)   OUT_DIR=room-remove-v1   RETRY=0 (no second edit)   STEP1_ONLY=1
 //      REUSE_MID=<sheet> takes step one from that sheet (REUSE_RUN=a: from its run a), so only step two is paid again
@@ -15,6 +19,9 @@ import { drawRemoveMarkers, removeMarkerLeakedAt, type Place } from "../src/mark
 import { buildPrompt, removeEditPrompt } from "../src/styles.js";
 import { generateRedesign, nameMarkedPieces, type MarkedPiece } from "../src/gemini.js";
 import { frameMatch, patchMatch, pieceGone } from "../src/frame.js";
+import crypto from "node:crypto";
+import os from "node:os";
+import type { AddressInfo } from "node:net";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..", "..");
@@ -25,27 +32,53 @@ const RUNS = (process.env.RUNS ?? "a,b").split(",");
 const REUSE_RUN = process.env.REUSE_RUN;
 const NAMES = !!process.env.NAMES;
 
-const LIVING = "site/img/rooms/living-room-before.webp";
-const SALA = "site/img/rooms/sala-panama-before.webp";
-const KIDS = "store/rooms/before/kids-room.jpg";
-const BEDROOM = "store/rooms/before/bedroom.jpg";
-const DINING = "store/rooms/before/dining-room.jpg";
-const OFFICE = "store/rooms/before/home-office.jpg";
-const TERRACE = "store/rooms/before/terrace.jpg";
+import { CASES } from "./room-remove-cases.js";
 
-type Case = { name: string; file: string; style: string; remove: Place[]; note: string };
-export const CASES: Case[] = [
-  { name: "living-armchair-japandi", file: LIVING, style: "japandi", remove: [{ x: 0.79, y: 0.55 }], note: "single piece: armchair next to the sofa" },
-  { name: "living-table-boho", file: LIVING, style: "boho", remove: [{ x: 0.63, y: 0.66 }], note: "single piece: glass coffee table" },
-  { name: "sala-chairs-tropical", file: SALA, style: "tropical-modern", remove: [{ x: 0.45, y: 0.50 }], note: "small piece: stacked plastic chairs" },
-  { name: "sala-loveseat-industrial", file: SALA, style: "industrial", remove: [{ x: 0.68, y: 0.72 }], note: "big piece: front loveseat, touching the back sofa" },
-  { name: "bedroom-nightstand-scandi", file: BEDROOM, style: "scandinavian", remove: [{ x: 0.25, y: 0.72 }], note: "small piece: nightstand with lamp, touching the bed" },
-  { name: "dining-chair-farmhouse", file: DINING, style: "farmhouse", remove: [{ x: 0.68, y: 0.62 }], note: "one chair of a dining set (right-hand end)" },
-  { name: "kids-desk-coastal", file: KIDS, style: "coastal", remove: [{ x: 0.86, y: 0.76 }], note: "piece touching a neighbour: desk goes, its chair stays" },
-  { name: "office-chair-box-minimal", file: OFFICE, style: "modern-minimal", remove: [{ x: 0.92, y: 0.70 }, { x: 0.42, y: 0.80 }], note: "two pieces: office chair and cardboard box" },
-  { name: "terrace-table-chair-tropical", file: TERRACE, style: "tropical-modern", remove: [{ x: 0.55, y: 0.65 }, { x: 0.70, y: 0.72 }], note: "two pieces: plastic table and the front chair" },
-  { name: "kids-desk-chair-japandi", file: KIDS, style: "japandi", remove: [{ x: 0.86, y: 0.76 }, { x: 0.72, y: 0.77 }], note: "two pieces: desk and its chair" },
-];
+/** One design through the real app: returns what each model image was and saves them next to the served design. */
+async function viaApp(c: (typeof CASES)[number], key: string, input: Buffer): Promise<Record<string, unknown>> {
+  process.env.DB_PATH ??= path.join(fs.mkdtempSync(path.join(os.tmpdir(), "decohero-remove-")), "test.db");
+  process.env.REVENUECAT_WEBHOOK_SECRET = "local-test-secret";
+  delete process.env.FIREBASE_PROJECT_ID;
+  delete process.env.WEB_ORIGINS;
+  Object.assign(process.env, { STYLE_REMOVE: "on", STYLE_REMOVE_TWO_STEP: "on", REMOVE_NAMES: "on", STYLE_REMOVE_CHECK: process.env.CHECK ?? "on" });
+  const { createApp } = await import("../src/app.js");
+  const { askYesNo, checkRemovedPieces, IMAGE_MODEL, locateTree, pickTreeSpot } = await import("../src/gemini.js");
+  const steps: string[] = [];
+  const replay = process.env.REPLAY ? [`${c.name}-${REUSE_RUN ?? key.slice(c.name.length + 1)}-mid.jpg`, `${c.name}-${REUSE_RUN ?? key.slice(c.name.length + 1)}-${process.env.REPLAY_OUT ?? "out"}.jpg`].map((f) => path.join(process.env.REPLAY!, f)) : [];
+  let paid = 0;
+  const generate = async (img: string, prompt: string) => {
+    const step = prompt.includes("careful photo repair") ? "repair (fill)" : prompt.startsWith("Edit this photo of a room") ? "edit" : prompt.startsWith("Restyle the room") ? "restyle" : "single prompt";
+    // Replay only stands in for the first edit and the restyle.
+    const from = steps.length < 2 && step !== "single prompt" ? replay[steps.length] : undefined;
+    const out = from ? fs.readFileSync(from) : await generateRedesign(img, prompt);
+    if (!from) paid++;
+    steps.push(`${step}${from ? " (replayed)" : ""}`);
+    fs.writeFileSync(path.join(outDir, `${key}-gen${steps.length}.jpg`), await sharp(out).jpeg({ quality: 88 }).toBuffer());
+    if (step.startsWith("repair")) fs.writeFileSync(path.join(outDir, `${key}-repair-sent.jpg`), Buffer.from(img, "base64"));
+    return out;
+  };
+  const checks: unknown[] = [];
+  const check: typeof checkRemovedPieces = async (a, b, n) => { const m = await checkRemovedPieces(a, b, n); checks.push(m); return m; };
+  const server = createApp(generate, IMAGE_MODEL, { askYesNo, locateTree, nameMarkedPieces, pickTreeSpot, checkRemovedPieces: check }).listen(0);
+  await new Promise((res) => server.once("listening", res));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const id = crypto.randomUUID();
+  const post = (p: string, body: unknown, headers: Record<string, string> = {}) =>
+    fetch(base + p, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
+  try {
+    await post("/webhooks/revenuecat", { event: { id: crypto.randomUUID(), type: "NON_RENEWING_PURCHASE", product_id: "credits_15", app_user_id: id, transaction_id: `GPA.${key}.${Date.now()}` } }, { authorization: "Bearer local-test-secret" });
+    const res = await post("/api/redesign", { image: input.toString("base64"), styleId: c.style, remove: c.remove }, { "x-install-id": id });
+    const json: any = await res.json().catch(() => null);
+    if (res.status !== 200 || !json?.image) throw new Error(`HTTP ${res.status} ${json?.error ?? ""}`);
+    fs.writeFileSync(path.join(outDir, `${key}-out.jpg`), Buffer.from(json.image, "base64"));
+    const mid = steps.findIndex((x) => x.startsWith("edit"));
+    // The last edit before the restyle is not always the one that was used; the sheet shows the first.
+    if (mid >= 0) fs.copyFileSync(path.join(outDir, `${key}-gen${mid + 1}.jpg`), path.join(outDir, `${key}-mid.jpg`));
+    return { mode: "app", images: paid, steps, checks };
+  } finally {
+    server.close();
+  }
+}
 
 fs.mkdirSync(outDir, { recursive: true });
 const resultsFile = path.join(outDir, "results.json");
@@ -64,6 +97,15 @@ for (const c of CASES.filter((c) => !only.length || only.includes(c.name))) {
     const r: Record<string, unknown> = { mode: MODE, names: NAMES, images: 0 };
     const t0 = Date.now();
     try {
+      if (MODE === "app") {
+        Object.assign(r, await viaApp(c, key, input));
+        r.frameOut = await frameMatch(input, fs.readFileSync(path.join(outDir, `${key}-out.jpg`)));
+        r.ms = Date.now() - t0;
+        console.log(`${key}: ok ${JSON.stringify(r)}`);
+        results[key] = r;
+        fs.writeFileSync(resultsFile, JSON.stringify(results, null, 1));
+        continue;
+      }
       let pieces: MarkedPiece[] | undefined;
       if (NAMES) {
         try { pieces = await nameMarkedPieces(sent.toString("base64"), c.remove.length); r.pieces = pieces; } catch (e) { r.namesError = String(e).slice(0, 120); }
@@ -136,13 +178,13 @@ for (const c of CASES) {
 <div class=row><figure><img src="${c.name}-before.jpg"><figcaption>before</figcaption></figure><figure><img src="${c.name}-sent.jpg"><figcaption>marked</figcaption></figure><figure><img src="${b.img}"><figcaption>after (single prompt)</figcaption></figure></div>`);
   }
   for (const key of keys) {
-    const r = results[key] as { images?: number; ms?: number; first?: { frame: number | null; gone: (boolean | null)[] }; servedRetry?: boolean; error?: string };
+    const r = results[key] as { steps?: string[]; checks?: { kind: string; before: number; after: number; box?: unknown }[][]; images?: number; ms?: number; first?: { frame: number | null; gone: (boolean | null)[] }; servedRetry?: boolean; error?: string };
     const v = verdicts[key];
     if (v) { judged++; if (v.pass) pass++; }
     const hasMid = fs.existsSync(path.join(outDir, `${key}-mid.jpg`));
     rows.push(`<h3>${key} ${v ? `<span class=${v.pass ? "ok" : "bad"}>${v.pass ? "PASS" : "FAIL"}</span>` : ""}</h3>
 <p>${v ? esc(v.note) : ""} <small>${r.images ?? "?"} image call(s), ${r.ms ? Math.round(r.ms / 1000) : "?"} s${r.first ? `, edit frame ${f2(r.first.frame)}, marked piece gone: ${r.first.gone.join("/")}` : ""}${r.servedRetry ? ", retry served" : ""}${r.error ? `, ERROR ${esc(r.error)}` : ""}</small></p>
-<div class=row><figure><img src="${c.name}-before.jpg"><figcaption>before</figcaption></figure><figure><img src="${c.name}-sent.jpg"><figcaption>marked</figcaption></figure>${hasMid ? `<figure><img src="${key}-mid.jpg"><figcaption>step 1: taken out</figcaption></figure>` : ""}<figure><img src="${key}-out.jpg"><figcaption>after</figcaption></figure></div>`);
+<div class=row><figure><img src="${c.name}-before.jpg"><figcaption>before</figcaption></figure><figure><img src="${c.name}-sent.jpg"><figcaption>marked</figcaption></figure>${hasMid ? `<figure><img src="${key}-mid.jpg"><figcaption>step 1: taken out</figcaption></figure>` : ""}<figure><img src="${key}-out.jpg"><figcaption>after${r.steps?.some((x) => x.startsWith("repair")) ? " (served: the repair)" : ""}</figcaption></figure></div>${r.steps ? `<details><summary>Every model image: ${esc(r.steps.join(", "))}. Removal check (cleaned photo, then restyle): ${esc((r.checks ?? []).map((m) => m.map((x) => `${x.kind} ${x.before} to ${x.after}${x.box ? ", one on the marked place" : ""}`).join("; ")).join(" | "))}</summary><div class=row>${r.steps.map((x, i) => `<figure><img src="${key}-gen${i + 1}.jpg"><figcaption>${i + 1}: ${esc(x)}</figcaption></figure>`).join("")}</div></details>` : ""}`);
   }
 }
 fs.writeFileSync(path.join(outDir, "index.html"), `<!doctype html><meta charset=utf-8><title>Room removal test</title>

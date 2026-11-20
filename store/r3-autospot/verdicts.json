@@ -1,0 +1,10 @@
+{
+ "living-classic-r1": {"pass": true, "note": "Spot at the right edge by the window. Tree there after the place retry; sofa, armchair (partly behind the tree), glass table, TV and chest in place."},
+ "living-classic-r2": {"pass": true, "note": "Same spot, tree on it at once. All five pieces in place, armchair partly behind the tree."},
+ "dining-tartan-r1": {"pass": true, "note": "Spot in the corner by the window. Table, six chairs and sideboard in place."},
+ "dining-tartan-r2": {"pass": true, "note": "Same corner. Table, six chairs and sideboard in place."},
+ "kids-winter-r1": {"pass": false, "note": "Counted as fail: bed, bookcase, desk and chair are all in place, but the tree is not on the chosen spot (middle of the floor); it came out small against the back wall behind the bed. The miss was just inside the place check's depth tolerance."},
+ "kids-winter-r2": {"pass": true, "note": "Borderline pass: spot front left, tree large in the foreground. Bed, desk and chair untouched; the bookcase is still there but mostly behind the tree."},
+ "office-coquette-r1": {"pass": true, "note": "Spot on the open carpet in front of the desk. Desk, chair, shelf and lamp in place; the tree hides the right half of the desk and the boxes under it (decor step needed its retry)."},
+ "office-coquette-r2": {"pass": true, "note": "Same spot. Desk, office chair and shelf in place; right half of the desk behind the tree."}
+}

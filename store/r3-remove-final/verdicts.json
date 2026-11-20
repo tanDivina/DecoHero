@@ -1,0 +1,13 @@
+{
+ "dining-chair-farmhouse-a": {"pass": true, "note": "Edit took the chair out, the restyle put one back at the right-hand end, the removal check saw it and the fill repair took it out again: the table end is empty. One of the two chairs on the far side is not visible in the restyle."},
+ "dining-chair-farmhouse-b": {"pass": true, "note": "Same course: chair back in the restyle (a slipcovered one), repaired on the first attempt, table end empty. One far-side chair not visible in the restyle."},
+ "living-armchair-japandi-a": {"pass": true, "note": "Armchair gone; sofa, table and TV in place. A small stool appears by the window (minor)."},
+ "living-table-boho-a": {"pass": true, "note": "Coffee table gone; sofa, armchair and TV chest in place."},
+ "sala-chairs-tropical-a": {"pass": false, "note": "Stacked chairs gone and both sofas and the TV unit in place, but the restyle added a low coffee table between the sofas. Not the marked piece, so the check leaves it."},
+ "sala-loveseat-industrial-a": {"pass": true, "note": "Loveseat gone; back sofa and TV unit in place, the stacked chairs became one metal chair."},
+ "bedroom-nightstand-scandi-a": {"pass": true, "note": "Nightstand and lamp gone; bed and clothes rail in place."},
+ "kids-desk-coastal-a": {"pass": true, "note": "Desk gone; its chair, the bed and the bookcase in place."},
+ "office-chair-box-minimal-a": {"pass": true, "note": "Office chair and box gone (second edit used); desk, shelf and storage box in place. The check answered with one mark instead of two here and the design was served unchecked."},
+ "terrace-table-chair-tropical-a": {"pass": true, "note": "Table and front chair gone; the other chair restyled in place."},
+ "kids-desk-chair-japandi-a": {"pass": false, "note": "Borderline, counted as fail: desk and chair gone and bed and bookcase kept, but the restyle shows the room from a slightly different position, with the bed further right."}
+}
