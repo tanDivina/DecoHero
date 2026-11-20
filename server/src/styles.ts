@@ -45,6 +45,54 @@ result never has more seats than the photo has unmarked ones. Never merge separa
 become one corner sofa). Never remove doors, windows, walls, radiators, built-ins or ceiling lights, even if
 a cyan X is on them. Remove all cyan circles and X marks: the final image must contain no cyan marks or tint.`;
 
+// Two-step removal on regular redesigns (server 1.0.10, STYLE_REMOVE_TWO_STEP=on). One prompt that removes and restyles
+// at once keeps drawing "the complete set" (a marked dining chair came back 5 times out of 5 on Nov 19 2026) and now and
+// then redraws the room. So the work is split: first a plain photo edit that only takes the marked pieces out
+// (removeEditPrompt), then a restyle of that cleaned photo, which has no markers, with the layout lock below.
+const REMOVE_EDIT = `Edit this photo of a room. This is a careful photo edit, not a redesign: the result is the same photograph, with the
+same camera position, framing, walls, windows, doors, floor, light, colours, furniture and objects, and one change only.
+Removal rule: the photo has one or two bright cyan circles with a cyan X inside, drawn on top of it. Each one sits on a piece
+of furniture that the user has carried out of the room. Before editing, decide for each cyan X the one single piece it sits
+on; that is the only piece that X removes. Remove it completely, together with anything standing or lying on it (a lamp on a marked
+bedside table goes with the table), as if it
+had been carried out before the photo was taken: no leg, cushion, edge or shadow of it remains, and the floor, rug and wall
+it covered continue exactly like the floor, rug and wall around them. Remove ONLY pieces with a cyan X: every piece without
+one stays exactly as it is, in the same place and at the same size, even when it touches or stands right next to a marked
+piece (the table and the other chairs of a dining set stay when one chair is marked; a chair at a marked desk stays). Where
+a marked piece hid part of an unmarked one, draw that part in full. The place where a marked piece stood stays empty: do
+not put another piece, a plant or any object there, and do not move other furniture into it. Never remove doors, windows,
+walls, radiators, built-ins or ceiling lights, even if a cyan X is on them. Remove all cyan circles and X marks: the final
+image must contain no cyan marks or tint. Add nothing to the room and restyle nothing. Count check: the final image shows
+every piece of furniture of the photo except the marked ones, each once and at its own place: no piece appears twice and
+no new chair, table or other piece appears anywhere.`;
+
+const KEEP_BASE = `Restyle the room in this photo in place, as a professional interior designer would. This is a makeover of this exact
+photograph, not a new picture of a similar room. The camera does not move: same camera position, height, lens, framing and
+perspective, so every wall, corner, window, door and the line where floor meets wall sits at exactly the same place in the
+picture as in the photo, and furniture that is cut off by an edge of the photo is still cut off by that same edge. Keep the
+room's architecture exactly as it is. Change the design, materials and colours of the furniture, the decor, color palette,
+textiles and lighting to match the style below. The result must look like a real, photorealistic interior photograph with
+natural light and believable proportions. No people, no text, no watermarks.`;
+
+const KEEP_LAST = `Before you finish, compare with the photo: same camera and framing, every piece of furniture at its own place, the same
+number of pieces, nothing large added, nothing dropped.`;
+
+const STYLE_KEEP = `Layout lock: this is a restyle in place, not a rearrangement. The photo shows the room with exactly the furniture
+its owner wants in it; pieces they did not want have already been carried out. Go through the photo piece by piece: every
+piece of furniture in it is still there in the result, as a piece of the same type and about the same size in the new style,
+at exactly the same place in the picture, with the same footprint and orientation. A sofa against a wall stays against that
+same wall, a TV and its stand stay at the same spot and angle (also when they stand in the foreground at the edge of the
+photo), a bed keeps its headboard wall, a table stays where it stands, a chair stays a chair at its own spot. No piece is
+dropped, moved to a better spot or swapped for a plant. Do not add any furniture (sofa, armchair, chair, stool, pouf, bench,
+bed, daybed, cabinet, shelf unit, desk, table) anywhere: floor that is open in the photo stays open (a rug may lie on it), and
+an empty corner stays empty or gets at most a plant or a floor lamp.
+Count check: count the sofas, armchairs, chairs, tables, beds and cabinets in the photo; the result has exactly the same
+number of each. A dining table with five chairs still has exactly five chairs, each on the side of the table where one stands
+now; a side or end of the table that has no chair in the photo has no chair in the result. A set that looks incomplete is
+incomplete on purpose: never complete it. Never merge separate pieces into one, and never add a door, a window or a radiator
+that the photo does not show. Every door and doorway stays exactly as it is: an open doorway stays an open doorway with the
+same view through it, and a closed door stays closed.`;
+
 // Christmas mode (app 1.0.3+): add one tree, leave the room alone. Ids must match mobile/src/stylePresets.ts.
 const TREE_INTRO = `Edit this photo of a room by adding ONE Christmas tree to it. This is a careful photo edit, not a redesign.
 Keep everything else exactly as it is: the same walls, windows, doors, floor, ceiling, furniture, rugs, curtains, art,
@@ -75,22 +123,20 @@ Keep the room exactly as it is: the same walls, windows, doors, floor, ceiling, 
 colors, daylight, camera position, lens and perspective. Do not move, restyle, recolor or replace anything. The only exception
 is the removal rule below.`;
 
+// Nov 19 2026: a longer version (hidden parts drawn in full, count check) was tried on fix/xmas-fidelity and dropped again.
+// Old against new on three cases (scripts/xmas-remove-ab.ts, store/xmas-remove-ab): 2 of 3 each, and the longer one
+// once returned the room with no tree at all; in the earlier run it was 1 of 3 against 2 of 3. This is the 1.0.9 text.
 const REMOVE = `Removal rule: the photo also has one or more bright cyan circles with a cyan X inside, drawn on top of it. Each one sits
 on a piece of furniture that the user has chosen to carry out of the room to make space for the tree. Remove every piece of
 furniture that has a cyan X on it completely, together with anything standing on it, as if it had been carried out of the room
 before the photo was taken: no leg, cushion, edge or shadow of it may remain or show behind or through the tree, and the floor,
 rug and wall it covered must continue exactly like the floor, rug and wall around them. Remove ONLY pieces with a cyan X: every
 piece of furniture without one stays exactly as it is, even when it touches or stands right next to a marked piece (a chair
-next to a marked desk stays if the chair itself has no X). A marked piece often hides part of an unmarked one: a chair pushed
-under a marked desk, a sofa behind a marked armchair, a table behind a marked chair. That unmarked piece stays where it is, and
-the part of it that was hidden is drawn in full, as it would look with the marked piece gone. Never remove doors, windows, walls, radiators, built-ins or ceiling
+next to a marked desk stays if the chair itself has no X). Never remove doors, windows, walls, radiators, built-ins or ceiling
 lights, even if a cyan X is on them. Before editing, decide for each cyan X the one single piece it sits on; that is
 the only piece that X removes. Then check every other piece near the tree and near each X: if it has no X of its own it stays,
 complete and unchanged, and where the tree reaches it, the tree stands in front of or behind it the way a real tree
-would. Never remove an unmarked piece to make the tree fit, and never let one vanish behind the tree: whatever part
-of it the tree does not cover stays visible, at the same place and size as in the photo. Count check: count the pieces of
-furniture in the photo (every chair counts on its own). The final image has exactly that number minus the number of cyan X
-marks: with one X exactly one piece is gone, with two X marks exactly two. Remove all cyan circles and X marks: the final image must contain
+would. Never remove an unmarked piece to make the tree fit. Remove all cyan circles and X marks: the final image must contain
 no cyan marks or tint. Add nothing to the room except the tree and the decor described below.`;
 
 /** Goes into PLACE_AUTO right before "Keep it well clear" when the clearing rule is on. */
@@ -480,6 +526,28 @@ function namedPieces(pieces: MarkedPiece[], tree: boolean): string {
   return `The marked pieces by name, so there is no mistake about what goes and what stays. ${lines.join(" ")}`;
 }
 
+/**
+ * Step one of the two-step removal (STYLE_REMOVE_TWO_STEP): the prompt for a plain photo edit that takes the pieces under
+ * the cyan X markers out and changes nothing else. `pieces` (REMOVE_NAMES) names them and their neighbours.
+ */
+export function removeEditPrompt(pieces?: MarkedPiece[]): string {
+  return `${REMOVE_EDIT}${pieces?.length ? `\n${namedEdit(pieces)}` : ""}`;
+}
+
+function namedEdit(pieces: MarkedPiece[]): string {
+  const lines = pieces.map((p) => {
+    const count = p.sameKind !== undefined && p.sameKind >= 3
+      ? ` The photo shows ${p.sameKind} pieces of this kind; the final image shows exactly ${p.sameKind - 1}, each of the others where it stands now.`
+      : "";
+    const keep = p.neighbours.filter((n) => !pieces.some((q) => same(q.piece, n)));
+    const stay = keep.length
+      ? ` Right next to it: ${keep.join("; ")}. Unless it carries a cyan X of its own, each of these is in the final image: complete, in the same place and at the same size as in the photo.`
+      : "";
+    return `A cyan X is on ${p.piece}: that piece, and only that piece, is taken out.${count}${stay}`;
+  });
+  return `The marked pieces by name, so there is no mistake about what goes and what stays. ${lines.join(" ")}`;
+}
+
 export type PromptOptions = {
   /** Clearing rule (TREE_CLEAR). Off: the 1.0.5 intro and placement text. */
   clear?: boolean;
@@ -503,6 +571,11 @@ export type PromptOptions = {
    * as a second edit (buildDecorPrompt). Adds the furniture rule of whole-room designs to the plain tree prompt.
    */
   decorTree?: boolean;
+  /**
+   * Regular styles: step two of the two-step removal (STYLE_REMOVE_TWO_STEP). The photo is the cleaned one from step one
+   * (no markers), and the restyle keeps its layout and its number of pieces. Not combined with `remove`.
+   */
+  keepLayout?: boolean;
 };
 
 /**
@@ -532,5 +605,8 @@ export function buildPrompt(styleId: string, size: TreeSize = {}, marked: boolea
   // The names come first and last: a redesign otherwise draws the complete set it knows (a chair at every side of a table).
   const named = opts.remove && opts.pieces?.length ? namedPieces(opts.pieces, false) : "";
   const first = named ? `This redesign also takes furniture out of the room, as the removal rule further down explains. ${named}\n\n` : "";
+  // Tried and dropped (Nov 19 2026, store/room-remove-fix): telling this step which piece was taken out and where.
+  // Naming the missing dining chair brought it back 3 times out of 3, so the restyle is told nothing about it.
+  if (opts.keepLayout && !opts.remove) return `${KEEP_BASE}\n\n${STYLE_KEEP}\n\n${STYLE_PROMPTS[styleId]}\n\n${KEEP_LAST}`;
   return `${first}${BASE}\n\n${STYLE_PROMPTS[styleId]}${opts.remove ? `\n\n${STYLE_REMOVE}${named ? `\n${named}` : ""}` : ""}`;
 }

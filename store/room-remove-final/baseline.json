@@ -1,0 +1,122 @@
+{
+ "living-armchair-japandi": [
+  {
+   "img": "../test-108-v3/living-armchair-japandi-out.jpg",
+   "pass": true,
+   "note": "Armchair gone, layout kept."
+  },
+  {
+   "img": "../test-108-v5/living-armchair-japandi-out.jpg",
+   "pass": false,
+   "note": "Armchair gone, but a new daybed stands in the right foreground."
+  }
+ ],
+ "living-table-boho": [
+  {
+   "img": "../test-108-v3/living-table-boho-out.jpg",
+   "pass": true,
+   "note": "Table gone, sofa, armchair and TV chest in place."
+  },
+  {
+   "img": "../test-108-v5/living-table-boho-out.jpg",
+   "pass": false,
+   "note": "Room redrawn: TV on another chest, armchair moved to the window."
+  }
+ ],
+ "sala-chairs-tropical": [
+  {
+   "img": "../test-108-v3/sala-chairs-tropical-out.jpg",
+   "pass": true,
+   "note": "Stacked chairs gone, both sofas and TV in place."
+  },
+  {
+   "img": "../test-108-v4/sala-chairs-tropical-b-out.jpg",
+   "pass": true,
+   "note": "Stacked chairs gone, both sofas and TV in place."
+  }
+ ],
+ "sala-loveseat-industrial": [
+  {
+   "img": "../test-108-v3/sala-loveseat-industrial-out.jpg",
+   "pass": false,
+   "note": "Front loveseat still there (two sofas)."
+  },
+  {
+   "img": "../test-108-v4/sala-loveseat-industrial-b-out.jpg",
+   "pass": true,
+   "note": "Loveseat gone, back sofa and TV in place."
+  }
+ ],
+ "bedroom-nightstand-scandi": [
+  {
+   "img": "../test-108-v3/bedroom-nightstand-scandi-out.jpg",
+   "pass": true,
+   "note": "Nightstand gone, bed and clothes rail in place."
+  },
+  {
+   "img": "../test-108-v5/bedroom-nightstand-scandi-out.jpg",
+   "pass": false,
+   "note": "Nightstand gone, but a door was invented on the left and the camera moved."
+  }
+ ],
+ "dining-chair-farmhouse": [
+  {
+   "img": "../test-108-v4/dining-chair-farmhouse-out.jpg",
+   "pass": false,
+   "note": "Marked chair still at the table end (six chairs). Same in 5 of 5 earlier runs."
+  },
+  {
+   "img": "../fidelity-v3/room-dining-chair-farmhouse-out.jpg",
+   "pass": false,
+   "note": "With names in the single prompt: still six chairs."
+  }
+ ],
+ "kids-desk-coastal": [
+  {
+   "img": "../room-remove-baseline/kids-desk-coastal-a-out.jpg",
+   "pass": false,
+   "note": "Desk gone, but the unmarked chair went with it."
+  },
+  {
+   "img": "../room-remove-baseline/kids-desk-coastal-b-out.jpg",
+   "pass": false,
+   "note": "Desk and chair gone, bed swapped for a double bed in another place, a wicker trunk added."
+  }
+ ],
+ "office-chair-box-minimal": [
+  {
+   "img": "../test-108-v3/office-chair-box-minimal-out.jpg",
+   "pass": true,
+   "note": "Chair and box gone, desk and shelf in place (the plastic box under the desk went too)."
+  },
+  {
+   "img": "../test-108-v5/office-chair-box-minimal-out.jpg",
+   "pass": false,
+   "note": "Room redrawn from another angle; a box is back under the desk."
+  }
+ ],
+ "terrace-table-chair-tropical": [
+  {
+   "img": "../test-108-v3/terrace-table-chair-tropical-out.jpg",
+   "pass": false,
+   "note": "Pieces gone, but the terrace was redrawn: door moved, a second window and wall art added."
+  },
+  {
+   "img": "../test-108-v5/terrace-table-chair-tropical-out.jpg",
+   "pass": true,
+   "note": "Table and front chair gone, one chair left, terrace kept."
+  }
+ ],
+ "kids-desk-chair-japandi": [
+  {
+   "img": "../test-108-v3/kids-desk-japandi-out.jpg",
+   "pass": true,
+   "note": "Desk and chair gone, bed and bookcase in place."
+  },
+  {
+   "img": "../test-108-v5/kids-desk-japandi-out.jpg",
+   "pass": true,
+   "note": "Desk and chair gone, bed and bookcase in place."
+  }
+ ]
+}

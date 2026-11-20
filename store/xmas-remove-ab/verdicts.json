@@ -1,0 +1,8 @@
+{
+ "xremove-kids-desk-old": { "pass": false, "note": "Desk gone, tree on the spot, but the unmarked chair went too." },
+ "xremove-kids-desk-new": { "pass": false, "note": "Desk gone, chair gone too, and no tree at all: the worst result of the six." },
+ "xremove-sala-loveseat-old": { "pass": true, "note": "Loveseat gone, back sofa and stacked chairs kept (mostly behind the tree)." },
+ "xremove-sala-loveseat-new": { "pass": true, "note": "Loveseat gone, back sofa and stacked chairs kept. Smaller tree." },
+ "xremove-dining-chair-old": { "pass": true, "note": "Marked chair gone, table and the other chairs kept, doorway open." },
+ "xremove-dining-chair-new": { "pass": true, "note": "Marked chair gone, table and the other chairs kept, doorway open." }
+}

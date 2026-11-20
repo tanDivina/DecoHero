@@ -158,7 +158,8 @@ const NAMES_QUESTION =
   "shows, the marked one included (6 for one of six dining chairs, 2 for one of two sofas, 1 for the only desk); " +
   "\"neighbours\": up to three OTHER pieces of furniture that touch it, stand right next to it or are partly hidden behind it, " +
   "each in a few words with colour and position (for example \"the white chair at the desk\"). Never list as a neighbour a " +
-  "piece that has a cyan X of its own, and list nothing that is not furniture. " +
+  "piece that has a cyan X of its own, list nothing that is not furniture, and list nothing that stands or lies on the " +
+  "marked piece (a lamp on a marked bedside table leaves with the table). " +
   'Answer as JSON: {"marks": [{"piece": "...", "sameKind": 1, "neighbours": ["..."]}]}.';
 
 /** Model text that goes into a prompt: letters, digits, spaces and plain punctuation only, one line, capped. */

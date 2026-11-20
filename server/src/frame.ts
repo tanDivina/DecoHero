@@ -52,3 +52,41 @@ export async function frameMatch(photo: Buffer, design: Buffer): Promise<number 
   }
   return textured < MIN_BLOCKS ? null : same / textured;
 }
+
+// Two-step removal (STYLE_REMOVE_TWO_STEP, server 1.0.10): step one is a photo edit that takes the marked pieces out.
+// If the patch of the photo under a marker still looks the same afterwards, the piece was not removed.
+const PW = 512, PH = 384, PATCH = 40;
+/**
+ * A patch that still correlates this much with the photo is the same piece. Measured Nov 19 2026 on 26 real edits
+ * (store/room-remove-*): a piece left in place scored 0.97, removed pieces -0.39 to 0.71.
+ */
+const STILL_THERE = 0.85;
+
+/**
+ * Whether the piece under `spot` (fractions of the photo, 0,0 = top left) is gone from `edit`: true = the patch around
+ * the spot changed, false = it still looks like the photo, null = the patch has too little texture to tell.
+ */
+export async function pieceGone(photo: Buffer, edit: Buffer, spot: { x: number; y: number }): Promise<boolean | null> {
+  const c = await patchMatch(photo, edit, spot);
+  return c === null ? null : c < STILL_THERE;
+}
+
+/** Correlation (-1 to 1) of the 40 px patch around `spot` between photo and edit, both scaled to 512 x 384. null = flat patch. */
+export async function patchMatch(photo: Buffer, edit: Buffer, spot: { x: number; y: number }): Promise<number | null> {
+  const g = (img: Buffer) => sharp(img).resize(PW, PH, { fit: "fill" }).greyscale().raw().toBuffer();
+  const [a, b] = await Promise.all([g(photo), g(edit)]);
+  const x0 = Math.max(0, Math.min(PW - PATCH, Math.round(spot.x * PW - PATCH / 2)));
+  const y0 = Math.max(0, Math.min(PH - PATCH, Math.round(spot.y * PH - PATCH / 2)));
+  const n = PATCH * PATCH;
+  let sa = 0, sb = 0, saa = 0, sbb = 0, sab = 0;
+  for (let y = y0; y < y0 + PATCH; y++) {
+    for (let x = x0; x < x0 + PATCH; x++) {
+      const p = a[y * PW + x], q = b[y * PW + x];
+      sa += p; sb += q; saa += p * p; sbb += q * q; sab += p * q;
+    }
+  }
+  const va = saa / n - (sa / n) ** 2, vb = sbb / n - (sb / n) ** 2;
+  if (va < MIN_VARIANCE) return null;
+  if (vb <= 0) return 0;
+  return (sab / n - (sa * sb) / (n * n)) / Math.sqrt(va * vb);
+}

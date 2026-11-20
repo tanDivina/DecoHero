@@ -3,9 +3,9 @@ import net from "node:net";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import sharp from "sharp";
-import { buildDecorPrompt, buildPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
+import { buildDecorPrompt, buildPrompt, removeEditPrompt, flagOn, isStyle, isTreeStyle, parseTreeSize } from "./styles.js";
 import { describeError, type MarkedPiece } from "./gemini.js";
-import { DECOR_FRAME_MIN, FRAME_MIN, frameMatch } from "./frame.js";
+import { DECOR_FRAME_MIN, FRAME_MIN, frameMatch, pieceGone } from "./frame.js";
 import { watermark } from "./watermark.js";
 import { looksLikeAmazon, shopLinks } from "./shopLinks.js";
 import { PARTNER_ORIGIN, treeCatalog } from "./treeCatalog.js";
@@ -233,6 +233,27 @@ export function createApp(generate: Generate, model: string, options: AppOptions
   // Since the last restart; printed whenever the decor step (DECOR_STEP) needed its retry or served the tree alone.
   // asked = whole-room designs, done = served with decor, redrawn = decor attempts off the tree image's framing.
   const decorStats = { asked: 0, done: 0, redrawn: 0, retried: 0, fixed: 0, errors: 0 };
+  // Since the last restart; printed whenever the two-step removal (STYLE_REMOVE_TWO_STEP) needed a retry or gave up.
+  // asked = removals on room redesigns, edited = cleaned photo made, retried = second edit made, kept = retry served,
+  // fellBack = design made with the single prompt instead. No install ids, no IPs.
+  const twoStepStats = { asked: 0, edited: 0, retried: 0, kept: 0, fellBack: 0 };
+  /**
+   * What is wrong with a step-one edit, as a score (0 = fine): the cyan marker is still in it (10), the room was redrawn
+   * instead of edited (5), a marked piece still stands where it stood (1 each). All measured locally, no model call.
+   */
+  const editProblems = async (photo: Buffer, edit: Buffer, spots: Place[]): Promise<number> => {
+    try {
+      const [leak, frame, ...gone] = await Promise.all([
+        removeMarkerLeakedAt(photo, edit, spots),
+        frameMatch(photo, edit),
+        ...spots.map((s) => pieceGone(photo, edit, s)),
+      ]);
+      return (leak ? 10 : 0) + (frame !== null && frame < FRAME_MIN ? 5 : 0) + gone.filter((g) => g === false).length;
+    } catch (err) {
+      console.warn(`two-step removal: edit not measured: ${describeError(err)}`);
+      return 0;
+    }
+  };
   // Since the last restart; printed with every failed naming (REMOVE_NAMES). No install ids, no IPs.
   const nameStats = { asked: 0, named: 0, errors: 0 };
   const forCheck = (img: Buffer) =>
@@ -626,10 +647,62 @@ export function createApp(generate: Generate, model: string, options: AppOptions
 
     let produced = false;
     try {
-      let output = await generate(sentToModel.toString("base64"), firstPrompt);
+      // Two-step removal (STYLE_REMOVE_TWO_STEP=on, room redesigns with "Take out furniture"): first a plain photo edit
+      // that only takes the marked pieces out, then a restyle of that cleaned photo with the layout locked. One prompt
+      // for both kept drawing the complete set (a marked dining chair came back every time) and redrew rooms.
+      // Costs one extra image per such design (two when the edit has to be retried); each extra image takes a slot of
+      // the global daily cap, never of the free cap. Whenever a step cannot be done (cap reached, edit failed, marker
+      // left in the edit) the design is made with the single prompt as before: never an error from this path.
+      let cleaned: Buffer | null = null;
+      if (!tree && removals && flagOn("STYLE_REMOVE_TWO_STEP") && !gone) {
+        twoStepStats.asked++;
+        let why = "";
+        if (reserveGeneration(true, day) !== "OK") why = "daily cap reached";
+        else {
+          let edit: Buffer | null = null;
+          try {
+            edit = await generate(sentToModel.toString("base64"), removeEditPrompt(pieces));
+          } catch (err) {
+            releaseGeneration(true, day);
+            why = `edit failed: ${describeError(err)}`;
+          }
+          if (edit) {
+            twoStepStats.edited++;
+            let problems = await editProblems(input, edit, removals);
+            // A marked piece that is still there, a redrawn room or a left-over marker buys one more edit; the better one is used.
+            if (problems > 0 && !gone && reserveGeneration(true, day) === "OK") {
+              twoStepStats.retried++;
+              try {
+                const again = await generate(sentToModel.toString("base64"), removeEditPrompt(pieces));
+                const second = await editProblems(input, again, removals);
+                if (second < problems) {
+                  edit = again;
+                  twoStepStats.kept++;
+                }
+                console.log(`two-step removal (${styleId}): edit retried (problems ${problems} then ${second}); totals ${JSON.stringify(twoStepStats)}`);
+                problems = Math.min(problems, second);
+              } catch (err) {
+                releaseGeneration(true, day);
+                console.warn(`two-step removal (${styleId}): retry of the edit failed: ${describeError(err)}`);
+              }
+            }
+            // A cleaned photo that still shows the marker or is another picture of the room is not built on.
+            if (problems >= 5) why = "edit unusable";
+            else cleaned = await sharp(edit).resize({ width: 1280, height: 1280, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer();
+          }
+        }
+        if (!cleaned) {
+          twoStepStats.fellBack++;
+          console.warn(`two-step removal (${styleId}): single prompt used instead (${why}); totals ${JSON.stringify(twoStepStats)}`);
+        }
+      }
+      let output = cleaned
+        ? await generate(cleaned.toString("base64"), buildPrompt(styleId, size, false, { keepLayout: true })!)
+        : await generate(sentToModel.toString("base64"), firstPrompt);
       produced = true;
       // The marker may never reach the user: an image that still shows it counts as a failed design (credit refunded).
-      if (await leaked(output)) throw new Error("placement marker still visible in the result");
+      // (The cleaned photo of the two-step removal carries no marker, so its restyle is not checked for one.)
+      if (!cleaned && (await leaked(output))) throw new Error("placement marker still visible in the result");
 
       // Frame check (FRAME_CHECK=on, Christmas only): a Christmas design is an edit, so the photo must still line up with
       // it. A room that was redrawn from another distance or angle (frame.ts measures it locally, no model call) buys

@@ -1,0 +1,82 @@
+{
+ "living-armchair-japandi-a": {
+  "pass": true,
+  "note": "Armchair gone; sofa, glass table and TV chest restyled in place, same camera."
+ },
+ "living-armchair-japandi-b": {
+  "pass": true,
+  "note": "Armchair gone; sofa, table and TV chest restyled in place."
+ },
+ "living-table-boho-a": {
+  "pass": true,
+  "note": "Coffee table gone; sofa, armchair and TV chest in place. Many plants and a floor lamp added (decor)."
+ },
+ "living-table-boho-b": {
+  "pass": true,
+  "note": "Coffee table gone; sofa, armchair and TV chest in place."
+ },
+ "sala-chairs-tropical-a": {
+  "pass": true,
+  "note": "Stacked chairs gone; both sofas and the TV unit in place. A floor lamp and a plant added."
+ },
+ "sala-chairs-tropical-b": {
+  "pass": true,
+  "note": "Stacked chairs gone; both sofas and the TV unit in place. A small round side table shows in the bottom right corner (minor)."
+ },
+ "sala-loveseat-industrial-a": {
+  "pass": true,
+  "note": "Loveseat gone; back sofa, TV unit and the chair by the window in place. Style applied lightly."
+ },
+ "sala-loveseat-industrial-b": {
+  "pass": true,
+  "note": "Loveseat gone; back sofa, TV unit and the chair by the window in place, walls and frames restyled."
+ },
+ "bedroom-nightstand-scandi-a": {
+  "pass": true,
+  "note": "Nightstand and its lamp gone; bed and clothes rail in place."
+ },
+ "bedroom-nightstand-scandi-b": {
+  "pass": true,
+  "note": "Nightstand and its lamp gone; bed and clothes rail in place."
+ },
+ "dining-chair-farmhouse-a": {
+  "pass": false,
+  "note": "Step 1 took the chair out (five chairs), but the restyle put a chair back at the right-hand end. Style applied only lightly."
+ },
+ "dining-chair-farmhouse-b": {
+  "pass": false,
+  "note": "Step 1 swapped the marked chair for a smaller chair at the front corner instead of removing it; the restyle shows a chair at the right-hand end."
+ },
+ "kids-desk-coastal-a": {
+  "pass": true,
+  "note": "Desk gone; its chair, the bed and the bookcase in place."
+ },
+ "kids-desk-coastal-b": {
+  "pass": false,
+  "note": "Desk gone and nothing lost, but step 1 moved the chair from the desk to the window."
+ },
+ "office-chair-box-minimal-a": {
+  "pass": true,
+  "note": "Office chair and box gone; desk, shelf unit and storage box in place, radiator uncovered."
+ },
+ "office-chair-box-minimal-b": {
+  "pass": true,
+  "note": "Office chair and box gone; desk, shelf and storage box in place. Borderline: the shelf unit grew to the ceiling and the desk lamp is gone."
+ },
+ "terrace-table-chair-tropical-a": {
+  "pass": true,
+  "note": "Table and front chair gone; the other chair restyled in place, terrace kept."
+ },
+ "terrace-table-chair-tropical-b": {
+  "pass": false,
+  "note": "Table and front chair gone, chair kept, but the restyle added a small side table next to it."
+ },
+ "kids-desk-chair-japandi-a": {
+  "pass": true,
+  "note": "Desk and chair gone; bed and bookcase in place."
+ },
+ "kids-desk-chair-japandi-b": {
+  "pass": true,
+  "note": "Desk and chair gone; bed and bookcase in place."
+ }
+}

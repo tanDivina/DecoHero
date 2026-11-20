@@ -40,10 +40,13 @@ type Mode = "ok" | "fail" | "slow" | "echo";
 let mode: Mode = "ok";
 let calls = 0;
 let lastPrompt = "";
+// Every prompt the fake model was sent, in order.
+const promptLog: string[] = [];
 let lastImage = "";
 const fakeGenerate = async (img: string, prompt: string): Promise<Buffer> => {
   calls++;
   lastPrompt = prompt;
+  promptLog.push(prompt);
   lastImage = img;
   if (mode === "fail") throw new Error("Gemini returned no image (SAFETY)");
   const fixed = outputs.shift();
@@ -53,7 +56,7 @@ const fakeGenerate = async (img: string, prompt: string): Promise<Buffer> => {
   if (mode === "slow") await new Promise((r) => setTimeout(r, 400));
   return sharp({ create: { width: 640, height: 480, channels: 3, background: colours.shift() ?? "#a08060" } }).png().toBuffer();
 };
-// The next fake designs, served as they are (frame check tests); empty = the usual flat colour.
+// The next fake designs, served as they are (frame check tests; an Error is thrown instead); empty = the usual flat colour.
 let outputs: (Buffer | Error)[] = [];
 // Background colour of the next fake designs, so a test can tell which attempt was served; empty = the usual brown.
 let colours: string[] = [];
@@ -873,6 +876,145 @@ await test("remove names (REMOVE_NAMES): marked pieces and their neighbours are 
   assert.throws(() => parseMarkedPieces('{"marks":[]}'));
   assert.throws(() => parseMarkedPieces('{"marks":[{"piece":"a"},{"piece":"b"},{"piece":"c"}]}'));
   assert.throws(() => parseMarkedPieces('{"marks":[{"neighbours":["a chair"]}]}'));
+});
+
+await test("two-step removal (STYLE_REMOVE_TWO_STEP): edit the pieces out, restyle the cleaned photo, fall back to the single prompt", async () => {
+  const { pieceGone, patchMatch } = await import("../src/frame.js");
+  const { cyanShare } = await import("../src/marker.js");
+  const { buildPrompt, removeEditPrompt } = await import("../src/styles.js");
+  const id = uuid();
+  const ip = freshIp();
+  await webhook({ id: uuid(), type: "NON_RENEWING_PURCHASE", product_id: "credits_50", app_user_id: id, transaction_id: "GPA.twostep" });
+  // A "room" of grey boxes laid out from a seed, the same room with the piece at the spot painted over, and another room.
+  const room = (seed: number) => {
+    let v = seed;
+    const next = () => (v = (v * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const boxes = Array.from({ length: 220 }, () => {
+      const g = Math.floor(next() * 256);
+      return `<rect x="${Math.floor(next() * 760)}" y="${Math.floor(next() * 560)}" width="${30 + Math.floor(next() * 60)}" height="${30 + Math.floor(next() * 60)}" fill="rgb(${g},${g},${g})"/>`;
+    });
+    return sharp(Buffer.from(`<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="600" fill="#888"/>${boxes.join("")}</svg>`)).jpeg({ quality: 90 }).toBuffer();
+  };
+  const photo = await room(3);
+  const sofa = { x: 0.5, y: 0.6 };
+  const cleaned = await sharp(photo)
+    .composite([{ input: await sharp({ create: { width: 180, height: 180, channels: 3, background: "#9a8f80" } }).png().toBuffer(), left: 310, top: 270 }])
+    .jpeg({ quality: 90 }).toBuffer();
+  const redrawn = await room(11);
+  const design = await sharp({ create: { width: 640, height: 480, channels: 3, background: "#335577" } }).png().toBuffer();
+
+  // The local check: the patch under the marker changed, did not change, or says nothing (flat photo).
+  assert.equal(await pieceGone(photo, cleaned, sofa), true);
+  assert.equal(await pieceGone(photo, photo, sofa), false);
+  assert.equal(await pieceGone(photo, await sharp(photo).resize(640, 480).jpeg().toBuffer(), sofa), false, "the edit may have another size");
+  assert.equal(await pieceGone(Buffer.from(jpeg, "base64"), cleaned, sofa), null);
+  assert.ok((await patchMatch(photo, photo, { x: 0.99, y: 0.99 }))! > 0.99, "a spot at the edge is clamped into the picture");
+
+  // The prompts: step one is an edit with no style in it, step two a restyle with the layout locked and no markers.
+  const editPrompt = removeEditPrompt();
+  assert.ok(editPrompt.startsWith("Edit this photo of a room") && editPrompt.includes("cyan X") && !editPrompt.includes("Style:"));
+  const named = removeEditPrompt([{ piece: "the dining chair at the right-hand end", sameKind: 6, neighbours: ["the wooden dining table", "the lamp"] }, { piece: "the lamp", neighbours: [] }]);
+  assert.ok(named.includes("A cyan X is on the dining chair at the right-hand end: that piece, and only that piece, is taken out."));
+  assert.ok(named.includes("the final image shows exactly 5") && named.includes("Right next to it: the wooden dining table."));
+  const keep = buildPrompt("farmhouse", {}, false, { keepLayout: true })!;
+  assert.ok(keep.startsWith("Restyle the room in this photo in place") && keep.includes("Layout lock") && keep.includes("Style: "));
+  assert.ok(!keep.includes("cyan"), "step two never mentions markers");
+
+  const post = (body: Record<string, unknown>) =>
+    req("POST", "/api/redesign", { headers: { "x-install-id": id }, body: { image: photo.toString("base64"), styleId: "japandi", remove: [sofa], ...body }, ip });
+  const used = () => (peek2.prepare("SELECT COALESCE(SUM(total), 0) AS n FROM daily_usage").get() as { n: number }).n;
+  mode = "ok";
+  process.env.STYLE_REMOVE = "on";
+  process.env.TREE_REMOVE = "on";
+  delete process.env.STYLE_REMOVE_TWO_STEP;
+  const start = await credits(id);
+  try {
+    // Off (the default): one image with the single prompt.
+    let before = calls;
+    assert.equal((await post({})).status, 200);
+    assert.equal(calls, before + 1);
+    assert.ok(lastPrompt.startsWith("Redesign the room") && lastPrompt.includes("Removal rule"));
+
+    process.env.STYLE_REMOVE_TWO_STEP = "on";
+    // A clean edit: two images, the second one restyles the cleaned photo (no marker in it), two slots of the daily cap.
+    before = calls;
+    let slots = used();
+    outputs = [cleaned, design];
+    const ok = await post({});
+    assert.equal(ok.status, 200);
+    assert.equal(calls, before + 2);
+    assert.equal(used(), slots + 2);
+    assert.ok(lastPrompt.startsWith("Restyle the room in this photo in place") && !lastPrompt.includes("cyan"));
+    assert.ok((await cyanShare(Buffer.from(lastImage, "base64"))) < 0.0002, "the restyle gets the cleaned photo, not the marked one");
+    assert.ok((await patchMatch(cleaned, Buffer.from(lastImage, "base64"), { x: 0.2, y: 0.2 }))! > 0.9);
+    const served = await sharp(Buffer.from(ok.json.image, "base64")).resize(1, 1).raw().toBuffer();
+    assert.ok(served[2] > served[0] + 30, "the restyle is what the user gets");
+    // The piece is still there after the edit: one more edit, the better one is restyled. Three images, one credit.
+    before = calls;
+    outputs = [photo, cleaned, design];
+    assert.equal((await post({})).status, 200);
+    assert.equal(calls, before + 3);
+    assert.equal(await pieceGone(photo, Buffer.from(lastImage, "base64"), sofa), true, "the retry was used");
+    // Still there twice: the first edit is restyled anyway, no fourth image.
+    before = calls;
+    outputs = [photo, photo, design];
+    assert.equal((await post({})).status, 200);
+    assert.equal(calls, before + 3);
+    assert.ok(lastPrompt.startsWith("Restyle the room"));
+    // The edit is another picture of the room, twice: the single prompt is used on the marked photo.
+    before = calls;
+    outputs = [redrawn, redrawn, design];
+    assert.equal((await post({})).status, 200);
+    assert.equal(calls, before + 3);
+    assert.ok(lastPrompt.startsWith("Redesign the room") && lastPrompt.includes("Removal rule"));
+    assert.ok((await cyanShare(Buffer.from(lastImage, "base64"))) > 0.0005);
+    // The edit call fails: single prompt, its slot is given back, the user still gets a design.
+    before = calls;
+    slots = used();
+    outputs = [new Error("Gemini returned no image (STOP)")];
+    assert.equal((await post({})).status, 200);
+    assert.equal(calls, before + 2);
+    assert.equal(used(), slots + 1);
+    assert.ok(lastPrompt.includes("Removal rule"));
+    // The restyle fails: an error as for any failed design, credit back; the edit's slot stays used.
+    before = calls;
+    slots = used();
+    const c = await credits(id);
+    outputs = [cleaned, new Error("Gemini returned no image (STOP)")];
+    assert.equal((await post({})).status, 502);
+    assert.equal(await credits(id), c);
+    assert.equal(used(), slots + 1);
+    // With REMOVE_NAMES the edit names the pieces.
+    process.env.REMOVE_NAMES = "on";
+    namerAnswer = [{ piece: "the grey sofa in the middle", sameKind: 1, neighbours: ["the low table"] }];
+    before = calls;
+    outputs = [cleaned, design];
+    assert.equal((await post({})).status, 200);
+    assert.equal(calls, before + 2);
+    assert.ok(promptLog[promptLog.length - 2].startsWith("Edit this photo of a room"));
+    assert.ok(promptLog[promptLog.length - 2].includes("A cyan X is on the grey sofa in the middle: that piece, and only that piece, is taken out."));
+    // The restyle is told nothing about the piece: naming it brought it back in tests.
+    assert.ok(!lastPrompt.includes("grey sofa in the middle"));
+    delete process.env.REMOVE_NAMES;
+    // No removal, and Christmas removals: one image, prompts as before.
+    before = calls;
+    assert.equal((await post({ remove: undefined })).status, 200);
+    assert.equal(calls, before + 1);
+    assert.ok(lastPrompt.startsWith("Redesign the room") && !lastPrompt.includes("Layout lock"));
+    before = calls;
+    outputs = [cleaned];
+    assert.equal((await post({ styleId: "xmas-classic", place: { x: 0.5, y: 0.8 } })).status, 200);
+    assert.equal(calls, before + 1);
+    assert.ok(lastPrompt.startsWith("Edit this photo of a room by adding ONE Christmas tree"));
+  } finally {
+    delete process.env.STYLE_REMOVE;
+    delete process.env.TREE_REMOVE;
+    delete process.env.STYLE_REMOVE_TWO_STEP;
+    delete process.env.REMOVE_NAMES;
+    namerAnswer = [];
+    outputs = [];
+  }
+  assert.equal(await credits(id), start - 9);
 });
 
 await test("take out furniture on regular redesigns (STYLE_REMOVE): no spot needed, strict when on, ignored when off, local leak check", async () => {
