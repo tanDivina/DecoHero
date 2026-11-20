@@ -22,6 +22,8 @@ export function RemoveControls({ tapMode, onTapMode, count, tree = true }: Props
       <View style={styles.wrap}>
         <Text style={styles.heading}>{count ? `${t.tapRemove} (${count})` : t.tapRemove}</Text>
         <Text style={styles.text}>{count ? t.removeSet(count) : t.removeHintRoom}</Text>
+        {/* 1.0.10: with pieces marked the server edits the photo first, then restyles it. */}
+        {count > 0 && <Text style={styles.text}>{t.removeSlowNote}</Text>}
         <Text style={styles.tip}>{t.removeTipRoom}</Text>
       </View>
     );

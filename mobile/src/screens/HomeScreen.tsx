@@ -282,13 +282,15 @@ export function HomeScreen({
             onPress={() => onDecorateRoom(!decorateRoom)}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: decorateRoom }}
-            accessibilityLabel={`${t.decorateRoom}. ${t.decorateRoomHint}`}
+            accessibilityLabel={`${t.decorateRoom}. ${t.decorateRoomHint}${decorateRoom ? ` ${t.decorateSlowNote}` : ""}`}
             style={styles.checkRow}
           >
             <View style={[styles.checkBox, decorateRoom && styles.checkBoxOn]}>{decorateRoom && <View style={styles.checkTick} />}</View>
             <View style={styles.checkTexts}>
               <Text style={styles.checkLabel} maxFontSizeMultiplier={MAX_SCALE}>{t.decorateRoom}</Text>
               <Text style={styles.checkHint} maxFontSizeMultiplier={MAX_SCALE}>{t.decorateRoomHint}</Text>
+              {/* 1.0.10: tree first, then the room decor, so two image steps. */}
+              {decorateRoom && <Text style={styles.checkHint} maxFontSizeMultiplier={MAX_SCALE}>{t.decorateSlowNote}</Text>}
             </View>
           </Pressable>
         )}
