@@ -29,6 +29,6 @@ app.listen(port, () =>
     `DecoHero API on :${port} using ${IMAGE_MODEL}; daily caps ${MAX_GENERATIONS_PER_DAY} total / ${MAX_FREE_GENERATIONS_PER_DAY} free; ` +
       `tree clearing ${flagOn("TREE_CLEAR") ? "on" : "off"}; door check ${flagOn("DOOR_CHECK") ? `on (${DOOR_CHECK_MODEL})` : "off"}; ` +
       `place check ${flagOn("PLACE_CHECK") ? `on (${PLACE_CHECK_MODEL})` : "off"}; ` +
-      `remove names ${flagOn("REMOVE_NAMES") ? `on (${REMOVE_NAMES_MODEL})` : "off"}; frame check ${flagOn("FRAME_CHECK") ? "on" : "off"}`
+      `remove names ${flagOn("REMOVE_NAMES") ? `on (${REMOVE_NAMES_MODEL})` : "off"}; frame check ${flagOn("FRAME_CHECK") ? "on" : "off"}; two-step removal ${flagOn("STYLE_REMOVE_TWO_STEP") ? "on" : "off"}`
   )
 );
