@@ -184,3 +184,24 @@ export async function removeMarkerLeakedAt(original: Buffer, output: Buffer, spo
   }
   return false;
 }
+
+/** A rectangle on the photo, as fractions of its width and height (0,0 = top left). */
+export type Box = { x0: number; y0: number; x1: number; y1: number };
+
+/**
+ * Removal check (STYLE_REMOVE_CHECK): returns a copy of the image with every box painted over in solid cyan, a little
+ * larger than given so that no edge of the piece shows. The image model then fills the holes in (styles.ts removeFillPrompt).
+ */
+export async function paintOver(img: Buffer, boxes: Box[], pad = 0.012): Promise<Buffer> {
+  if (!boxes.length) return img;
+  const meta = await sharp(img).metadata();
+  const w = meta.width ?? 1024;
+  const h = meta.height ?? 1024;
+  const rects = boxes.map((b) => {
+    const left = Math.max(0, Math.round((b.x0 - pad) * w)), top = Math.max(0, Math.round((b.y0 - pad) * h));
+    const right = Math.min(w, Math.round((b.x1 + pad) * w)), bottom = Math.min(h, Math.round((b.y1 + pad) * h));
+    return `<rect x="${left}" y="${top}" width="${Math.max(1, right - left)}" height="${Math.max(1, bottom - top)}" fill="${REMOVE_COLOR}"/>`;
+  });
+  const svg = Buffer.from(`<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${rects.join("")}</svg>`);
+  return sharp(img).composite([{ input: svg }]).jpeg({ quality: 92, chromaSubsampling: "4:4:4" }).toBuffer();
+}
