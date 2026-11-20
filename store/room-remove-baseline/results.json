@@ -1,0 +1,18 @@
+{
+ "kids-desk-coastal-a": {
+  "mode": "one",
+  "names": false,
+  "images": 1,
+  "leak": false,
+  "frameOut": 0.24731182795698925,
+  "ms": 10223
+ },
+ "kids-desk-coastal-b": {
+  "mode": "one",
+  "names": false,
+  "images": 1,
+  "leak": false,
+  "frameOut": 0.24731182795698925,
+  "ms": 10167
+ }
+}

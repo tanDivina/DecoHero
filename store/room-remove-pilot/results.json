@@ -1,0 +1,25 @@
+{
+ "dining-chair-farmhouse-a": {
+  "mode": "two",
+  "names": false,
+  "images": 3,
+  "first": {
+   "frame": 0.9803921568627451,
+   "gone": [
+    false
+   ],
+   "leak": false
+  },
+  "retry": {
+   "frame": 0.9803921568627451,
+   "gone": [
+    false
+   ],
+   "leak": false
+  },
+  "leak": false,
+  "midMs": 16202,
+  "frameOut": 0.5882352941176471,
+  "ms": 27556
+ }
+}
