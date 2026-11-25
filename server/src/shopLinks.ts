@@ -122,13 +122,15 @@ export function parseShopLinks(raw: string | undefined, warn: (msg: string) => v
 let cache: { raw: string | undefined; links: ShopLinks } | undefined;
 
 /**
- * The links the app may show right now: valid entries of SHOP_LINKS, minus links of kind "amazon" (the
+ * The links a client may show right now: valid entries of SHOP_LINKS, minus links of kind "amazon" (the
  * Associates links) while the gate is closed. Plain links are not part of any programme and always pass.
+ * `web`: the request comes from the web app on a site registered in Associates (deco.hero-apps.com), where
+ * Amazon links are allowed without app approval, so the gate only applies to the Android app.
  */
-export function shopLinks(): ShopLinks {
+export function shopLinks(opts: { web?: boolean } = {}): ShopLinks {
   const raw = process.env.SHOP_LINKS;
   if (!cache || cache.raw !== raw) cache = { raw, links: parseShopLinks(raw, (msg) => console.warn(msg)) };
-  if (amazonApproved()) return cache.links;
+  if (opts.web || amazonApproved()) return cache.links;
   const out: ShopLinks = {};
   for (const [theme, links] of Object.entries(cache.links)) {
     const allowed = links.filter((l) => l.kind !== "amazon");

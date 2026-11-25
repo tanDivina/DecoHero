@@ -1,5 +1,5 @@
 # Política de privacidad de DecoHero
-_Última actualización: 15 de noviembre de 2026_
+_Última actualización: 25 de noviembre de 2026_
 
 <!-- Nota del repositorio (no se publica). Fuente en español de https://deco.hero-apps.com/es/privacy.
      La fuente en inglés es PRIVACY_POLICY.md en la raíz. Mantener ambas al día. -->
@@ -77,7 +77,7 @@ Cada proveedor trata los datos según sus propias condiciones: Google (https://p
 Si te apuntas a la lista de espera de Android en https://deco.hero-apps.com, guardamos tu correo, el idioma de la página, la dirección de la página y la hora en nuestra propia base de datos de mensajes (Cloud Firestore, un servicio de Google). Un aviso con los mismos datos llega a nuestro correo mediante FormSubmit (https://formsubmit.co). Usamos tu correo solo para avisarte cuando la app para Android esté disponible. Para salir de la lista, escribe a support@hero-apps.com.
 
 ## 7. Enlaces a tiendas
-En el modo Navidad la app muestra enlaces a tiendas, por ejemplo para comprar un árbol natural de nuestro socio Christmas Trees in the Mail (https://christmastreesinthemail.com). Algunos son enlaces de afiliado: si compras después de tocar uno, podemos recibir una comisión, y la app lo indica junto al enlace. El enlace se abre en tu navegador o en la app de la tienda. No enviamos a la tienda tu foto, tus diseños ni tu ID; el enlace solo lleva un código de referido que le indica a la tienda que la visita viene de DecoHero. Lo que hagas en el sitio de la tienda se rige por la política de privacidad de esa tienda.
+En el modo Navidad la app muestra enlaces a tiendas, por ejemplo para comprar un árbol natural de nuestro socio Christmas Trees in the Mail (https://christmastreesinthemail.com). Algunos son enlaces de afiliado: si compras después de tocar uno, podemos recibir una comisión, y la app lo indica junto al enlace. El enlace se abre en tu navegador o en la app de la tienda. No enviamos a la tienda tu foto, tus diseños ni tu ID; el enlace solo lleva un código de referido que le indica a la tienda que la visita viene de DecoHero. Lo que hagas en el sitio de la tienda se rige por la política de privacidad de esa tienda. Algunos enlaces de decoración llevan a Amazon. Como afiliado de Amazon, obtenemos ingresos por las compras adscritas que cumplen los requisitos aplicables. Amazon puede usar cookies para saber que la visita viene de DecoHero.
 
 ## 8. Permisos
 **App para Android.**

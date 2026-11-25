@@ -410,6 +410,17 @@ await test("shop links: mixed config, Amazon gate off and on, invalid entries ig
     assert.ok(!/amazon|amzn/i.test(JSON.stringify({ ...(await get()), treeCatalog: [] })), JSON.stringify(notTrue));
   }
 
+  // Web app (Origin in WEB_ORIGINS): Amazon links pass with the app gate still closed; other origins don't.
+  delete process.env.AMAZON_APP_APPROVED;
+  const fromWeb = async (origin: string) =>
+    (await req("GET", "/api/config", { headers: { origin, authorization: "Bearer good:shop-links-web" } })).json.shopLinks;
+  // A web account exists after its first /api/me (the web app calls it right after sign-in).
+  await req("GET", "/api/me", { headers: { origin: "https://deco.hero-apps.com", authorization: "Bearer good:shop-links-web" } });
+  const webLinks = await fromWeb("https://deco.hero-apps.com");
+  assert.deepEqual(Object.keys(webLinks), ["xmas-classic", "xmas-nordic"]);
+  assert.deepEqual(webLinks["xmas-classic"].map((l: any) => l.kind), ["partner", "amazon"]);
+  assert.ok(!/amazon|amzn/i.test(JSON.stringify(await fromWeb("https://evil.example.com"))));
+
   // Gate open: both kinds, in the configured order; a missing label_es falls back to English.
   process.env.AMAZON_APP_APPROVED = " True ";
   const open = (await get()).shopLinks;

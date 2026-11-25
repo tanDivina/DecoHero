@@ -502,12 +502,14 @@ export function createApp(generate: Generate, model: string, options: AppOptions
   });
 
   // Things the app reads at start so they can change without a new release. Read per request: no secrets here.
-  app.get("/api/config", (_req, res) => {
+  app.get("/api/config", (req, res) => {
     // shopLinks (app 1.0.4+): decor links per Christmas theme, both languages. Older apps ignore the field.
     // treeCatalog (app 1.0.5+): the partner's trees with prices; product links carry TREE_SHOP_URL's affiliate parameters.
     const shopUrl = treeShopUrl();
+    // The web app calls cross-origin, so the browser sends Origin; the Android app sends none.
+    const web = allowedOrigin(req) !== null;
     res.json({
-      christmas: !isOff(process.env.CHRISTMAS_MODE), treeShopUrl: shopUrl, shopLinks: shopLinks(), treeCatalog: treeCatalog(shopUrl),
+      christmas: !isOff(process.env.CHRISTMAS_MODE), treeShopUrl: shopUrl, shopLinks: shopLinks({ web }), treeCatalog: treeCatalog(shopUrl),
       // treeClear (app 1.0.6+): the clearing rule is on, so the app says a plant or lamp on the spot is taken out.
       treeClear: flagOn("TREE_CLEAR"),
       // treeRemove (app 1.0.7+): the "Take out furniture" option is offered (TREE_REMOVE=on).

@@ -1,5 +1,5 @@
 # DecoHero Privacy Policy
-_Last updated: November 15, 2026_
+_Last updated: November 25, 2026_
 
 <!-- Repo note (not published). This file is the English source of https://deco.hero-apps.com/privacy:
      `node scripts/build-site.mjs` turns it into site/privacy.html. The Spanish source is
@@ -80,7 +80,7 @@ Each provider processes data under its own terms: Google (https://policies.googl
 If you join the Android waitlist on https://deco.hero-apps.com, we store your email address, the language of the page, the page address and the time in our own inbox database (Cloud Firestore, a Google service). A notification with the same details is sent to our email through FormSubmit (https://formsubmit.co). We use your address only to tell you when the Android app is available. To be removed from the list, email support@hero-apps.com.
 
 ## 7. Shop links
-In Christmas mode the app shows links to stores, for example to buy a real tree from our partner Christmas Trees in the Mail (https://christmastreesinthemail.com). Some are affiliate links: if you buy after tapping one, we may earn a commission, and the app says so next to the link. A link opens in your browser or in the store's app. We do not send the store your photo, your designs or your ID; the link only carries a referral code that tells the store the visit came from DecoHero. What you do on the store's site is covered by that store's privacy policy.
+In Christmas mode the app shows links to stores, for example to buy a real tree from our partner Christmas Trees in the Mail (https://christmastreesinthemail.com). Some are affiliate links: if you buy after tapping one, we may earn a commission, and the app says so next to the link. A link opens in your browser or in the store's app. We do not send the store your photo, your designs or your ID; the link only carries a referral code that tells the store the visit came from DecoHero. What you do on the store's site is covered by that store's privacy policy. Some decor links go to Amazon. As an Amazon Associate we earn from qualifying purchases. Amazon may use cookies to see that a visit came from DecoHero.
 
 ## 8. Permissions
 **Android app.**
