@@ -428,6 +428,20 @@ await test("shop links: mixed config, Amazon gate off and on, invalid entries ig
   assert.deepEqual(open["xmas-classic"].map((l: any) => l.kind), ["partner", "amazon"]);
   assert.deepEqual(open["xmas-nordic"], [{ en: "Tree collar on Amazon", es: "Tree collar on Amazon", url: "https://amzn.to/example", kind: "amazon" }]);
 
+  // AMAZON_APP_TAG: the app's Amazon store links carry the app's own tracking ID; the web keeps the SHOP_LINKS tag,
+  // short links are left alone, and a malformed value changes nothing.
+  process.env.AMAZON_APP_TAG = "decoheroapp-20";
+  const tagged = (await get()).shopLinks;
+  assert.equal(tagged["xmas-classic"][1].url, "https://www.amazon.com/dp/EXAMPLE?tag=decoheroapp-20");
+  assert.equal(tagged["xmas-classic"][0].url, "https://shop.example.com/ribbon?ref=decohero");
+  assert.equal(tagged["xmas-nordic"][0].url, "https://amzn.to/example");
+  assert.equal((await fromWeb("https://deco.hero-apps.com"))["xmas-classic"][1].url, "https://www.amazon.com/dp/EXAMPLE?tag=example-20");
+  for (const badTag of ["", "decoheroapp", "x&y-20", "a".repeat(60) + "-20"]) {
+    process.env.AMAZON_APP_TAG = badTag;
+    assert.equal((await get()).shopLinks["xmas-classic"][1].url, "https://www.amazon.com/dp/EXAMPLE?tag=example-20", badTag);
+  }
+  delete process.env.AMAZON_APP_TAG;
+
   // Invalid entries are dropped one by one (even with the gate open); the valid one next to them survives.
   const bad: unknown[] = [
     { ...partner, url: "http://shop.example.com/ribbon" }, { ...partner, url: "javascript:alert(1)" }, { ...partner, url: "not a url" },

@@ -130,11 +130,32 @@ let cache: { raw: string | undefined; links: ShopLinks } | undefined;
 export function shopLinks(opts: { web?: boolean } = {}): ShopLinks {
   const raw = process.env.SHOP_LINKS;
   if (!cache || cache.raw !== raw) cache = { raw, links: parseShopLinks(raw, (msg) => console.warn(msg)) };
-  if (opts.web || amazonApproved()) return cache.links;
+  if (opts.web) return cache.links;
+  const approved = amazonApproved();
+  const appTag = amazonAppTag();
   const out: ShopLinks = {};
   for (const [theme, links] of Object.entries(cache.links)) {
-    const allowed = links.filter((l) => l.kind !== "amazon");
+    const allowed = links
+      .filter((l) => approved || l.kind !== "amazon")
+      .map((l) => (l.kind === "amazon" && appTag ? { ...l, url: withTag(l.url, appTag) } : l));
     if (allowed.length) out[theme] = allowed;
   }
   return out;
+}
+
+/**
+ * AMAZON_APP_TAG: a separate Associates tracking ID for the Android app (for example "decoheroapp-20"), so app
+ * sales show apart from the web ones in Amazon's reports. Unset or malformed: the app keeps the SHOP_LINKS tag.
+ */
+export function amazonAppTag(): string | null {
+  const tag = process.env.AMAZON_APP_TAG?.trim();
+  return tag && /^[a-z0-9][a-z0-9-]{0,40}-\d{2}$/i.test(tag) ? tag : null;
+}
+
+/** Replaces the tag on a full Amazon store URL. amzn.to short links hide their tag, so they are left as they are. */
+function withTag(raw: string, tag: string): string {
+  const url = new URL(raw);
+  if (!AMAZON_STORES.test(hostOf(url))) return raw;
+  url.searchParams.set("tag", tag);
+  return url.toString();
 }
